@@ -1,0 +1,177 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Client;
+use App\Models\Company;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class ClientTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_company_admin_can_list_create_update_and_delete_clients(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create([
+            'name' => 'Existing Client',
+        ]);
+        Client::factory()->create([
+            'name' => 'Other Company Client',
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->get('/clients')
+            ->assertOk()
+            ->assertSee('Existing Client')
+            ->assertDontSee('Other Company Client');
+
+        $createResponse = $this
+            ->actingAs($admin)
+            ->post('/clients', [
+                'name' => 'New Client',
+                'phone' => '555-1000',
+                'birthday' => '1990-01-15',
+                'notes' => 'Prefers morning appointments.',
+                'last_visit_at' => '2026-04-16 10:00:00',
+            ]);
+
+        $createdClient = Client::where('name', 'New Client')->firstOrFail();
+
+        $createResponse->assertRedirect(route('clients.show', $createdClient, absolute: false));
+        $this->assertSame($company->id, $createdClient->company_id);
+
+        $this
+            ->actingAs($admin)
+            ->patch("/clients/{$client->id}", [
+                'name' => 'Updated Client',
+                'phone' => '555-2000',
+                'birthday' => '1991-02-20',
+                'notes' => 'Updated notes.',
+                'last_visit_at' => '2026-04-16 11:00:00',
+            ])
+            ->assertRedirect(route('clients.show', $client, absolute: false));
+
+        $this->assertDatabaseHas('clients', [
+            'id' => $client->id,
+            'company_id' => $company->id,
+            'name' => 'Updated Client',
+            'phone' => '555-2000',
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->delete("/clients/{$client->id}")
+            ->assertRedirect(route('clients.index', absolute: false));
+
+        $this->assertDatabaseMissing('clients', [
+            'id' => $client->id,
+        ]);
+    }
+
+    public function test_company_staff_can_list_and_view_but_cannot_create_update_or_delete_clients(): void
+    {
+        $company = Company::factory()->create();
+        $staff = User::factory()->for($company)->create();
+        $client = Client::factory()->for($company)->create([
+            'name' => 'Visible Client',
+        ]);
+
+        $this
+            ->actingAs($staff)
+            ->get('/clients')
+            ->assertOk()
+            ->assertSee('Visible Client');
+
+        $this
+            ->actingAs($staff)
+            ->get("/clients/{$client->id}")
+            ->assertOk()
+            ->assertSee('Visible Client');
+
+        $this
+            ->actingAs($staff)
+            ->get('/clients/create')
+            ->assertForbidden();
+
+        $this
+            ->actingAs($staff)
+            ->post('/clients', [
+                'name' => 'Blocked Client',
+                'phone' => '555-3000',
+            ])
+            ->assertForbidden();
+
+        $this
+            ->actingAs($staff)
+            ->get("/clients/{$client->id}/edit")
+            ->assertForbidden();
+
+        $this
+            ->actingAs($staff)
+            ->patch("/clients/{$client->id}", [
+                'name' => 'Blocked Update',
+                'phone' => '555-4000',
+            ])
+            ->assertForbidden();
+
+        $this
+            ->actingAs($staff)
+            ->delete("/clients/{$client->id}")
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('clients', [
+            'id' => $client->id,
+            'name' => 'Visible Client',
+        ]);
+    }
+
+    public function test_user_cannot_access_clients_from_another_company(): void
+    {
+        $company = Company::factory()->create();
+        $otherCompany = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $otherClient = Client::factory()->for($otherCompany)->create([
+            'name' => 'Private Client',
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->get('/clients')
+            ->assertOk()
+            ->assertDontSee('Private Client');
+
+        $this
+            ->actingAs($admin)
+            ->get("/clients/{$otherClient->id}")
+            ->assertNotFound();
+
+        $this
+            ->actingAs($admin)
+            ->get("/clients/{$otherClient->id}/edit")
+            ->assertNotFound();
+
+        $this
+            ->actingAs($admin)
+            ->patch("/clients/{$otherClient->id}", [
+                'name' => 'Leaked Client',
+                'phone' => '555-5000',
+            ])
+            ->assertNotFound();
+
+        $this
+            ->actingAs($admin)
+            ->delete("/clients/{$otherClient->id}")
+            ->assertNotFound();
+
+        $this->assertDatabaseHas('clients', [
+            'id' => $otherClient->id,
+            'company_id' => $otherCompany->id,
+            'name' => 'Private Client',
+        ]);
+    }
+}
