@@ -52,4 +52,14 @@ class Company extends Model
     {
         return $this->hasMany(Service::class);
     }
+
+    /**
+     * Get the appointments for the company.
+     *
+     * @return HasMany<Appointment>
+     */
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class);
+    }
 }
