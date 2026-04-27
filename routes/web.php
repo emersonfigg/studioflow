@@ -3,6 +3,7 @@
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PublicBookingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ServiceController;
 use Illuminate\Support\Facades\Route;
@@ -10,6 +11,11 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/agendar/{company}', [PublicBookingController::class, 'create'])
+    ->name('public-bookings.create');
+Route::post('/agendar/{company}', [PublicBookingController::class, 'store'])
+    ->name('public-bookings.store');
 
 Route::get('/dashboard', DashboardController::class)
     ->middleware(['auth', 'verified'])
