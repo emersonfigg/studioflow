@@ -1,110 +1,133 @@
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <p class="text-sm font-medium text-gray-500">
-                {{ auth()->user()->company?->name ?? __('No company assigned') }}
+        <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-500">
+                    {{ auth()->user()->company?->name ?? 'Nenhuma empresa vinculada' }}
+                </p>
+                <h2 class="text-xl font-semibold leading-tight text-gray-900">
+                    Painel
+                </h2>
+            </div>
+
+            <p class="text-sm text-gray-500">
+                Visão executiva da operação de hoje.
             </p>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Dashboard') }}
-            </h2>
         </div>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="grid gap-6 lg:grid-cols-4">
-                <section class="bg-white border border-gray-200 shadow-sm sm:rounded-lg">
-                    <div class="p-6">
-                        <p class="text-sm font-medium text-gray-500">Agendamentos Hoje</p>
-                        <p class="mt-3 text-3xl font-semibold text-gray-900">{{ $appointmentsToday }}</p>
-                        <p class="mt-2 text-sm text-gray-500">Compromissos ativos do dia.</p>
-                    </div>
-                </section>
+    <div class="py-10">
+        <div class="mx-auto flex max-w-7xl flex-col gap-6 sm:px-6 lg:px-8">
+            <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <article class="border border-gray-200 bg-white p-6 shadow-sm sm:rounded-lg">
+                    <p class="text-sm font-medium text-gray-500">Agendamentos Hoje</p>
+                    <p class="mt-3 text-3xl font-semibold text-gray-900">{{ $appointmentsToday }}</p>
+                    <p class="mt-2 text-sm text-gray-500">Total do dia, excluindo cancelados.</p>
+                </article>
 
-                <section class="bg-white border border-gray-200 shadow-sm sm:rounded-lg">
-                    <div class="p-6">
-                        <p class="text-sm font-medium text-gray-500">Clientes</p>
-                        <p class="mt-3 text-3xl font-semibold text-gray-900">{{ $clientsCount }}</p>
-                        <p class="mt-2 text-sm text-gray-500">Base atual da sua empresa.</p>
-                    </div>
-                </section>
+                <article class="border border-gray-200 bg-white p-6 shadow-sm sm:rounded-lg">
+                    <p class="text-sm font-medium text-gray-500">Próximos Atendimentos</p>
+                    <p class="mt-3 text-3xl font-semibold text-gray-900">{{ $upcomingAttendances }}</p>
+                    <p class="mt-2 text-sm text-gray-500">Compromissos futuros já confirmados na agenda.</p>
+                </article>
 
-                <section class="bg-white border border-gray-200 shadow-sm sm:rounded-lg">
-                    <div class="p-6">
-                        <p class="text-sm font-medium text-gray-500">Serviços</p>
-                        <p class="mt-3 text-3xl font-semibold text-gray-900">{{ $servicesCount }}</p>
-                        <p class="mt-2 text-sm text-gray-500">Serviços cadastrados no StudioFlow.</p>
-                    </div>
-                </section>
+                <article class="border border-gray-200 bg-white p-6 shadow-sm sm:rounded-lg">
+                    <p class="text-sm font-medium text-gray-500">Clientes</p>
+                    <p class="mt-3 text-3xl font-semibold text-gray-900">{{ $clientsCount }}</p>
+                    <p class="mt-2 text-sm text-gray-500">Base cadastrada da empresa.</p>
+                </article>
 
-                <section class="bg-white border border-gray-200 shadow-sm sm:rounded-lg">
-                    <div class="p-6">
-                        <p class="text-sm font-medium text-gray-500">Receita do Mês</p>
-                        <p class="mt-3 text-3xl font-semibold text-gray-900">R$ {{ number_format($monthlyRevenue, 2, ',', '.') }}</p>
-                        <p class="mt-2 text-sm text-gray-500">Estimativa baseada em atendimentos concluídos.</p>
-                    </div>
-                </section>
-            </div>
+                <article class="border border-gray-200 bg-white p-6 shadow-sm sm:rounded-lg">
+                    <p class="text-sm font-medium text-gray-500">Serviços</p>
+                    <p class="mt-3 text-3xl font-semibold text-gray-900">{{ $servicesCount }}</p>
+                    <p class="mt-2 text-sm text-gray-500">Serviços ativos e operacionais.</p>
+                </article>
+            </section>
 
-            <div class="mt-6 grid gap-6 xl:grid-cols-[320px,1fr]">
-                <section class="bg-white border border-gray-200 shadow-sm sm:rounded-lg">
-                    <div class="p-6">
+            <section class="grid gap-6 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
+                <aside class="border border-gray-200 bg-white p-6 shadow-sm sm:rounded-lg">
+                    <div class="flex items-start justify-between gap-4">
                         <div>
-                            <h3 class="text-base font-semibold text-gray-900">Ações rápidas</h3>
-                            <p class="mt-1 text-sm text-gray-500">Cadastre e organize sua operação.</p>
-                        </div>
-
-                        <div class="mt-6 grid gap-3">
-                            <a href="{{ route('clients.create') }}" class="inline-flex items-center justify-center px-4 py-3 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition">
-                                Novo Cliente
-                            </a>
-                            <a href="{{ route('services.create') }}" class="inline-flex items-center justify-center px-4 py-3 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
-                                Novo Serviço
-                            </a>
-                            <a href="{{ route('appointments.create') }}" class="inline-flex items-center justify-center px-4 py-3 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
-                                Novo Agendamento
-                            </a>
+                            <h3 class="text-base font-semibold text-gray-900">Link público de agendamento</h3>
+                            <p class="mt-1 text-sm text-gray-500">
+                                Compartilhe este acesso com clientes para receber pedidos sem login.
+                            </p>
                         </div>
                     </div>
-                </section>
 
-                <section class="bg-white border border-gray-200 shadow-sm sm:rounded-lg overflow-hidden">
-                    <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-                        <div>
-                            <h3 class="text-base font-semibold text-gray-900">Próximos agendamentos</h3>
-                            <p class="mt-1 text-sm text-gray-500">{{ __("You're logged in!") }}</p>
+                    @if ($publicBookingUrl)
+                        <div class="mt-5 rounded-lg border border-indigo-100 bg-indigo-50 p-4" x-data="{ copied: false }">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-indigo-600">Link da empresa</p>
+                            <p class="mt-2 break-all text-sm text-indigo-950">{{ $publicBookingUrl }}</p>
+
+                            <button
+                                type="button"
+                                class="mt-4 inline-flex w-full items-center justify-center rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200 transition hover:bg-indigo-100"
+                                x-on:click="
+                                    navigator.clipboard.writeText('{{ $publicBookingUrl }}');
+                                    copied = true;
+                                    setTimeout(() => copied = false, 2000);
+                                "
+                            >
+                                <span x-show="! copied">Copiar link</span>
+                                <span x-show="copied">Link copiado</span>
+                            </button>
                         </div>
-                        <a href="{{ route('appointments.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">
+                    @else
+                        <div class="mt-5 rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                            Nenhuma empresa vinculada para gerar o link público.
+                        </div>
+                    @endif
+
+                    <div class="mt-6 grid gap-3">
+                        <a href="{{ route('appointments.index') }}" class="inline-flex items-center justify-center rounded-md bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
                             Ver agenda
                         </a>
+                        <a href="{{ route('appointments.create') }}" class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+                            Novo agendamento
+                        </a>
+                    </div>
+                </aside>
+
+                <section class="overflow-hidden border border-gray-200 bg-white shadow-sm sm:rounded-lg">
+                    <div class="flex flex-col gap-2 border-b border-gray-200 px-6 py-4 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <h3 class="text-base font-semibold text-gray-900">Últimos agendamentos do dia</h3>
+                            <p class="mt-1 text-sm text-gray-500">Acompanhe a movimentação mais recente da agenda de hoje.</p>
+                        </div>
+                        <p class="text-sm text-gray-500">{{ now()->format('d/m/Y') }}</p>
                     </div>
 
-                    @if ($upcomingAppointments->isEmpty())
-                        <div class="p-6 text-sm text-gray-500">
-                            Nenhum agendamento futuro encontrado.
+                    @if ($todayAppointments->isEmpty())
+                        <div class="px-6 py-10 text-sm text-gray-500">
+                            Nenhum agendamento registrado hoje.
                         </div>
                     @else
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Horário</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Cliente</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Serviço</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Profissional</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
+                                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Horário</th>
+                                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Cliente</th>
+                                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Serviço</th>
+                                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Profissional</th>
+                                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-200 bg-white">
-                                    @foreach ($upcomingAppointments as $appointment)
+                                    @foreach ($todayAppointments as $appointment)
                                         <tr>
-                                            <td class="px-6 py-4 text-sm font-medium text-gray-900">
-                                                {{ $appointment->start_time->format('d/m H:i') }}
+                                            <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
+                                                {{ $appointment->start_time->format('H:i') }}
                                             </td>
                                             <td class="px-6 py-4 text-sm text-gray-600">{{ $appointment->client->name }}</td>
                                             <td class="px-6 py-4 text-sm text-gray-600">{{ $appointment->service->name }}</td>
                                             <td class="px-6 py-4 text-sm text-gray-600">{{ $appointment->user->name }}</td>
-                                            <td class="px-6 py-4 text-sm text-gray-600">{{ __(ucfirst($appointment->status)) }}</td>
+                                            <td class="px-6 py-4">
+                                                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset {{ $appointment->statusBadgeClasses() }}">
+                                                    {{ $appointment->statusLabel() }}
+                                                </span>
+                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -112,8 +135,7 @@
                         </div>
                     @endif
                 </section>
-            </div>
-
+            </section>
         </div>
     </div>
 </x-app-layout>

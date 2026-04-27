@@ -33,8 +33,8 @@ class PublicBookingController extends Controller
             ->orderBy('name')
             ->get();
 
-        $selectedService = $services->firstWhere('id', $request->integer('service_id'));
-        $selectedUser = $users->firstWhere('id', $request->integer('user_id'));
+        $selectedService = $services->firstWhere('id', $request->integer('service_id')) ?? $services->first();
+        $selectedUser = $users->firstWhere('id', $request->integer('user_id')) ?? $users->first();
         $selectedDate = $request->filled('date')
             ? CarbonImmutable::parse($request->string('date'))->toDateString()
             : CarbonImmutable::today()->toDateString();
@@ -54,6 +54,8 @@ class PublicBookingController extends Controller
             'company' => $company,
             'services' => $services,
             'users' => $users,
+            'selectedService' => $selectedService,
+            'selectedUser' => $selectedUser,
             'selectedServiceId' => $selectedService?->id,
             'selectedUserId' => $selectedUser?->id,
             'selectedDate' => $selectedDate,
@@ -87,7 +89,7 @@ class PublicBookingController extends Controller
 
         $startTime = Carbon::createFromFormat('Y-m-d H:i', "{$data['date']} {$data['time']}");
 
-        Appointment::create([
+        $appointment = Appointment::create([
             'company_id' => $company->id,
             'client_id' => $client->id,
             'user_id' => $user->id,
@@ -100,12 +102,23 @@ class PublicBookingController extends Controller
         ]);
 
         return redirect()
-            ->route('public-bookings.create', [
+            ->route('public-bookings.success', [
                 'company' => $company,
-                'service_id' => $service->id,
-                'user_id' => $user->id,
-                'date' => $data['date'],
+                'appointment' => $appointment,
             ])
             ->with('status', 'public-booking-created');
+    }
+
+    /**
+     * Show the public booking success page.
+     */
+    public function success(Company $company, Appointment $appointment): View
+    {
+        abort_unless($appointment->company_id === $company->id, 404);
+
+        return view('public-bookings.success', [
+            'company' => $company,
+            'appointment' => $appointment->load(['client', 'service', 'user']),
+        ]);
     }
 }

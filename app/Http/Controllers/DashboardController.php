@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Service;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -23,16 +24,25 @@ class DashboardController extends Controller
         $monthEnd = $now->copy()->endOfMonth();
 
         $appointmentsToday = 0;
+        $upcomingAttendances = 0;
         $clientsCount = 0;
         $servicesCount = 0;
-        $monthlyRevenue = 0;
-        $upcomingAppointments = collect();
+        $todayAppointments = new Collection();
+        $publicBookingUrl = null;
 
         if ($companyId !== null) {
+            $publicBookingUrl = route('public-bookings.create', $companyId);
+
             $appointmentsToday = Appointment::query()
                 ->where('company_id', $companyId)
                 ->where('status', '!=', 'cancelled')
                 ->whereBetween('start_time', [$todayStart, $todayEnd])
+                ->count();
+
+            $upcomingAttendances = Appointment::query()
+                ->where('company_id', $companyId)
+                ->where('status', '!=', 'cancelled')
+                ->where('start_time', '>=', $now)
                 ->count();
 
             $clientsCount = Client::query()
@@ -43,30 +53,23 @@ class DashboardController extends Controller
                 ->where('company_id', $companyId)
                 ->count();
 
-            $monthlyRevenue = Appointment::query()
-                ->with('service')
-                ->where('company_id', $companyId)
-                ->where('status', 'completed')
-                ->whereBetween('start_time', [$monthStart, $monthEnd])
-                ->get()
-                ->sum(fn (Appointment $appointment): float => (float) ($appointment->service?->price ?? 0));
-
-            $upcomingAppointments = Appointment::query()
+            $todayAppointments = Appointment::query()
                 ->with(['client', 'service', 'user'])
                 ->where('company_id', $companyId)
-                ->where('status', '!=', 'cancelled')
-                ->where('start_time', '>=', $now)
-                ->orderBy('start_time')
+                ->whereBetween('start_time', [$todayStart, $todayEnd])
+                ->orderByDesc('start_time')
                 ->limit(8)
-                ->get();
+                ->get()
+                ->values();
         }
 
         return view('dashboard', [
             'appointmentsToday' => $appointmentsToday,
+            'upcomingAttendances' => $upcomingAttendances,
             'clientsCount' => $clientsCount,
             'servicesCount' => $servicesCount,
-            'monthlyRevenue' => $monthlyRevenue,
-            'upcomingAppointments' => $upcomingAppointments,
+            'todayAppointments' => $todayAppointments,
+            'publicBookingUrl' => $publicBookingUrl,
         ]);
     }
 }

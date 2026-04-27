@@ -16,6 +16,8 @@ Route::get('/agendar/{company}', [PublicBookingController::class, 'create'])
     ->name('public-bookings.create');
 Route::post('/agendar/{company}', [PublicBookingController::class, 'store'])
     ->name('public-bookings.store');
+Route::get('/agendar/{company}/sucesso/{appointment}', [PublicBookingController::class, 'success'])
+    ->name('public-bookings.success');
 
 Route::get('/dashboard', DashboardController::class)
     ->middleware(['auth', 'verified'])

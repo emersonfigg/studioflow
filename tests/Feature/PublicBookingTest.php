@@ -18,10 +18,14 @@ class PublicBookingTest extends TestCase
     {
         $company = Company::factory()->create();
         $service = Service::factory()->for($company)->create([
+            'name' => 'Corte Premium',
             'duration_minutes' => 60,
             'active' => true,
+            'price' => 120.00,
         ]);
-        $user = User::factory()->for($company)->create();
+        $user = User::factory()->for($company)->create([
+            'name' => 'Ana',
+        ]);
 
         $response = $this->post(route('public-bookings.store', $company, false), [
             'service_id' => $service->id,
@@ -33,15 +37,14 @@ class PublicBookingTest extends TestCase
             'notes' => 'Prefere atendimento pela manhã.',
         ]);
 
-        $response->assertRedirect(route('public-bookings.create', [
+        $appointment = Appointment::query()->where('company_id', $company->id)->firstOrFail();
+
+        $response->assertRedirect(route('public-bookings.success', [
             'company' => $company,
-            'service_id' => $service->id,
-            'user_id' => $user->id,
-            'date' => '2026-04-28',
+            'appointment' => $appointment,
         ], false));
 
         $client = Client::query()->where('company_id', $company->id)->where('phone', '71999990000')->firstOrFail();
-        $appointment = Appointment::query()->where('company_id', $company->id)->firstOrFail();
 
         $this->assertSame('Maria Souza', $client->name);
         $this->assertSame($client->id, $appointment->client_id);
@@ -51,6 +54,47 @@ class PublicBookingTest extends TestCase
         $this->assertSame('scheduled', $appointment->status);
         $this->assertSame('2026-04-28 09:00:00', $appointment->start_time->format('Y-m-d H:i:s'));
         $this->assertSame('2026-04-28 10:00:00', $appointment->end_time->format('Y-m-d H:i:s'));
+    }
+
+    public function test_public_booking_success_page_shows_complete_summary(): void
+    {
+        $company = Company::factory()->create(['name' => 'Studio Flow']);
+        $service = Service::factory()->for($company)->create([
+            'name' => 'Design de Sobrancelha',
+            'duration_minutes' => 45,
+            'active' => true,
+            'price' => 80.00,
+        ]);
+        $user = User::factory()->for($company)->create(['name' => 'Bianca']);
+
+        $this->post(route('public-bookings.store', $company, false), [
+            'service_id' => $service->id,
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+            'time' => '11:00',
+            'client_name' => 'Carla',
+            'client_phone' => '71991112222',
+            'notes' => 'Primeira visita.',
+        ]);
+
+        $appointment = Appointment::query()->where('company_id', $company->id)->firstOrFail();
+
+        $this->get(route('public-bookings.success', [
+            'company' => $company,
+            'appointment' => $appointment,
+        ], false))
+            ->assertOk()
+            ->assertSee('Studio Flow')
+            ->assertSee('Carla')
+            ->assertSee('71991112222')
+            ->assertSee('Design de Sobrancelha')
+            ->assertSee('Bianca')
+            ->assertSee('28/04/2026')
+            ->assertSee('11:00')
+            ->assertSee('11:45')
+            ->assertSee('80,00')
+            ->assertSee('45')
+            ->assertSee('Agendado');
     }
 
     public function test_public_booking_reuses_existing_client_with_same_phone_in_company(): void
@@ -121,9 +165,40 @@ class PublicBookingTest extends TestCase
             ->assertSee('Studio Flow')
             ->assertSee('Corte')
             ->assertSee('Ana')
+            ->assertSee('60')
+            ->assertSee('Confirmar agendamento')
             ->assertDontSee('Procedimento Externo')
             ->assertDontSee('Bruno')
             ->assertSee('09:00');
+    }
+
+    public function test_public_booking_page_shows_clear_empty_message_when_no_slots_are_available(): void
+    {
+        $company = Company::factory()->create();
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 60,
+            'active' => true,
+        ]);
+        $user = User::factory()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+
+        Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $user->id,
+            'service_id' => $service->id,
+            'start_time' => '2026-04-28 08:00:00',
+            'end_time' => '2026-04-28 18:00:00',
+            'status' => 'scheduled',
+        ]);
+
+        $this->get(route('public-bookings.create', [
+            'company' => $company,
+            'service_id' => $service->id,
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+        ], false))
+            ->assertOk()
+            ->assertSee('Nenhum horário disponível para essa data.');
     }
 
     public function test_public_booking_cannot_use_foreign_company_service_or_unavailable_slot(): void
