@@ -21,6 +21,8 @@ class DatabaseSeeder extends Seeder
 
         $company = Company::firstOrCreate([
             'name' => 'Empresa Padrao',
+        ], [
+            'active' => true,
         ]);
 
         User::updateOrCreate(
@@ -30,6 +32,17 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Admin',
                 'password' => Hash::make('password'),
                 'role' => 'admin',
+            ],
+        );
+
+        User::updateOrCreate(
+            ['email' => 'superadmin@studioflow.local'],
+            [
+                'company_id' => null,
+                'name' => 'Super Admin',
+                'password' => Hash::make('12345678'),
+                'role' => 'admin',
+                'global_role' => 'super_admin',
             ],
         );
     }

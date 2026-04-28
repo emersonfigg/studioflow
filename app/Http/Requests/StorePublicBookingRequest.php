@@ -31,7 +31,8 @@ class StorePublicBookingRequest extends FormRequest
         $company = $this->route('company');
 
         return [
-            'service_id' => [
+            'service_ids' => ['required', 'array', 'min:1'],
+            'service_ids.*' => [
                 'required',
                 Rule::exists('services', 'id')
                     ->where('company_id', $company->id)
@@ -39,7 +40,9 @@ class StorePublicBookingRequest extends FormRequest
             ],
             'user_id' => [
                 'required',
-                Rule::exists('users', 'id')->where('company_id', $company->id),
+                Rule::exists('users', 'id')
+                    ->where('company_id', $company->id)
+                    ->where('active', true),
             ],
             'date' => ['required', 'date_format:Y-m-d'],
             'time' => ['required', 'date_format:H:i'],
@@ -61,27 +64,31 @@ class StorePublicBookingRequest extends FormRequest
 
             /** @var Company $company */
             $company = $this->route('company');
-            $service = Service::query()
+            $services = Service::query()
                 ->where('company_id', $company->id)
                 ->where('active', true)
-                ->find($this->integer('service_id'));
+                ->whereIn('id', $this->input('service_ids', []))
+                ->get();
             $user = User::query()
                 ->where('company_id', $company->id)
+                ->where('active', true)
                 ->find($this->integer('user_id'));
 
-            if (! $service || ! $user) {
+            if ($services->isEmpty() || ! $user) {
                 return;
             }
 
-            $availableSlots = app(AvailabilityService::class)->availableSlots(
+            $totalDurationMinutes = (int) $services->sum('duration_minutes');
+
+            $availableSlots = app(AvailabilityService::class)->availableSlotsForDuration(
                 $company,
                 $user,
-                $service,
-                $this->string('date')->toString(),
+                $totalDurationMinutes,
+                (string) $this->input('date'),
             );
 
-            if (! in_array($this->string('time')->toString(), $availableSlots, true)) {
-                $validator->errors()->add('time', 'Este horário não está mais disponível.');
+            if (! in_array((string) $this->input('time'), $availableSlots, true)) {
+                $validator->errors()->add('time', 'Este horario nao esta mais disponivel.');
             }
         });
     }

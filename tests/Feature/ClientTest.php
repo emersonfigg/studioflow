@@ -174,4 +174,60 @@ class ClientTest extends TestCase
             'name' => 'Private Client',
         ]);
     }
+
+    public function test_company_user_can_create_or_reuse_client_inline_for_appointments(): void
+    {
+        $company = Company::factory()->create();
+        $otherCompany = Company::factory()->create();
+        $staff = User::factory()->for($company)->create();
+
+        Client::factory()->for($otherCompany)->create([
+            'name' => 'Other Company Match',
+            'phone' => '555-9191',
+        ]);
+
+        $createResponse = $this
+            ->actingAs($staff)
+            ->postJson('/clients/inline', [
+                'name' => 'Inline Client',
+                'phone' => '555-9191',
+                'birthday' => '1992-06-10',
+                'notes' => 'Created from appointment modal.',
+            ]);
+
+        $createResponse
+            ->assertCreated()
+            ->assertJson([
+                'reused' => false,
+                'client' => [
+                    'name' => 'Inline Client',
+                    'phone' => '555-9191',
+                ],
+            ]);
+
+        $client = Client::query()
+            ->where('company_id', $company->id)
+            ->where('phone', '555-9191')
+            ->firstOrFail();
+
+        $reuseResponse = $this
+            ->actingAs($staff)
+            ->postJson('/clients/inline', [
+                'name' => 'Different Name',
+                'phone' => '555-9191',
+            ]);
+
+        $reuseResponse
+            ->assertOk()
+            ->assertJson([
+                'reused' => true,
+                'client' => [
+                    'id' => $client->id,
+                    'name' => 'Inline Client',
+                    'phone' => '555-9191',
+                ],
+            ]);
+
+        $this->assertDatabaseCount('clients', 2);
+    }
 }

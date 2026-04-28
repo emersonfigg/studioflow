@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Database\Factories\AppointmentFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Appointment extends Model
 {
@@ -97,6 +100,28 @@ class Appointment extends Model
     }
 
     /**
+     * Get all services attached to the appointment.
+     *
+     * @return BelongsToMany<Service>
+     */
+    public function services(): BelongsToMany
+    {
+        return $this->belongsToMany(Service::class, 'appointment_services')
+            ->withPivot(['price_snapshot', 'duration_snapshot', 'order'])
+            ->orderBy('appointment_services.order');
+    }
+
+    /**
+     * Get the payment recorded for the appointment.
+     *
+     * @return HasOne<Payment>
+     */
+    public function payment(): HasOne
+    {
+        return $this->hasOne(Payment::class);
+    }
+
+    /**
      * Get the translated label for the appointment status.
      */
     public function statusLabel(): string
@@ -124,5 +149,59 @@ class Appointment extends Model
             'cancelled' => 'bg-rose-100 text-rose-700 ring-rose-600/20',
             default => 'bg-gray-100 text-gray-700 ring-gray-600/20',
         };
+    }
+
+    /**
+     * Get the service line items for the appointment.
+     *
+     * @return Collection<int, Service>
+     */
+    public function bookedServices(): Collection
+    {
+        $services = $this->relationLoaded('services')
+            ? $this->services
+            : $this->services()->get();
+
+        if ($services->isNotEmpty()) {
+            return $services;
+        }
+
+        $primaryService = $this->relationLoaded('service')
+            ? $this->service
+            : $this->service()->first();
+
+        return $primaryService ? new Collection([$primaryService]) : new Collection();
+    }
+
+    /**
+     * Get the total duration for the appointment in minutes.
+     */
+    public function totalDurationMinutes(): int
+    {
+        $services = $this->bookedServices();
+
+        if ($services->isEmpty()) {
+            return 0;
+        }
+
+        return (int) $services->sum(
+            fn (Service $service): int => (int) ($service->pivot->duration_snapshot ?? $service->duration_minutes)
+        );
+    }
+
+    /**
+     * Get the total price amount for the appointment.
+     */
+    public function totalPriceAmount(): float
+    {
+        $services = $this->bookedServices();
+
+        if ($services->isEmpty()) {
+            return 0;
+        }
+
+        return (float) $services->sum(
+            fn (Service $service): float => (float) ($service->pivot->price_snapshot ?? $service->price)
+        );
     }
 }

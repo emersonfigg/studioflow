@@ -1,66 +1,136 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Clients') }}
-            </h2>
+        <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Clientes</p>
+                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
+                    Clientes da empresa
+                </h2>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Gerencie relacionamento e historico da base.</p>
+            </div>
 
-            @if (auth()->user()->isAdmin() && auth()->user()->company_id)
-                <a href="{{ route('clients.create') }}" class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700">
-                    {{ __('New Client') }}
-                </a>
-            @endif
-        </div>
-    </x-slot>
-
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            @if (session('status'))
-                <div class="mb-6 rounded-md bg-green-50 p-4 text-sm text-green-700">
-                    {{ session('status') }}
-                </div>
-            @endif
-
-            <div class="bg-white shadow-sm sm:rounded-lg overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Name') }}</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Phone') }}</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Last Visit') }}</th>
-                                <th class="px-6 py-3"></th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            @forelse ($clients as $client)
-                                <tr>
-                                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $client->name }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-600">{{ $client->phone }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-600">
-                                        {{ $client->last_visit_at?->format('d/m/Y H:i') ?? '-' }}
-                                    </td>
-                                    <td class="px-6 py-4 text-right text-sm">
-                                        <a href="{{ route('clients.show', $client) }}" class="text-indigo-600 hover:text-indigo-900">{{ __('View') }}</a>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">
-                                        {{ __('No clients found.') }}
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                @if ($clients->hasPages())
-                    <div class="border-t border-gray-200 px-6 py-4">
-                        {{ $clients->links() }}
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <form method="GET" action="{{ route('clients.index') }}" class="w-full sm:w-[320px]">
+                    <label for="clients-search" class="sr-only">Buscar por nome ou telefone</label>
+                    <div class="relative">
+                        <input
+                            id="clients-search"
+                            name="search"
+                            type="text"
+                            value="{{ $search }}"
+                            placeholder="Buscar por nome ou telefone"
+                            class="sf-input w-full pr-12"
+                        >
+                        <button type="submit" class="absolute inset-y-0 right-2 my-2 inline-flex w-9 items-center justify-center rounded-xl border border-white/10 bg-[#1b335b] text-[#d4af37] transition hover:border-[#d4af37]/30 hover:bg-[#223d69]">
+                            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 013.982 9.295l3.111 3.112a.75.75 0 01-1.06 1.06l-3.112-3.11A5.5 5.5 0 119 3.5zm0 1.5a4 4 0 100 8 4 4 0 000-8z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
                     </div>
+                </form>
+
+                @if (auth()->user()->isAdmin() && auth()->user()->company_id)
+                    <a href="{{ route('clients.create') }}" class="sf-button-primary whitespace-nowrap">
+                        Novo cliente
+                    </a>
                 @endif
             </div>
         </div>
+    </x-slot>
+
+    <div class="space-y-6">
+        @if (session('status'))
+            <div class="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-100">
+                @switch(session('status'))
+                    @case('client-created')
+                        Cliente criado com sucesso.
+                        @break
+                    @case('client-updated')
+                        Cliente atualizado com sucesso.
+                        @break
+                    @case('client-deleted')
+                        Cliente excluido com sucesso.
+                        @break
+                    @default
+                        {{ session('status') }}
+                @endswitch
+            </div>
+        @endif
+
+        <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <article class="sf-card p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Total clientes</p>
+                <p class="mt-3 text-3xl font-semibold text-white">{{ $totalClients }}</p>
+            </article>
+            <article class="sf-card p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Novos no mes</p>
+                <p class="mt-3 text-3xl font-semibold text-white">{{ $newClientsThisMonth }}</p>
+            </article>
+            <article class="sf-card p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Retornaram no mes</p>
+                <p class="mt-3 text-3xl font-semibold text-white">{{ $returningClientsThisMonth }}</p>
+            </article>
+            <article class="sf-card p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Ticket medio</p>
+                <p class="mt-3 text-3xl font-semibold text-white">R$ {{ number_format($averageTicket, 2, ',', '.') }}</p>
+            </article>
+        </section>
+
+        <section class="sf-card overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-white/10">
+                    <thead class="bg-[#132746]">
+                        <tr>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Cliente</th>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Telefone</th>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Ultima visita</th>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Total gasto</th>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Visitas</th>
+                            <th class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Acoes</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/10">
+                        @forelse ($clients as $client)
+                            <tr class="transition hover:bg-white/5">
+                                <td class="px-5 py-4">
+                                    <div>
+                                        <p class="text-sm font-semibold text-white">{{ $client->name }}</p>
+                                        <p class="mt-1 text-xs text-[#c7d2e3]">Cliente desde {{ $client->created_at->format('d/m/Y') }}</p>
+                                    </div>
+                                </td>
+                                <td class="px-5 py-4 text-sm text-[#c7d2e3]">{{ $client->phone }}</td>
+                                <td class="px-5 py-4 text-sm text-[#c7d2e3]">
+                                    {{ $client->last_visit_at?->format('d/m/Y H:i') ?? '-' }}
+                                </td>
+                                <td class="px-5 py-4 text-sm font-semibold text-white">
+                                    R$ {{ number_format((float) ($client->total_spent ?? 0), 2, ',', '.') }}
+                                </td>
+                                <td class="px-5 py-4 text-sm text-[#c7d2e3]">{{ $client->visits_count }}</td>
+                                <td class="px-5 py-4">
+                                    <div class="flex justify-end gap-3">
+                                        <a href="{{ route('clients.show', $client) }}" class="sf-button-ghost !px-4 !py-2.5">Visualizar</a>
+                                        @if (auth()->user()->isAdmin())
+                                            <a href="{{ route('clients.edit', $client) }}" class="sf-button-secondary !px-4 !py-2.5">Editar</a>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="px-5 py-10 text-center text-sm text-[#c7d2e3]">
+                                    Nenhum cliente encontrado.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            @if ($clients->hasPages())
+                <div class="border-t border-white/10 px-5 py-4">
+                    {{ $clients->links() }}
+                </div>
+            @endif
+        </section>
     </div>
 </x-app-layout>

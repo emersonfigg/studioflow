@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Database\Factories\ServiceFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class Service extends Model
 {
@@ -24,6 +27,7 @@ class Service extends Model
         'duration_minutes',
         'price',
         'active',
+        'image_path',
     ];
 
     /**
@@ -57,5 +61,52 @@ class Service extends Model
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);
+    }
+
+    /**
+     * Get the appointment items for the service.
+     *
+     * @return BelongsToMany<Appointment>
+     */
+    public function bookedAppointments(): BelongsToMany
+    {
+        return $this->belongsToMany(Appointment::class, 'appointment_services')
+            ->withPivot(['price_snapshot', 'duration_snapshot', 'order']);
+    }
+
+    /**
+     * Get the payments for the service.
+     *
+     * @return HasMany<Payment>
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Get the public URL for the service image.
+     */
+    public function getImageUrlAttribute(): ?string
+    {
+        $imagePath = $this->normalizedImagePath();
+
+        if (! $imagePath || ! Storage::disk('public')->exists($imagePath)) {
+            return null;
+        }
+
+        return Storage::url($imagePath);
+    }
+
+    /**
+     * Normalize stored image paths to a public-disk relative path.
+     */
+    public function normalizedImagePath(): ?string
+    {
+        if (! $this->image_path) {
+            return null;
+        }
+
+        return ltrim(Str::replaceFirst('storage/', '', str_replace('\\', '/', $this->image_path)), '/');
     }
 }

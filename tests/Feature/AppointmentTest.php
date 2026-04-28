@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Company;
+use App\Models\Payment;
 use App\Models\Service;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -260,5 +261,67 @@ class AppointmentTest extends TestCase
             'id' => $appointment->id,
             'status' => 'confirmed',
         ]);
+    }
+
+    public function test_new_appointment_page_shows_inline_client_creation_action(): void
+    {
+        $company = Company::factory()->create();
+        $staff = User::factory()->for($company)->create();
+        Client::factory()->for($company)->create();
+        Service::factory()->for($company)->create();
+
+        $this
+            ->actingAs($staff)
+            ->get('/appointments/create')
+            ->assertOk()
+            ->assertSee('Novo cliente')
+            ->assertSee('Cadastre o cliente sem sair do novo agendamento.');
+    }
+
+    public function test_completed_appointment_show_page_displays_payment_actions_correctly(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create();
+        $completedWithoutPayment = Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $admin->id,
+            'service_id' => $service->id,
+            'status' => 'completed',
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->get(route('appointments.show', $completedWithoutPayment, absolute: false))
+            ->assertOk()
+            ->assertSee('Voltar para agenda')
+            ->assertSee('Novo agendamento')
+            ->assertSee('Registrar pagamento')
+            ->assertSee('Atendimento concluido')
+            ->assertDontSee('Concluir atendimento');
+
+        $completedWithPayment = Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $admin->id,
+            'service_id' => $service->id,
+            'status' => 'completed',
+        ]);
+
+        Payment::factory()->create([
+            'company_id' => $company->id,
+            'appointment_id' => $completedWithPayment->id,
+            'user_id' => $admin->id,
+            'client_id' => $client->id,
+            'service_id' => $service->id,
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->get(route('appointments.show', $completedWithPayment, absolute: false))
+            ->assertOk()
+            ->assertSee('Pagamento registrado')
+            ->assertDontSee('Registrar pagamento')
+            ->assertDontSee('Concluir atendimento');
     }
 }

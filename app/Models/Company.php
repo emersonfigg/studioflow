@@ -21,7 +21,20 @@ class Company extends Model
         'name',
         'phone',
         'logo',
+        'active',
     ];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'active' => 'boolean',
+        ];
+    }
 
     /**
      * Get the users for the company.
@@ -61,5 +74,35 @@ class Company extends Model
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);
+    }
+
+    /**
+     * Get the payments for the company.
+     *
+     * @return HasMany<Payment>
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Get the working hours for professionals in the company.
+     *
+     * @return HasMany<ProfessionalWorkingHour>
+     */
+    public function professionalWorkingHours(): HasMany
+    {
+        return $this->hasMany(ProfessionalWorkingHour::class);
+    }
+
+    /**
+     * Get the day overrides for professionals in the company.
+     *
+     * @return HasMany<ProfessionalDayOverride>
+     */
+    public function professionalDayOverrides(): HasMany
+    {
+        return $this->hasMany(ProfessionalDayOverride::class);
     }
 }

@@ -50,6 +50,17 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        $user = Auth::user();
+
+        if ($user && ! $user->isSuperAdmin() && ! $user->company?->active) {
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => 'Sua empresa esta inativa. Entre em contato com o suporte do StudioFlow.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

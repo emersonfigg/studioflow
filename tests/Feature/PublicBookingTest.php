@@ -5,36 +5,190 @@ namespace Tests\Feature;
 use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Company;
+use App\Models\ProfessionalWorkingHour;
 use App\Models\Service;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PublicBookingTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_public_booking_creates_client_and_appointment(): void
+    protected function tearDown(): void
     {
+        CarbonImmutable::setTestNow();
+
+        parent::tearDown();
+    }
+
+    public function test_public_booking_page_renders_service_cards_professionals_and_available_slots(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-27 10:00:00');
+
+        Storage::fake('public');
+
+        $company = Company::factory()->create(['name' => 'Studio Flow']);
+        Storage::disk('public')->put('services/corte-premium.jpg', 'corte-premium');
+
+        $firstService = Service::factory()->for($company)->create([
+            'name' => 'Corte Premium',
+            'duration_minutes' => 60,
+            'active' => true,
+            'price' => 120.00,
+            'image_path' => 'services/corte-premium.jpg',
+        ]);
+        $secondService = Service::factory()->for($company)->create([
+            'name' => 'Barba Relax',
+            'duration_minutes' => 30,
+            'active' => true,
+            'price' => 55.00,
+        ]);
+
+        Storage::disk('public')->put('professionals/ana-photo.jpg', 'ana-photo');
+        $user = User::factory()->for($company)->create([
+            'name' => 'Ana',
+            'active' => true,
+            'photo_path' => 'professionals/ana-photo.jpg',
+        ]);
+        $this->createWorkingHour($company, $user, 2, '08:00', '18:00');
+
+        Service::factory()->for(Company::factory()->create())->create([
+            'name' => 'Servico Externo',
+            'active' => true,
+        ]);
+
+        $response = $this->get($this->bookingUrl($company, [
+            'service_ids' => [$firstService->id, $secondService->id],
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+            'filters_submitted' => 1,
+        ]));
+
+        $response
+            ->assertOk()
+            ->assertSee('Corte Premium')
+            ->assertSee('Barba Relax')
+            ->assertSee('120,00')
+            ->assertSee('55,00')
+            ->assertSee('90 min')
+            ->assertSee('/storage/services/corte-premium.jpg')
+            ->assertSee('Ana')
+            ->assertSee('Profissional')
+            ->assertSee('/storage/professionals/ana-photo.jpg')
+            ->assertSee('09:00')
+            ->assertSee('Confirmar agendamento')
+            ->assertDontSee('Servico Externo');
+    }
+
+    public function test_public_booking_shows_service_image_fallback_when_image_is_missing(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-27 10:00:00');
+
         $company = Company::factory()->create();
         $service = Service::factory()->for($company)->create([
+            'name' => 'Barba Premium',
+            'active' => true,
+            'image_path' => null,
+        ]);
+        $user = User::factory()->for($company)->create(['active' => true]);
+        $this->createWorkingHour($company, $user, 2, '08:00', '18:00');
+
+        $this->get($this->bookingUrl($company, [
+            'service_ids' => [$service->id],
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+            'filters_submitted' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('Barba Premium')
+            ->assertSee('Selecionado')
+            ->assertDontSee('/storage/services/');
+    }
+
+    public function test_public_booking_shows_avatar_initial_when_professional_has_no_photo(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-27 10:00:00');
+
+        $company = Company::factory()->create();
+        $service = Service::factory()->for($company)->create(['active' => true]);
+        $user = User::factory()->for($company)->create([
+            'name' => 'Bruno',
+            'active' => true,
+            'photo_path' => null,
+        ]);
+        $this->createWorkingHour($company, $user, 2, '08:00', '18:00');
+
+        $this->get($this->bookingUrl($company, [
+            'service_ids' => [$service->id],
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+            'filters_submitted' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('Bruno')
+            ->assertSee('bg-[#d4af37]/12 text-lg font-semibold text-[#d4af37]', false)
+            ->assertDontSee('/storage/professionals/');
+    }
+
+    public function test_public_booking_ignores_broken_photo_path_and_falls_back_to_initial(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-27 10:00:00');
+
+        $company = Company::factory()->create();
+        $service = Service::factory()->for($company)->create(['active' => true]);
+        $user = User::factory()->for($company)->create([
+            'name' => 'Caio',
+            'active' => true,
+            'photo_path' => 'professionals/arquivo-inexistente.webp',
+        ]);
+        $this->createWorkingHour($company, $user, 2, '08:00', '18:00');
+
+        $this->get($this->bookingUrl($company, [
+            'service_ids' => [$service->id],
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+            'filters_submitted' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('Caio')
+            ->assertDontSee('/storage/professionals/arquivo-inexistente.webp')
+            ->assertSee('bg-[#d4af37]/12 text-lg font-semibold text-[#d4af37]', false);
+    }
+
+    public function test_public_booking_creates_appointment_and_items_with_selected_services(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-27 10:00:00');
+
+        $company = Company::factory()->create();
+        $firstService = Service::factory()->for($company)->create([
             'name' => 'Corte Premium',
             'duration_minutes' => 60,
             'active' => true,
             'price' => 120.00,
         ]);
+        $secondService = Service::factory()->for($company)->create([
+            'name' => 'Barba Relax',
+            'duration_minutes' => 30,
+            'active' => true,
+            'price' => 55.00,
+        ]);
         $user = User::factory()->for($company)->create([
             'name' => 'Ana',
+            'active' => true,
         ]);
+        $this->createWorkingHour($company, $user, 2, '08:00', '18:00');
 
         $response = $this->post(route('public-bookings.store', $company, false), [
-            'service_id' => $service->id,
+            'service_ids' => [$firstService->id, $secondService->id],
             'user_id' => $user->id,
             'date' => '2026-04-28',
             'time' => '09:00',
             'client_name' => 'Maria Souza',
             'client_phone' => '71999990000',
-            'notes' => 'Prefere atendimento pela manhã.',
+            'notes' => 'Prefere atendimento pela manha.',
         ]);
 
         $appointment = Appointment::query()->where('company_id', $company->id)->firstOrFail();
@@ -48,27 +202,54 @@ class PublicBookingTest extends TestCase
 
         $this->assertSame('Maria Souza', $client->name);
         $this->assertSame($client->id, $appointment->client_id);
-        $this->assertSame($service->id, $appointment->service_id);
+        $this->assertSame($firstService->id, $appointment->service_id);
         $this->assertSame($user->id, $appointment->user_id);
         $this->assertSame('public_booking', $appointment->source);
         $this->assertSame('scheduled', $appointment->status);
         $this->assertSame('2026-04-28 09:00:00', $appointment->start_time->format('Y-m-d H:i:s'));
-        $this->assertSame('2026-04-28 10:00:00', $appointment->end_time->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-04-28 10:30:00', $appointment->end_time->format('Y-m-d H:i:s'));
+
+        $this->assertDatabaseHas('appointment_services', [
+            'appointment_id' => $appointment->id,
+            'service_id' => $firstService->id,
+            'price_snapshot' => 120.00,
+            'duration_snapshot' => 60,
+            'order' => 1,
+        ]);
+        $this->assertDatabaseHas('appointment_services', [
+            'appointment_id' => $appointment->id,
+            'service_id' => $secondService->id,
+            'price_snapshot' => 55.00,
+            'duration_snapshot' => 30,
+            'order' => 2,
+        ]);
     }
 
-    public function test_public_booking_success_page_shows_complete_summary(): void
+    public function test_public_booking_success_page_shows_complete_summary_for_multiple_services(): void
     {
+        CarbonImmutable::setTestNow('2026-04-27 10:00:00');
+
         $company = Company::factory()->create(['name' => 'Studio Flow']);
-        $service = Service::factory()->for($company)->create([
+        $firstService = Service::factory()->for($company)->create([
             'name' => 'Design de Sobrancelha',
             'duration_minutes' => 45,
             'active' => true,
             'price' => 80.00,
         ]);
-        $user = User::factory()->for($company)->create(['name' => 'Bianca']);
+        $secondService = Service::factory()->for($company)->create([
+            'name' => 'Limpeza Facial',
+            'duration_minutes' => 30,
+            'active' => true,
+            'price' => 60.00,
+        ]);
+        $user = User::factory()->for($company)->create([
+            'name' => 'Bianca',
+            'active' => true,
+        ]);
+        $this->createWorkingHour($company, $user, 2, '08:00', '18:00');
 
         $this->post(route('public-bookings.store', $company, false), [
-            'service_id' => $service->id,
+            'service_ids' => [$firstService->id, $secondService->id],
             'user_id' => $user->id,
             'date' => '2026-04-28',
             'time' => '11:00',
@@ -84,34 +265,41 @@ class PublicBookingTest extends TestCase
             'appointment' => $appointment,
         ], false))
             ->assertOk()
+            ->assertSee('Agendamento confirmado')
             ->assertSee('Studio Flow')
             ->assertSee('Carla')
             ->assertSee('71991112222')
             ->assertSee('Design de Sobrancelha')
+            ->assertSee('Limpeza Facial')
             ->assertSee('Bianca')
             ->assertSee('28/04/2026')
             ->assertSee('11:00')
-            ->assertSee('11:45')
-            ->assertSee('80,00')
-            ->assertSee('45')
-            ->assertSee('Agendado');
+            ->assertSee('12:15')
+            ->assertSee('140,00')
+            ->assertSee('75')
+            ->assertSee('Agendado')
+            ->assertSee('Agendar outro horario')
+            ->assertSee('Chamar no WhatsApp');
     }
 
     public function test_public_booking_reuses_existing_client_with_same_phone_in_company(): void
     {
+        CarbonImmutable::setTestNow('2026-04-27 10:00:00');
+
         $company = Company::factory()->create();
         $service = Service::factory()->for($company)->create([
             'duration_minutes' => 30,
             'active' => true,
         ]);
-        $user = User::factory()->for($company)->create();
+        $user = User::factory()->for($company)->create(['active' => true]);
+        $this->createWorkingHour($company, $user, 2, '08:00', '18:00');
         $client = Client::factory()->for($company)->create([
             'name' => 'Cliente Antiga',
             'phone' => '71988887777',
         ]);
 
         $this->post(route('public-bookings.store', $company, false), [
-            'service_id' => $service->id,
+            'service_ids' => [$service->id],
             'user_id' => $user->id,
             'date' => '2026-04-28',
             'time' => '10:30',
@@ -129,6 +317,8 @@ class PublicBookingTest extends TestCase
 
     public function test_public_booking_page_shows_only_company_data_and_uses_company_availability(): void
     {
+        CarbonImmutable::setTestNow('2026-04-27 10:00:00');
+
         $company = Company::factory()->create(['name' => 'Studio Flow']);
         $otherCompany = Company::factory()->create(['name' => 'Outro Studio']);
         $service = Service::factory()->for($company)->create([
@@ -136,12 +326,19 @@ class PublicBookingTest extends TestCase
             'duration_minutes' => 60,
             'active' => true,
         ]);
-        $user = User::factory()->for($company)->create(['name' => 'Ana']);
+        $user = User::factory()->for($company)->create([
+            'name' => 'Ana',
+            'active' => true,
+        ]);
+        $this->createWorkingHour($company, $user, 2, '08:00', '18:00');
         $otherService = Service::factory()->for($otherCompany)->create([
             'name' => 'Procedimento Externo',
             'active' => true,
         ]);
-        $otherUser = User::factory()->for($otherCompany)->create(['name' => 'Bruno']);
+        $otherUser = User::factory()->for($otherCompany)->create([
+            'name' => 'Bruno',
+            'active' => true,
+        ]);
         $otherClient = Client::factory()->for($otherCompany)->create();
 
         Appointment::factory()->for($otherCompany)->create([
@@ -153,33 +350,64 @@ class PublicBookingTest extends TestCase
             'status' => 'scheduled',
         ]);
 
-        $response = $this->get(route('public-bookings.create', [
-            'company' => $company,
-            'service_id' => $service->id,
+        $response = $this->get($this->bookingUrl($company, [
+            'service_ids' => [$service->id],
             'user_id' => $user->id,
             'date' => '2026-04-28',
-        ], false));
+            'filters_submitted' => 1,
+        ]));
 
         $response
             ->assertOk()
             ->assertSee('Studio Flow')
             ->assertSee('Corte')
             ->assertSee('Ana')
-            ->assertSee('60')
+            ->assertSee('60 min')
             ->assertSee('Confirmar agendamento')
             ->assertDontSee('Procedimento Externo')
             ->assertDontSee('Bruno')
             ->assertSee('09:00');
     }
 
-    public function test_public_booking_page_shows_clear_empty_message_when_no_slots_are_available(): void
+    public function test_public_booking_page_does_not_show_past_slots_for_today(): void
     {
+        CarbonImmutable::setTestNow('2026-04-28 09:10:00');
+
         $company = Company::factory()->create();
         $service = Service::factory()->for($company)->create([
             'duration_minutes' => 60,
             'active' => true,
         ]);
-        $user = User::factory()->for($company)->create();
+        $user = User::factory()->for($company)->create([
+            'active' => true,
+        ]);
+        $this->createWorkingHour($company, $user, 2, '08:00', '18:00');
+
+        $this->get($this->bookingUrl($company, [
+            'service_ids' => [$service->id],
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+            'filters_submitted' => 1,
+        ]))
+            ->assertOk()
+            ->assertDontSee('08:00')
+            ->assertDontSee('08:30')
+            ->assertDontSee('09:00')
+            ->assertDontSee('09:30')
+            ->assertSee('10:00');
+    }
+
+    public function test_public_booking_page_shows_clear_empty_message_when_no_slots_are_available(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-27 10:00:00');
+
+        $company = Company::factory()->create();
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 60,
+            'active' => true,
+        ]);
+        $user = User::factory()->for($company)->create(['active' => true]);
+        $this->createWorkingHour($company, $user, 2, '08:00', '18:00');
         $client = Client::factory()->for($company)->create();
 
         Appointment::factory()->for($company)->create([
@@ -191,29 +419,33 @@ class PublicBookingTest extends TestCase
             'status' => 'scheduled',
         ]);
 
-        $this->get(route('public-bookings.create', [
-            'company' => $company,
-            'service_id' => $service->id,
+        $this->get($this->bookingUrl($company, [
+            'service_ids' => [$service->id],
             'user_id' => $user->id,
             'date' => '2026-04-28',
-        ], false))
+            'filters_submitted' => 1,
+        ]))
             ->assertOk()
-            ->assertSee('Nenhum horário disponível para essa data.');
+            ->assertSee('Nenhum horario disponivel para essa data. Tente outro dia.');
     }
 
     public function test_public_booking_cannot_use_foreign_company_service_or_unavailable_slot(): void
     {
+        CarbonImmutable::setTestNow('2026-04-27 10:00:00');
+
         $company = Company::factory()->create();
         $otherCompany = Company::factory()->create();
         $service = Service::factory()->for($company)->create([
             'duration_minutes' => 60,
             'active' => true,
         ]);
-        $user = User::factory()->for($company)->create();
-        $otherService = Service::factory()->for($otherCompany)->create([
+        $secondService = Service::factory()->for($company)->create([
+            'duration_minutes' => 30,
             'active' => true,
         ]);
-        $otherUser = User::factory()->for($otherCompany)->create();
+        $user = User::factory()->for($company)->create(['active' => true]);
+        $otherService = Service::factory()->for($otherCompany)->create(['active' => true]);
+        $otherUser = User::factory()->for($otherCompany)->create(['active' => true]);
         $client = Client::factory()->for($company)->create();
 
         Appointment::factory()->for($company)->create([
@@ -221,13 +453,13 @@ class PublicBookingTest extends TestCase
             'user_id' => $user->id,
             'service_id' => $service->id,
             'start_time' => '2026-04-28 09:00:00',
-            'end_time' => '2026-04-28 10:00:00',
+            'end_time' => '2026-04-28 10:30:00',
             'status' => 'scheduled',
         ]);
 
         $this->from(route('public-bookings.create', $company, false))
             ->post(route('public-bookings.store', $company, false), [
-                'service_id' => $otherService->id,
+                'service_ids' => [$otherService->id],
                 'user_id' => $otherUser->id,
                 'date' => '2026-04-28',
                 'time' => '09:00',
@@ -235,11 +467,11 @@ class PublicBookingTest extends TestCase
                 'client_phone' => '71977776666',
             ])
             ->assertRedirect(route('public-bookings.create', $company, false))
-            ->assertSessionHasErrors(['service_id', 'user_id']);
+            ->assertSessionHasErrors(['service_ids.0', 'user_id']);
 
         $this->from(route('public-bookings.create', $company, false))
             ->post(route('public-bookings.store', $company, false), [
-                'service_id' => $service->id,
+                'service_ids' => [$service->id, $secondService->id],
                 'user_id' => $user->id,
                 'date' => '2026-04-28',
                 'time' => '09:30',
@@ -247,10 +479,31 @@ class PublicBookingTest extends TestCase
                 'client_phone' => '71977776666',
             ])
             ->assertRedirect(route('public-bookings.create', $company, false))
-            ->assertSessionHasErrors([
-                'time' => 'Este horário não está mais disponível.',
-            ]);
+            ->assertSessionHasErrors(['time']);
 
         $this->assertDatabaseCount('appointments', 1);
+    }
+
+    private function bookingUrl(Company $company, array $query = []): string
+    {
+        $baseUrl = route('public-bookings.create', $company, false);
+
+        if ($query === []) {
+            return $baseUrl;
+        }
+
+        return $baseUrl . '?' . http_build_query($query);
+    }
+
+    private function createWorkingHour(Company $company, User $user, int $weekday, string $startTime, string $endTime): void
+    {
+        ProfessionalWorkingHour::create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'weekday' => $weekday,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'active' => true,
+        ]);
     }
 }

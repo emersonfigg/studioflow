@@ -59,4 +59,14 @@ class Client extends Model
     {
         return $this->hasMany(Appointment::class);
     }
+
+    /**
+     * Get the payments for the client.
+     *
+     * @return HasMany<Payment>
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
 }

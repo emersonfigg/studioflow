@@ -6,6 +6,8 @@ use App\Models\Company;
 use App\Models\Service;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ServiceTest extends TestCase
@@ -14,10 +16,14 @@ class ServiceTest extends TestCase
 
     public function test_company_admin_can_list_create_update_and_delete_services(): void
     {
+        Storage::fake('public');
+
         $company = Company::factory()->create();
         $admin = User::factory()->admin()->for($company)->create();
+        Storage::disk('public')->put('services/existing-service.jpg', 'existing-service');
         $service = Service::factory()->for($company)->create([
             'name' => 'Existing Service',
+            'image_path' => 'services/existing-service.jpg',
         ]);
         Service::factory()->create([
             'name' => 'Other Company Service',
@@ -28,6 +34,7 @@ class ServiceTest extends TestCase
             ->get('/services')
             ->assertOk()
             ->assertSee('Existing Service')
+            ->assertSee('/storage/services/existing-service.jpg')
             ->assertDontSee('Other Company Service');
 
         $createResponse = $this
@@ -37,6 +44,7 @@ class ServiceTest extends TestCase
                 'duration_minutes' => 60,
                 'price' => '125.50',
                 'active' => '1',
+                'image' => UploadedFile::fake()->image('new-service.webp'),
             ]);
 
         $createdService = Service::where('name', 'New Service')->firstOrFail();
@@ -44,15 +52,21 @@ class ServiceTest extends TestCase
         $createResponse->assertRedirect(route('services.show', $createdService, absolute: false));
         $this->assertSame($company->id, $createdService->company_id);
         $this->assertTrue($createdService->active);
+        $this->assertNotNull($createdService->image_path);
+        Storage::disk('public')->assertExists($createdService->image_path);
 
         $this
             ->actingAs($admin)
-            ->patch("/services/{$service->id}", [
+            ->post("/services/{$service->id}", [
+                '_method' => 'PATCH',
                 'name' => 'Updated Service',
                 'duration_minutes' => 90,
                 'price' => '250.00',
+                'image' => UploadedFile::fake()->image('updated-service.png'),
             ])
             ->assertRedirect(route('services.show', $service, absolute: false));
+
+        $service->refresh();
 
         $this->assertDatabaseHas('services', [
             'id' => $service->id,
@@ -62,6 +76,8 @@ class ServiceTest extends TestCase
             'price' => '250.00',
             'active' => false,
         ]);
+        $this->assertNotSame('services/existing-service.jpg', $service->image_path);
+        Storage::disk('public')->assertExists($service->image_path);
 
         $this
             ->actingAs($admin)
@@ -75,23 +91,31 @@ class ServiceTest extends TestCase
 
     public function test_company_staff_can_list_and_view_but_cannot_create_update_or_delete_services(): void
     {
+        Storage::fake('public');
+
         $company = Company::factory()->create();
         $staff = User::factory()->for($company)->create();
+        Storage::disk('public')->put('services/visible-service.jpg', 'visible-service');
         $service = Service::factory()->for($company)->create([
             'name' => 'Visible Service',
+            'image_path' => 'services/visible-service.jpg',
         ]);
 
         $this
             ->actingAs($staff)
             ->get('/services')
             ->assertOk()
-            ->assertSee('Visible Service');
+            ->assertSee('Visible Service')
+            ->assertSee('/storage/services/visible-service.jpg');
 
         $this
             ->actingAs($staff)
             ->get("/services/{$service->id}")
             ->assertOk()
-            ->assertSee('Visible Service');
+            ->assertSee('Visible Service')
+            ->assertSee('Detalhes e performance do servico')
+            ->assertSee('/storage/services/visible-service.jpg')
+            ->assertSee('Receita gerada no mes');
 
         $this
             ->actingAs($staff)

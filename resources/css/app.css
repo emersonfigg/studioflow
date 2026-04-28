@@ -1,3 +1,139 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    :root {
+        color-scheme: dark;
+    }
+
+    body {
+        background-color: #1b335b;
+        color: #ffffff;
+    }
+
+    ::selection {
+        background-color: #d4af37;
+        color: #132746;
+    }
+
+    [type='date'],
+    [type='datetime-local'],
+    [type='email'],
+    [type='number'],
+    [type='password'],
+    [type='search'],
+    [type='tel'],
+    [type='text'],
+    select,
+    textarea {
+        color-scheme: dark;
+    }
+}
+
+@layer components {
+    .sf-card {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 1rem;
+        background-color: #223d69;
+        box-shadow: 0 18px 40px rgba(7, 17, 38, 0.28);
+    }
+
+    .sf-card-soft {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 1rem;
+        background-color: #1f3a65;
+        box-shadow: 0 12px 28px rgba(7, 17, 38, 0.24);
+    }
+
+    .sf-input,
+    .sf-select {
+        width: 100%;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 0.75rem;
+        background-color: #132746;
+        color: #ffffff;
+        box-shadow: 0 1px 2px rgba(6, 15, 34, 0.08);
+    }
+
+    .sf-input {
+        padding: 0.75rem 1rem;
+    }
+
+    .sf-select {
+        padding: 0.75rem 2.75rem 0.75rem 1rem;
+    }
+
+    .sf-input::placeholder {
+        color: #9eb1cc;
+    }
+
+    .sf-input:focus,
+    .sf-select:focus {
+        border-color: #d4af37;
+        box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+        outline: none;
+    }
+
+    .sf-button-primary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(212, 175, 55, 0.32);
+        border-radius: 0.75rem;
+        background-color: #d4af37;
+        padding: 0.75rem 1.25rem;
+        color: #132746;
+        font-size: 0.875rem;
+        font-weight: 600;
+        box-shadow: 0 10px 24px rgba(212, 175, 55, 0.22);
+        transition: background-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+    }
+
+    .sf-button-primary:hover {
+        background-color: #e0bd54;
+    }
+
+    .sf-button-secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 0.75rem;
+        background-color: #132746;
+        padding: 0.75rem 1.25rem;
+        color: #ffffff;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: background-color 150ms ease, border-color 150ms ease;
+    }
+
+    .sf-button-secondary:hover {
+        border-color: rgba(212, 175, 55, 0.35);
+        background-color: #193056;
+    }
+
+    .sf-button-ghost {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 0.75rem;
+        background-color: transparent;
+        padding: 0.625rem 1rem;
+        color: #c7d2e3;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+    }
+
+    .sf-button-ghost:hover {
+        border-color: rgba(212, 175, 55, 0.35);
+        background-color: rgba(255, 255, 255, 0.05);
+        color: #ffffff;
+    }
+
+    .sf-muted {
+        color: #c7d2e3;
+    }
+}

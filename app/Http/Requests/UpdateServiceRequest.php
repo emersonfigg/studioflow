@@ -26,6 +26,7 @@ class UpdateServiceRequest extends FormRequest
             'duration_minutes' => ['required', 'integer', 'min:1'],
             'price' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
             'active' => ['nullable', 'boolean'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ];
     }
 }

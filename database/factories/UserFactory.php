@@ -32,6 +32,10 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'role' => 'staff',
+            'global_role' => null,
+            'commission_type' => null,
+            'commission_value' => null,
+            'active' => true,
             'remember_token' => Str::random(10),
         ];
     }
@@ -43,6 +47,18 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'role' => 'admin',
+        ]);
+    }
+
+    /**
+     * Indicate that the user is a super admin.
+     */
+    public function superAdmin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'company_id' => null,
+            'role' => 'admin',
+            'global_role' => 'super_admin',
         ]);
     }
 

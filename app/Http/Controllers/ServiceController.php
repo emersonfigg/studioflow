@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreServiceRequest;
 use App\Http\Requests\UpdateServiceRequest;
 use App\Models\Service;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ServiceController extends Controller
 {
@@ -16,13 +18,18 @@ class ServiceController extends Controller
      */
     public function index(Request $request): View
     {
-        $services = Service::query()
-            ->where('company_id', $request->user()->company_id)
+        $baseQuery = Service::query()
+            ->where('company_id', $request->user()->company_id);
+
+        $services = (clone $baseQuery)
             ->orderBy('name')
             ->paginate(10);
 
         return view('services.index', [
             'services' => $services,
+            'activeServicesCount' => (clone $baseQuery)->where('active', true)->count(),
+            'averageTicket' => (float) ((clone $baseQuery)->avg('price') ?? 0),
+            'averageDuration' => (float) ((clone $baseQuery)->avg('duration_minutes') ?? 0),
         ]);
     }
 
@@ -43,6 +50,12 @@ class ServiceController extends Controller
     {
         $data = $request->validated();
         $data['active'] = $request->boolean('active');
+        $image = $request->file('image') ?? ($data['image'] ?? null);
+        unset($data['image']);
+
+        if ($image) {
+            $data['image_path'] = $image->store('services', 'public');
+        }
 
         $service = Service::create([
             ...$data,
@@ -58,9 +71,21 @@ class ServiceController extends Controller
     public function show(Request $request, Service $service): View
     {
         $this->ensureServiceBelongsToUserCompany($request, $service);
+        $monthStart = CarbonImmutable::now()->startOfMonth();
+        $monthEnd = CarbonImmutable::now()->endOfMonth();
+
+        $monthlyAppointmentsCount = $service->appointments()
+            ->whereBetween('start_time', [$monthStart, $monthEnd])
+            ->count();
+
+        $monthlyRevenue = (float) ($service->payments()
+            ->whereBetween('paid_at', [$monthStart, $monthEnd])
+            ->sum('gross_amount') ?? 0);
 
         return view('services.show', [
             'service' => $service,
+            'monthlyAppointmentsCount' => $monthlyAppointmentsCount,
+            'monthlyRevenue' => $monthlyRevenue,
         ]);
     }
 
@@ -86,6 +111,18 @@ class ServiceController extends Controller
 
         $data = $request->validated();
         $data['active'] = $request->boolean('active');
+        $image = $request->file('image') ?? ($data['image'] ?? null);
+        unset($data['image']);
+
+        if ($image) {
+            $newPath = $image->store('services', 'public');
+
+            if ($service->image_path) {
+                Storage::disk('public')->delete($service->normalizedImagePath() ?? $service->image_path);
+            }
+
+            $data['image_path'] = $newPath;
+        }
 
         $service->update($data);
 
@@ -99,6 +136,10 @@ class ServiceController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
         $this->ensureServiceBelongsToUserCompany($request, $service);
+
+        if ($service->image_path) {
+            Storage::disk('public')->delete($service->normalizedImagePath() ?? $service->image_path);
+        }
 
         $service->delete();
 

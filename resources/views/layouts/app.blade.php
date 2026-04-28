@@ -7,30 +7,95 @@
 
         <title>{{ config('app.name', 'Laravel') }}</title>
 
-        <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
-        <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans antialiased">
-        <div class="min-h-screen bg-gray-100">
+    <body class="bg-[#1b335b] font-sans antialiased text-white">
+        <div class="min-h-screen bg-[#1b335b]">
             @include('layouts.navigation')
 
-            <!-- Page Heading -->
-            @isset($header)
-                <header class="bg-white shadow">
-                    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                        {{ $header }}
-                    </div>
-                </header>
-            @endisset
+            <div class="mx-auto flex max-w-[1600px] gap-6 px-4 py-6 sm:px-6 lg:px-8">
+                <aside class="hidden lg:flex lg:w-72 lg:flex-col">
+                    <div class="sf-card sticky top-24 p-5">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-[#d4af37]">
+                                <x-application-logo class="h-8 w-8" />
+                            </div>
+                            <div>
+                                <p class="text-base font-semibold text-white">StudioFlow</p>
+                                <p class="text-xs leading-5 text-[#c7d2e3]">Agenda inteligente para barbearias, saloes e estetica</p>
+                            </div>
+                        </div>
 
-            <!-- Page Content -->
-            <main>
-                {{ $slot }}
-            </main>
+                        <div class="mt-6 rounded-2xl border border-white/8 bg-[#132746] px-4 py-4">
+                            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[#d4af37]">{{ auth()->user()->isSuperAdmin() ? 'Escopo' : 'Empresa' }}</p>
+                            <p class="mt-2 text-sm font-semibold text-white">{{ auth()->user()->isSuperAdmin() ? 'Painel Global' : (auth()->user()->company?->name ?? 'Sem empresa vinculada') }}</p>
+                            <p class="mt-1 text-sm text-[#c7d2e3]">{{ auth()->user()->name }}</p>
+                        </div>
+
+                        <nav class="mt-6 space-y-2">
+                            @php
+                                if (auth()->user()->isSuperAdmin()) {
+                                    $sidebarLinks = [
+                                        ['label' => 'Painel Global', 'route' => 'super-admin.dashboard', 'match' => 'super-admin.dashboard', 'icon' => 'M10.75 3.75a.75.75 0 00-1.5 0v5.5h-5.5a.75.75 0 000 1.5h5.5v5.5a.75.75 0 001.5 0v-5.5h5.5a.75.75 0 000-1.5h-5.5v-5.5z'],
+                                        ['label' => 'Empresas', 'route' => 'super-admin.companies.index', 'match' => 'super-admin.companies.*', 'icon' => 'M3.5 5.75A2.25 2.25 0 015.75 3.5h8.5a2.25 2.25 0 012.25 2.25v8.5a2.25 2.25 0 01-2.25 2.25h-8.5A2.25 2.25 0 013.5 14.25v-8.5zm2.25-.75a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-8.5a.75.75 0 00-.75-.75h-8.5z'],
+                                        ['label' => 'Usuarios', 'route' => 'super-admin.users.index', 'match' => 'super-admin.users.*', 'icon' => 'M10 9a3 3 0 100-6 3 3 0 000 6zm-5.75 6.5A3.25 3.25 0 017.5 12.25h5a3.25 3.25 0 013.25 3.25v.25a.75.75 0 01-.75.75H5a.75.75 0 01-.75-.75v-.25z'],
+                                    ];
+                                } else {
+                                    $sidebarLinks = [
+                                        ['label' => __('Dashboard'), 'route' => 'dashboard', 'match' => 'dashboard', 'icon' => 'M10.75 3.75a.75.75 0 00-1.5 0v5.5h-5.5a.75.75 0 000 1.5h5.5v5.5a.75.75 0 001.5 0v-5.5h5.5a.75.75 0 000-1.5h-5.5v-5.5z'],
+                                        ['label' => __('Clients'), 'route' => 'clients.index', 'match' => 'clients.*', 'icon' => 'M10 9a3 3 0 100-6 3 3 0 000 6zm-5.75 6.5A3.25 3.25 0 017.5 12.25h5a3.25 3.25 0 013.25 3.25v.25a.75.75 0 01-.75.75H5a.75.75 0 01-.75-.75v-.25z'],
+                                        ['label' => __('Services'), 'route' => 'services.index', 'match' => 'services.*', 'icon' => 'M4.5 5A2.5 2.5 0 017 2.5h6A2.5 2.5 0 0115.5 5v10A2.5 2.5 0 0113 17.5H7A2.5 2.5 0 014.5 15V5zm3 .75a.75.75 0 000 1.5h5a.75.75 0 000-1.5h-5zm0 3a.75.75 0 000 1.5h5a.75.75 0 000-1.5h-5z'],
+                                        ['label' => __('Appointments'), 'route' => 'appointments.index', 'match' => 'appointments.*', 'icon' => 'M5.75 3a.75.75 0 000 1.5h8.5a.75.75 0 000-1.5h-8.5zM4 6.75A1.75 1.75 0 015.75 5h8.5A1.75 1.75 0 0116 6.75v7.5A1.75 1.75 0 0114.25 16h-8.5A1.75 1.75 0 014 14.25v-7.5z'],
+                                        ['label' => 'Minha agenda', 'route' => 'schedule.edit', 'match' => 'schedule.*', 'icon' => 'M6.75 2.5a.75.75 0 000 1.5h6.5a2.25 2.25 0 012.25 2.25v7.5a2.25 2.25 0 01-2.25 2.25h-6.5a.75.75 0 000 1.5h6.5A3.75 3.75 0 0017 13.75v-7.5A3.75 3.75 0 0013.25 2.5h-6.5zm-1 4A.75.75 0 015 7.25v5.5a.75.75 0 001.5 0v-5.5a.75.75 0 01.75-.75h2.5a.75.75 0 000-1.5h-2.5A2.25 2.25 0 005.75 6.5z'],
+                                        ['label' => 'Financeiro', 'route' => 'finance.index', 'match' => 'finance.*', 'icon' => 'M3.5 5.75A2.25 2.25 0 015.75 3.5h8.5a2.25 2.25 0 012.25 2.25v8.5a2.25 2.25 0 01-2.25 2.25h-8.5A2.25 2.25 0 013.5 14.25v-8.5zm2.25-.75a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-8.5a.75.75 0 00-.75-.75h-8.5zm1.5 2.25a.75.75 0 000 1.5h5.5a.75.75 0 000-1.5h-5.5zm0 3a.75.75 0 000 1.5h5.5a.75.75 0 000-1.5h-5.5z'],
+                                    ];
+
+                                    if (auth()->user()->isAdmin()) {
+                                        array_splice($sidebarLinks, 4, 0, [[
+                                            'label' => 'Equipe',
+                                            'route' => 'team.index',
+                                            'match' => 'team.*',
+                                            'icon' => 'M10 3.75a3.25 3.25 0 110 6.5 3.25 3.25 0 010-6.5zm-5.75 11a2.25 2.25 0 012.25-2.25h7a2.25 2.25 0 012.25 2.25v.5a.75.75 0 01-.75.75H5a.75.75 0 01-.75-.75v-.5z',
+                                        ]]);
+                                    }
+                                }
+                            @endphp
+
+                            @foreach ($sidebarLinks as $link)
+                                @php
+                                    $active = request()->routeIs($link['match']);
+                                @endphp
+                                <a
+                                    href="{{ route($link['route']) }}"
+                                    class="{{ $active ? 'border-[#d4af37]/25 bg-[#d4af37]/12 text-white' : 'border-transparent text-[#c7d2e3] hover:border-white/10 hover:bg-white/5 hover:text-white' }} flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition duration-150"
+                                >
+                                    <span class="{{ $active ? 'bg-[#d4af37]/16 text-[#d4af37]' : 'bg-white/5 text-[#c7d2e3]' }} flex h-10 w-10 items-center justify-center rounded-xl transition duration-150">
+                                        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                            <path d="{{ $link['icon'] }}" />
+                                        </svg>
+                                    </span>
+                                    <span>{{ $link['label'] }}</span>
+                                </a>
+                            @endforeach
+                        </nav>
+                    </div>
+                </aside>
+
+                <div class="min-w-0 flex-1">
+                    @isset($header)
+                        <header class="sf-card mb-6 px-5 py-5 sm:px-6">
+                            {{ $header }}
+                        </header>
+                    @endisset
+
+                    <main>
+                        {{ $slot }}
+                    </main>
+                </div>
+            </div>
         </div>
     </body>
 </html>

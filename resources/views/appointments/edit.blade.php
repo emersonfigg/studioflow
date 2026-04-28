@@ -1,19 +1,20 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Edit Appointment') }}
-        </h2>
+        <div>
+            <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#C8A96B]">{{ __('Appointments') }}</p>
+            <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
+                {{ __('Edit Appointment') }}
+            </h2>
+        </div>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white p-6 shadow-sm sm:rounded-lg">
-                @include('appointments._form', [
-                    'appointment' => $appointment,
-                    'action' => route('appointments.update', $appointment),
-                    'method' => 'PATCH',
-                ])
-            </div>
+    <div class="mx-auto max-w-3xl">
+        <div class="sf-card p-6 sm:p-7">
+            @include('appointments._form', [
+                'appointment' => $appointment,
+                'action' => route('appointments.update', $appointment),
+                'method' => 'PATCH',
+            ])
         </div>
     </div>
 </x-app-layout>

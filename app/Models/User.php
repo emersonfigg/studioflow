@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
@@ -26,6 +28,11 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'global_role',
+        'commission_type',
+        'commission_value',
+        'active',
+        'photo_path',
     ];
 
     /**
@@ -48,6 +55,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'commission_value' => 'decimal:2',
+            'active' => 'boolean',
         ];
     }
 
@@ -70,6 +79,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Determine if the user is a global super admin.
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->global_role === 'super_admin';
+    }
+
+    /**
      * Get the appointments assigned to the user.
      *
      * @return HasMany<Appointment>
@@ -77,5 +94,69 @@ class User extends Authenticatable
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);
+    }
+
+    /**
+     * Get the payments assigned to the user.
+     *
+     * @return HasMany<Payment>
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Get the weekly working hours configured for the professional.
+     *
+     * @return HasMany<ProfessionalWorkingHour>
+     */
+    public function workingHours(): HasMany
+    {
+        return $this->hasMany(ProfessionalWorkingHour::class)->orderBy('weekday')->orderBy('start_time');
+    }
+
+    /**
+     * Get the specific day overrides configured for the professional.
+     *
+     * @return HasMany<ProfessionalDayOverride>
+     */
+    public function dayOverrides(): HasMany
+    {
+        return $this->hasMany(ProfessionalDayOverride::class)->orderByDesc('date');
+    }
+
+    /**
+     * Get the public URL for the professional photo.
+     */
+    public function getPhotoUrlAttribute(): ?string
+    {
+        $photoPath = $this->normalizedPhotoPath();
+
+        if (! $photoPath || ! Storage::disk('public')->exists($photoPath)) {
+            return null;
+        }
+
+        return Storage::url($photoPath);
+    }
+
+    /**
+     * Get the fallback initial for the professional avatar.
+     */
+    public function getAvatarInitialAttribute(): string
+    {
+        return Str::upper(Str::substr(trim($this->name), 0, 1) ?: 'P');
+    }
+
+    /**
+     * Normalize stored photo paths to a public-disk relative path.
+     */
+    public function normalizedPhotoPath(): ?string
+    {
+        if (! $this->photo_path) {
+            return null;
+        }
+
+        return ltrim(Str::replaceFirst('storage/', '', str_replace('\\', '/', $this->photo_path)), '/');
     }
 }

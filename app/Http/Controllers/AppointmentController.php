@@ -28,7 +28,7 @@ class AppointmentController extends Controller
         $selectedUserId = $request->integer('user_id') ?: null;
 
         $appointmentsQuery = Appointment::query()
-            ->with(['client', 'service', 'user'])
+            ->with(['client', 'service', 'services', 'user', 'payment'])
             ->where('company_id', $companyId)
             ->whereBetween('start_time', [
                 $selectedDate->startOfDay(),
@@ -42,20 +42,8 @@ class AppointmentController extends Controller
         $appointments = $appointmentsQuery
             ->orderBy('start_time')
             ->get();
-
-        $timelineSlots = collect(range(8, 17))
-            ->flatMap(fn (int $hour): array => [
-                sprintf('%02d:00', $hour),
-                sprintf('%02d:30', $hour),
-            ])
-            ->map(function (string $time) use ($appointments) {
-                return [
-                    'time' => $time,
-                    'appointments' => $appointments
-                        ->filter(fn (Appointment $appointment): bool => $appointment->start_time->format('H:i') === $time)
-                        ->values(),
-                ];
-            });
+        $appointmentsByTime = $appointments
+            ->groupBy(fn (Appointment $appointment): string => $appointment->start_time->format('H:i'));
 
         $users = User::query()
             ->where('company_id', $companyId)
@@ -64,7 +52,7 @@ class AppointmentController extends Controller
 
         return view('appointments.index', [
             'appointments' => $appointments,
-            'timelineSlots' => $timelineSlots,
+            'appointmentsByTime' => $appointmentsByTime,
             'users' => $users,
             'selectedDate' => $selectedDate,
             'selectedUserId' => $selectedUserId,
@@ -102,7 +90,7 @@ class AppointmentController extends Controller
         $this->ensureAppointmentBelongsToUserCompany($request, $appointment);
 
         return view('appointments.show', [
-            'appointment' => $appointment->load(['client', 'service', 'user']),
+            'appointment' => $appointment->load(['client', 'service', 'user', 'payment']),
         ]);
     }
 
@@ -153,10 +141,10 @@ class AppointmentController extends Controller
         $this->ensureAppointmentBelongsToUserCompany($request, $appointment);
 
         $data = $request->validate([
-            'status' => ['required', 'in:scheduled,confirmed,in_progress,completed,cancelled'],
+            'status' => ['required', 'in:scheduled,confirmed,in_progress,cancelled'],
         ], [
-            'status.required' => 'Selecione um status válido.',
-            'status.in' => 'Selecione um status válido.',
+            'status.required' => 'Selecione um status valido.',
+            'status.in' => 'Selecione um status valido.',
         ]);
 
         $appointment->update([

@@ -1,0 +1,47 @@
+<?php
+
+namespace App\Http\Requests;
+
+use App\Models\User;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\RequiredIf;
+
+class UpdateTeamMemberRequest extends FormRequest
+{
+    /**
+     * Determine if the user is authorized to make this request.
+     */
+    public function authorize(): bool
+    {
+        return $this->user()?->isAdmin() === true && $this->user()?->company_id !== null;
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        /** @var User $team */
+        $team = $this->route('team');
+
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($team->id)],
+            'password' => ['nullable', 'string', 'min:8'],
+            'role' => ['required', Rule::in(['admin', 'staff'])],
+            'active' => ['nullable', 'boolean'],
+            'commission_type' => ['nullable', Rule::in(['none', 'percent', 'fixed'])],
+            'commission_value' => [
+                new RequiredIf(in_array($this->input('commission_type'), ['percent', 'fixed'], true)),
+                'nullable',
+                'numeric',
+                'min:0',
+                'max:99999999.99',
+            ],
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ];
+    }
+}
