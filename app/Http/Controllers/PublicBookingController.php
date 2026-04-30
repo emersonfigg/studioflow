@@ -20,6 +20,8 @@ use Illuminate\Support\Collection as SupportCollection;
 
 class PublicBookingController extends Controller
 {
+    private const DEFAULT_BOOKING_DURATION_MINUTES = 30;
+
     /**
      * Show the public booking form for a company.
      */
@@ -42,29 +44,30 @@ class PublicBookingController extends Controller
             ->filter()
             ->values();
 
-        if (! $request->boolean('filters_submitted') && $rawSelectedServiceIds->isEmpty() && $services->isNotEmpty()) {
-            $rawSelectedServiceIds = collect([$services->first()->id]);
-        }
-
         $selectedServices = $this->orderedSelectedServices($services, $rawSelectedServiceIds);
         $selectedServiceIds = $selectedServices->pluck('id')->values();
-        $selectedUser = $users->firstWhere('id', (int) $request->input('user_id')) ?? $users->first();
         $selectedDate = $request->filled('date')
             ? CarbonImmutable::parse((string) $request->input('date'))->toDateString()
             : CarbonImmutable::today()->toDateString();
-        $totalDurationMinutes = (int) $selectedServices->sum('duration_minutes');
+        $usingEstimatedDuration = $selectedServices->isEmpty();
+        $totalDurationMinutes = $usingEstimatedDuration
+            ? self::DEFAULT_BOOKING_DURATION_MINUTES
+            : (int) $selectedServices->sum('duration_minutes');
         $totalPrice = (float) $selectedServices->sum(fn (Service $service): float => (float) $service->price);
 
-        $availableSlots = [];
-
-        if ($selectedServices->isNotEmpty() && $selectedUser && $totalDurationMinutes > 0) {
-            $availableSlots = $availabilityService->availableSlotsForDuration(
-                $company,
-                $selectedUser,
-                $totalDurationMinutes,
-                $selectedDate,
-            );
-        }
+        [$selectedUser, $slotOptions] = $this->resolveSelectedUserAndSlots(
+            $request,
+            $company,
+            $users,
+            $availabilityService,
+            $totalDurationMinutes,
+            $selectedDate,
+        );
+        $availableSlots = collect($slotOptions)
+            ->where('available', true)
+            ->pluck('time')
+            ->values()
+            ->all();
 
         $quickDates = collect(range(0, 5))
             ->map(function (int $offset): array {
@@ -91,10 +94,12 @@ class PublicBookingController extends Controller
             'selectedUserId' => $selectedUser?->id,
             'selectedDate' => $selectedDate,
             'selectedTime' => old('time'),
+            'slotOptions' => $slotOptions,
             'availableSlots' => $availableSlots,
             'quickDates' => $quickDates,
             'totalDurationMinutes' => $totalDurationMinutes,
             'totalPrice' => $totalPrice,
+            'usingEstimatedDuration' => $usingEstimatedDuration,
             'servicesCatalog' => $services->map(fn (Service $service): array => [
                 'id' => $service->id,
                 'name' => $service->name,
@@ -212,5 +217,80 @@ class PublicBookingController extends Controller
                 ->values()
                 ->all()
         );
+    }
+
+    /**
+     * Resolve the selected professional and the slots for the chosen date.
+     *
+     * @param  Collection<int, User>  $users
+     * @return array{0: ?User, 1: array<int, array{time: string, available: bool, reason: ?string}>}
+     */
+    private function resolveSelectedUserAndSlots(
+        Request $request,
+        Company $company,
+        Collection $users,
+        AvailabilityService $availabilityService,
+        int $totalDurationMinutes,
+        string $selectedDate,
+    ): array {
+        if ($users->isEmpty() || $totalDurationMinutes <= 0) {
+            return [null, []];
+        }
+
+        $requestedUser = $users->firstWhere('id', (int) $request->input('user_id'));
+
+        if ($requestedUser) {
+            return [
+                $requestedUser,
+                $availabilityService->slotOptionsForDuration(
+                    $company,
+                    $requestedUser,
+                    $totalDurationMinutes,
+                    $selectedDate,
+                    false,
+                ),
+            ];
+        }
+
+        $prioritizedUsers = $users
+            ->filter(fn (User $user): bool => filled($user->photo_path))
+            ->values()
+            ->concat(
+                $users
+                    ->reject(fn (User $user): bool => filled($user->photo_path))
+                    ->values()
+            )
+            ->values();
+
+        foreach ($prioritizedUsers as $user) {
+            $slots = $availabilityService->slotOptionsForDuration(
+                $company,
+                $user,
+                $totalDurationMinutes,
+                $selectedDate,
+                false,
+            );
+
+            if (collect($slots)->contains(fn (array $slot): bool => $slot['available'])) {
+                return [$user, $slots];
+            }
+        }
+
+        $fallbackUser = $prioritizedUsers->first();
+
+        if (! $fallbackUser) {
+            return [null, []];
+        }
+
+        return [
+            $fallbackUser,
+            $availabilityService->slotOptionsForDuration(
+                $company,
+                $fallbackUser,
+                $totalDurationMinutes,
+                $selectedDate,
+                false,
+            ),
+        ];
     }
 }

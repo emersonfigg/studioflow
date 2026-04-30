@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Appointment;
 use App\Models\Company;
+use App\Models\ProfessionalDayOverrideInterval;
 use App\Models\ProfessionalWorkingHour;
 use App\Models\Service;
 use App\Models\User;
@@ -17,6 +18,8 @@ class AvailabilityService
 
     private const MIN_LEAD_TIME_MINUTES = 30;
 
+    private const DEFAULT_TIMEZONE = 'America/Bahia';
+
     /**
      * Get available start times for a professional, service and date.
      *
@@ -27,6 +30,7 @@ class AvailabilityService
         User $user,
         Service $service,
         CarbonInterface|string $date,
+        bool $applyLeadTime = true,
     ): array {
         if ($user->company_id !== $company->id || $service->company_id !== $company->id) {
             return [];
@@ -37,6 +41,7 @@ class AvailabilityService
             $user,
             (int) $service->duration_minutes,
             $date,
+            $applyLeadTime,
         );
     }
 
@@ -50,16 +55,40 @@ class AvailabilityService
         User $user,
         int $durationMinutes,
         CarbonInterface|string $date,
+        bool $applyLeadTime = true,
+    ): array {
+        return collect($this->slotOptionsForDuration(
+            $company,
+            $user,
+            $durationMinutes,
+            $date,
+            $applyLeadTime,
+        ))
+            ->where('available', true)
+            ->pluck('time')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Get slot options for a professional and total duration on a date, including unavailable slots.
+     *
+     * @return list<array{time: string, available: bool, reason: ?string}>
+     */
+    public function slotOptionsForDuration(
+        Company $company,
+        User $user,
+        int $durationMinutes,
+        CarbonInterface|string $date,
+        bool $applyLeadTime = true,
     ): array {
         if ($user->company_id !== $company->id || $durationMinutes < 1) {
             return [];
         }
 
-        $day = $date instanceof CarbonInterface
-            ? CarbonImmutable::instance($date)
-            : CarbonImmutable::parse($date);
-
-        $today = CarbonImmutable::now($day->getTimezone())->startOfDay();
+        $timezone = $this->timezone();
+        $day = $this->normalizeDay($date, $timezone);
+        $today = CarbonImmutable::now($timezone)->startOfDay();
 
         if ($day->startOfDay()->lt($today)) {
             return [];
@@ -73,60 +102,69 @@ class AvailabilityService
 
         $overallStart = $intervals->min(fn (array $interval): CarbonImmutable => $interval['start']);
         $overallEnd = $intervals->max(fn (array $interval): CarbonImmutable => $interval['end']);
+        $conflictWindowEnd = $overallEnd->addMinutes($durationMinutes);
 
         $appointments = Appointment::query()
             ->where('company_id', $company->id)
             ->where('user_id', $user->id)
             ->where('status', '!=', 'cancelled')
-            ->where('start_time', '<', $overallEnd)
+            ->where('start_time', '<', $conflictWindowEnd)
             ->where('end_time', '>', $overallStart)
             ->get(['start_time', 'end_time']);
 
         $safeEarliestTime = null;
 
         if ($day->isSameDay($today)) {
-            $safeNow = CarbonImmutable::now($day->getTimezone())->addMinutes(self::MIN_LEAD_TIME_MINUTES);
+            $safeNow = CarbonImmutable::now($timezone);
+
+            if ($applyLeadTime) {
+                $safeNow = $safeNow->addMinutes(self::MIN_LEAD_TIME_MINUTES);
+            }
+
             $safeEarliestTime = $this->roundUpToSlot($safeNow);
         }
 
-        $slots = [];
+        $slotOptions = [];
 
         foreach ($intervals as $interval) {
             $intervalStart = $this->roundUpToSlot($interval['start']);
             $intervalEnd = $interval['end'];
-            $latestStartTime = $intervalEnd->subMinutes($durationMinutes);
+            $latestStartTime = $this->roundUpToSlot($intervalEnd);
 
             if ($latestStartTime->lt($intervalStart)) {
                 continue;
             }
 
-            $earliestStartTime = $safeEarliestTime
-                ? ($safeEarliestTime->gt($intervalStart) ? $safeEarliestTime : $intervalStart)
-                : $intervalStart;
+            $slotStart = $intervalStart;
 
-            if ($earliestStartTime->gt($latestStartTime)) {
-                continue;
-            }
-
-            for ($slotStart = $earliestStartTime; $slotStart->lte($latestStartTime); $slotStart = $slotStart->addMinutes(self::SLOT_INTERVAL_MINUTES)) {
+            while ($slotStart->lte($latestStartTime)) {
                 $slotEnd = $slotStart->addMinutes($durationMinutes);
-
-                if ($slotEnd->gt($intervalEnd)) {
-                    continue;
-                }
+                $slotTime = $slotStart->format('H:i');
 
                 $hasConflict = $appointments->contains(
                     fn (Appointment $appointment): bool => $slotStart->lt($appointment->end_time)
                         && $slotEnd->gt($appointment->start_time)
                 );
 
-                if (! $hasConflict) {
-                    $slots[] = $slotStart->format('H:i');
+                $isBlockedByTime = $safeEarliestTime && $slotStart->lt($safeEarliestTime);
+                $available = ! $isBlockedByTime && ! $hasConflict;
+                $reason = $isBlockedByTime ? 'past' : ($hasConflict ? 'reserved' : null);
+
+                $existing = $slotOptions[$slotTime] ?? null;
+
+                if (! $existing || ($available && ! $existing['available'])) {
+                    $slotOptions[$slotTime] = [
+                        'time' => $slotTime,
+                        'available' => $available,
+                        'reason' => $reason,
+                    ];
                 }
+
+                $slotStart = $slotStart->addMinutes(self::SLOT_INTERVAL_MINUTES);
             }
         }
 
-        return array_values(array_unique($slots));
+        return array_values($slotOptions);
     }
 
     /**
@@ -137,6 +175,7 @@ class AvailabilityService
     private function workingIntervalsForDate(Company $company, User $user, CarbonImmutable $day): Collection
     {
         $override = $user->dayOverrides()
+            ->with('intervals')
             ->where('company_id', $company->id)
             ->whereDate('date', $day->toDateString())
             ->latest('id')
@@ -146,9 +185,24 @@ class AvailabilityService
             return collect();
         }
 
-        if ($override && $override->start_time && $override->end_time) {
-            return collect([$this->intervalForTimes($day, (string) $override->start_time, (string) $override->end_time)])
-                ->filter();
+        if ($override) {
+            $overrideIntervals = $override->intervals
+                ->map(fn (ProfessionalDayOverrideInterval $interval): ?array => $this->intervalForTimes(
+                    $day,
+                    (string) $interval->start_time,
+                    (string) $interval->end_time
+                ))
+                ->filter()
+                ->values();
+
+            if ($overrideIntervals->isNotEmpty()) {
+                return $overrideIntervals;
+            }
+
+            if ($override->start_time && $override->end_time) {
+                return collect([$this->intervalForTimes($day, (string) $override->start_time, (string) $override->end_time)])
+                    ->filter();
+            }
         }
 
         return $user->workingHours()
@@ -191,7 +245,7 @@ class AvailabilityService
      */
     private function roundUpToSlot(CarbonImmutable $time): CarbonImmutable
     {
-        $rounded = $time->setSecond(0);
+        $rounded = $time->setSecond(0)->setMicrosecond(0);
         $remainder = $rounded->minute % self::SLOT_INTERVAL_MINUTES;
 
         if ($remainder === 0) {
@@ -199,5 +253,25 @@ class AvailabilityService
         }
 
         return $rounded->addMinutes(self::SLOT_INTERVAL_MINUTES - $remainder);
+    }
+
+    /**
+     * Normalize a date input to the application timezone.
+     */
+    private function normalizeDay(CarbonInterface|string $date, string $timezone): CarbonImmutable
+    {
+        if ($date instanceof CarbonInterface) {
+            return CarbonImmutable::instance($date)->setTimezone($timezone);
+        }
+
+        return CarbonImmutable::parse($date, $timezone)->startOfDay();
+    }
+
+    /**
+     * Resolve the timezone used for availability calculations.
+     */
+    private function timezone(): string
+    {
+        return (string) config('app.timezone', self::DEFAULT_TIMEZONE);
     }
 }

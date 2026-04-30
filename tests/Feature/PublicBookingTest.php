@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Company;
+use App\Models\ProfessionalDayOverride;
 use App\Models\ProfessionalWorkingHour;
 use App\Models\Service;
 use App\Models\User;
@@ -30,7 +31,13 @@ class PublicBookingTest extends TestCase
 
         Storage::fake('public');
 
-        $company = Company::factory()->create(['name' => 'Studio Flow']);
+        $company = Company::factory()->create([
+            'name' => 'Studio Flow',
+            'instagram' => '@studioflowoficial',
+            'description' => 'Barbearia premium com agendamento online e equipe especializada.',
+        ]);
+        Storage::disk('public')->put('companies/studio-flow-logo.jpg', 'studio-flow-logo');
+        $company->update(['logo' => 'companies/studio-flow-logo.jpg']);
         Storage::disk('public')->put('services/corte-premium.jpg', 'corte-premium');
 
         $firstService = Service::factory()->for($company)->create([
@@ -75,12 +82,106 @@ class PublicBookingTest extends TestCase
             ->assertSee('55,00')
             ->assertSee('90 min')
             ->assertSee('/storage/services/corte-premium.jpg')
+            ->assertSee('/storage/companies/studio-flow-logo.jpg')
+            ->assertSee('@studioflowoficial')
+            ->assertSee('Barbearia premium com agendamento online e equipe especializada.')
             ->assertSee('Ana')
             ->assertSee('Profissional')
             ->assertSee('/storage/professionals/ana-photo.jpg')
             ->assertSee('09:00')
             ->assertSee('Confirmar agendamento')
             ->assertDontSee('Servico Externo');
+    }
+
+    public function test_public_booking_without_selected_service_still_shows_estimated_slots_and_summary(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-27 10:00:00', 'America/Bahia'));
+
+        $company = Company::factory()->create();
+        Service::factory()->for($company)->create([
+            'name' => 'Corte',
+            'duration_minutes' => 45,
+            'active' => true,
+            'price' => 70,
+        ]);
+        $user = User::factory()->for($company)->create(['active' => true]);
+
+        $override = ProfessionalDayOverride::create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+            'is_day_off' => false,
+        ]);
+
+        $override->intervals()->createMany([
+            ['start_time' => '11:00', 'end_time' => '13:00'],
+            ['start_time' => '14:00', 'end_time' => '20:00'],
+        ]);
+
+        $this->get($this->bookingUrl($company, [
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+            'filters_submitted' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('11:00')
+            ->assertSee('11:30')
+            ->assertSee('20:00')
+            ->assertSee('Horarios estimados com duracao padrao de 30 minutos. Escolha o servico para confirmar.')
+            ->assertSee('Escolha depois')
+            ->assertSee('30 min estimado')
+            ->assertSee('A definir');
+    }
+
+    public function test_public_booking_auto_selects_first_professional_with_photo_and_availability_for_the_date(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-27 10:00:00', 'America/Bahia'));
+
+        Storage::fake('public');
+
+        $company = Company::factory()->create();
+        Service::factory()->for($company)->create([
+            'duration_minutes' => 45,
+            'active' => true,
+        ]);
+
+        $admin = User::factory()->for($company)->create([
+            'name' => 'Admin',
+            'active' => true,
+            'photo_path' => null,
+        ]);
+        $this->createWorkingHour($company, $admin, 1, '08:00', '18:00');
+
+        Storage::disk('public')->put('professionals/bianca.jpg', 'bianca-photo');
+        $professional = User::factory()->for($company)->create([
+            'name' => 'Bianca',
+            'active' => true,
+            'photo_path' => 'professionals/bianca.jpg',
+        ]);
+
+        $override = ProfessionalDayOverride::create([
+            'company_id' => $company->id,
+            'user_id' => $professional->id,
+            'date' => '2026-04-28',
+            'is_day_off' => false,
+        ]);
+
+        $override->intervals()->createMany([
+            ['start_time' => '11:00', 'end_time' => '13:00'],
+            ['start_time' => '14:00', 'end_time' => '20:00'],
+        ]);
+
+        $this->get($this->bookingUrl($company, [
+            'date' => '2026-04-28',
+            'filters_submitted' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('Bianca')
+            ->assertSee('/storage/professionals/bianca.jpg')
+            ->assertSee('value="' . $professional->id . '"', false)
+            ->assertSee('checked', false)
+            ->assertSee('11:00')
+            ->assertDontSee('value="' . $admin->id . '" checked', false);
     }
 
     public function test_public_booking_shows_service_image_fallback_when_image_is_missing(): void
@@ -129,7 +230,7 @@ class PublicBookingTest extends TestCase
         ]))
             ->assertOk()
             ->assertSee('Bruno')
-            ->assertSee('bg-[#d4af37]/12 text-lg font-semibold text-[#d4af37]', false)
+            ->assertSee('bg-[#d4af37] text-[#132746] flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-semibold', false)
             ->assertDontSee('/storage/professionals/');
     }
 
@@ -155,7 +256,7 @@ class PublicBookingTest extends TestCase
             ->assertOk()
             ->assertSee('Caio')
             ->assertDontSee('/storage/professionals/arquivo-inexistente.webp')
-            ->assertSee('bg-[#d4af37]/12 text-lg font-semibold text-[#d4af37]', false);
+            ->assertSee('bg-[#d4af37] text-[#132746] flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-semibold', false);
     }
 
     public function test_public_booking_creates_appointment_and_items_with_selected_services(): void
@@ -223,6 +324,25 @@ class PublicBookingTest extends TestCase
             'duration_snapshot' => 30,
             'order' => 2,
         ]);
+    }
+
+    public function test_public_booking_confirmation_without_service_is_blocked(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-27 10:00:00');
+
+        $company = Company::factory()->create();
+        $user = User::factory()->for($company)->create(['active' => true]);
+
+        $this->from(route('public-bookings.create', $company, false))
+            ->post(route('public-bookings.store', $company, false), [
+                'user_id' => $user->id,
+                'date' => '2026-04-28',
+                'time' => '14:00',
+                'client_name' => 'Paula',
+                'client_phone' => '71999999999',
+            ])
+            ->assertRedirect(route('public-bookings.create', $company, false))
+            ->assertSessionHasErrors(['service_ids']);
     }
 
     public function test_public_booking_success_page_shows_complete_summary_for_multiple_services(): void
@@ -369,6 +489,170 @@ class PublicBookingTest extends TestCase
             ->assertSee('09:00');
     }
 
+    public function test_public_booking_recalculates_slots_when_services_are_selected(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-27 10:00:00', 'America/Bahia'));
+
+        $company = Company::factory()->create();
+        $firstService = Service::factory()->for($company)->create([
+            'duration_minutes' => 45,
+            'active' => true,
+        ]);
+        $secondService = Service::factory()->for($company)->create([
+            'duration_minutes' => 30,
+            'active' => true,
+        ]);
+        $user = User::factory()->for($company)->create(['active' => true]);
+        $client = Client::factory()->for($company)->create();
+
+        $override = ProfessionalDayOverride::create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+            'is_day_off' => false,
+        ]);
+
+        $override->intervals()->createMany([
+            ['start_time' => '14:00', 'end_time' => '20:00'],
+        ]);
+
+        Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $user->id,
+            'service_id' => $firstService->id,
+            'start_time' => '2026-04-28 14:45:00',
+            'end_time' => '2026-04-28 15:15:00',
+            'status' => 'scheduled',
+        ]);
+
+        $this->get($this->bookingUrl($company, [
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+            'filters_submitted' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('14:00');
+
+        $this->get($this->bookingUrl($company, [
+            'service_ids' => [$firstService->id, $secondService->id],
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+            'filters_submitted' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('14:00')
+            ->assertSee('Reservado')
+            ->assertSee('15:30');
+    }
+
+    public function test_public_booking_reloads_slots_for_the_selected_professional(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-27 10:00:00', 'America/Bahia'));
+
+        $company = Company::factory()->create();
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 45,
+            'active' => true,
+        ]);
+        $firstProfessional = User::factory()->for($company)->create([
+            'name' => 'Carlos',
+            'active' => true,
+        ]);
+        $secondProfessional = User::factory()->for($company)->create([
+            'name' => 'Diego',
+            'active' => true,
+        ]);
+
+        $firstOverride = ProfessionalDayOverride::create([
+            'company_id' => $company->id,
+            'user_id' => $firstProfessional->id,
+            'date' => '2026-04-28',
+            'is_day_off' => false,
+        ]);
+        $firstOverride->intervals()->createMany([
+            ['start_time' => '09:00', 'end_time' => '11:00'],
+        ]);
+
+        $secondOverride = ProfessionalDayOverride::create([
+            'company_id' => $company->id,
+            'user_id' => $secondProfessional->id,
+            'date' => '2026-04-28',
+            'is_day_off' => false,
+        ]);
+        $secondOverride->intervals()->createMany([
+            ['start_time' => '14:00', 'end_time' => '18:00'],
+        ]);
+
+        $this->get($this->bookingUrl($company, [
+            'service_ids' => [$service->id],
+            'user_id' => $secondProfessional->id,
+            'date' => '2026-04-28',
+            'filters_submitted' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('14:00')
+            ->assertSee('18:00')
+            ->assertDontSee('09:00');
+    }
+
+    public function test_public_booking_page_shows_valid_slots_from_date_specific_override_for_total_duration(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-27 10:00:00', 'America/Bahia'));
+
+        $company = Company::factory()->create();
+        $firstService = Service::factory()->for($company)->create([
+            'duration_minutes' => 45,
+            'active' => true,
+        ]);
+        $secondService = Service::factory()->for($company)->create([
+            'duration_minutes' => 30,
+            'active' => true,
+        ]);
+        $user = User::factory()->for($company)->create([
+            'active' => true,
+        ]);
+
+        $override = ProfessionalDayOverride::create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+            'is_day_off' => false,
+        ]);
+
+        $override->intervals()->createMany([
+            ['start_time' => '11:00', 'end_time' => '13:00'],
+            ['start_time' => '14:00', 'end_time' => '20:00'],
+        ]);
+
+        $this->get($this->bookingUrl($company, [
+            'service_ids' => [$firstService->id, $secondService->id],
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+            'filters_submitted' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('11:00')
+            ->assertSee('11:30')
+            ->assertSee('12:00')
+            ->assertSee('12:30')
+            ->assertSee('13:00')
+            ->assertSee('14:00')
+            ->assertSee('14:30')
+            ->assertSee('15:00')
+            ->assertSee('15:30')
+            ->assertSee('16:00')
+            ->assertSee('16:30')
+            ->assertSee('17:00')
+            ->assertSee('17:30')
+            ->assertSee('18:00')
+            ->assertSee('18:30')
+            ->assertSee('19:00')
+            ->assertSee('19:30')
+            ->assertSee('20:00')
+            ->assertDontSee('13:30')
+            ->assertDontSee('20:30');
+    }
+
     public function test_public_booking_page_does_not_show_past_slots_for_today(): void
     {
         CarbonImmutable::setTestNow('2026-04-28 09:10:00');
@@ -390,11 +674,90 @@ class PublicBookingTest extends TestCase
             'filters_submitted' => 1,
         ]))
             ->assertOk()
-            ->assertDontSee('08:00')
-            ->assertDontSee('08:30')
-            ->assertDontSee('09:00')
-            ->assertDontSee('09:30')
-            ->assertSee('10:00');
+            ->assertSee('08:00')
+            ->assertSee('08:30')
+            ->assertSee('09:00')
+            ->assertSee('Passou')
+            ->assertSee('09:30')
+            ->assertSee('10:00')
+            ->assertSee('18:00');
+    }
+
+    public function test_public_booking_today_does_not_discount_thirty_minutes_from_professional_shift(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-29 13:11:00', 'America/Bahia'));
+
+        $company = Company::factory()->create();
+        $user = User::factory()->for($company)->create(['active' => true]);
+
+        $override = ProfessionalDayOverride::create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'date' => '2026-04-29',
+            'is_day_off' => false,
+        ]);
+
+        $override->intervals()->createMany([
+            ['start_time' => '13:00', 'end_time' => '20:00'],
+        ]);
+
+        $this->get($this->bookingUrl($company, [
+            'user_id' => $user->id,
+            'date' => '2026-04-29',
+            'filters_submitted' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('13:00')
+            ->assertSee('Passou')
+            ->assertSee('13:30')
+            ->assertSee('14:00')
+            ->assertSee('19:30')
+            ->assertSee('20:00');
+    }
+
+    public function test_public_booking_shows_reserved_slots_visually_disabled(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-29 10:00:00', 'America/Bahia'));
+
+        $company = Company::factory()->create();
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 30,
+            'active' => true,
+        ]);
+        $user = User::factory()->for($company)->create(['active' => true]);
+        $client = Client::factory()->for($company)->create();
+
+        $override = ProfessionalDayOverride::create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'date' => '2026-04-29',
+            'is_day_off' => false,
+        ]);
+
+        $override->intervals()->createMany([
+            ['start_time' => '13:00', 'end_time' => '20:00'],
+        ]);
+
+        Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $user->id,
+            'service_id' => $service->id,
+            'start_time' => '2026-04-29 15:00:00',
+            'end_time' => '2026-04-29 15:30:00',
+            'status' => 'scheduled',
+        ]);
+
+        $this->get($this->bookingUrl($company, [
+            'service_ids' => [$service->id],
+            'user_id' => $user->id,
+            'date' => '2026-04-29',
+            'filters_submitted' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('15:00')
+            ->assertSee('Reservado')
+            ->assertSee('14:30')
+            ->assertSee('20:00');
     }
 
     public function test_public_booking_page_shows_clear_empty_message_when_no_slots_are_available(): void
@@ -418,6 +781,14 @@ class PublicBookingTest extends TestCase
             'end_time' => '2026-04-28 18:00:00',
             'status' => 'scheduled',
         ]);
+        Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $user->id,
+            'service_id' => $service->id,
+            'start_time' => '2026-04-28 18:00:00',
+            'end_time' => '2026-04-28 19:00:00',
+            'status' => 'scheduled',
+        ]);
 
         $this->get($this->bookingUrl($company, [
             'service_ids' => [$service->id],
@@ -426,7 +797,9 @@ class PublicBookingTest extends TestCase
             'filters_submitted' => 1,
         ]))
             ->assertOk()
-            ->assertSee('Nenhum horario disponivel para essa data. Tente outro dia.');
+            ->assertSee('08:00')
+            ->assertSee('Reservado')
+            ->assertSee('18:00');
     }
 
     public function test_public_booking_cannot_use_foreign_company_service_or_unavailable_slot(): void

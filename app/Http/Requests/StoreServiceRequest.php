@@ -3,6 +3,8 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class StoreServiceRequest extends FormRequest
 {
@@ -27,6 +29,22 @@ class StoreServiceRequest extends FormRequest
             'price' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
             'active' => ['nullable', 'boolean'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'library_image' => ['nullable', 'string', Rule::in($this->availableLibraryImages())],
         ];
+    }
+
+    /**
+     * Get the list of available built-in service images.
+     *
+     * @return list<string>
+     */
+    private function availableLibraryImages(): array
+    {
+        return collect(Storage::disk('public')->files('service-library/services'))
+            ->filter(function (string $path): bool {
+                return in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'webp', 'svg'], true);
+            })
+            ->values()
+            ->all();
     }
 }

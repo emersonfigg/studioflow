@@ -22,6 +22,10 @@ class DashboardController extends Controller
             return redirect()->route('super-admin.dashboard');
         }
 
+        if ($request->user()->isAdmin() && $request->user()->company && ! $request->user()->company->onboardingCompleted()) {
+            return redirect()->route('company.onboarding');
+        }
+
         $companyId = $request->user()->company_id;
         $now = now();
         $todayStart = $now->copy()->startOfDay();

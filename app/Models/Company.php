@@ -6,6 +6,8 @@ use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class Company extends Model
 {
@@ -20,8 +22,13 @@ class Company extends Model
     protected $fillable = [
         'name',
         'phone',
+        'address',
+        'cnpj',
+        'instagram',
+        'description',
         'logo',
         'active',
+        'onboarding_completed_at',
     ];
 
     /**
@@ -33,6 +40,7 @@ class Company extends Model
     {
         return [
             'active' => 'boolean',
+            'onboarding_completed_at' => 'datetime',
         ];
     }
 
@@ -67,6 +75,16 @@ class Company extends Model
     }
 
     /**
+     * Get the products for the company.
+     *
+     * @return HasMany<Product>
+     */
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class);
+    }
+
+    /**
      * Get the appointments for the company.
      *
      * @return HasMany<Appointment>
@@ -87,6 +105,46 @@ class Company extends Model
     }
 
     /**
+     * Get the product sales for the company.
+     *
+     * @return HasMany<ProductSale>
+     */
+    public function productSales(): HasMany
+    {
+        return $this->hasMany(ProductSale::class);
+    }
+
+    /**
+     * Get the commission settlements for the company.
+     *
+     * @return HasMany<CommissionSettlement>
+     */
+    public function commissionSettlements(): HasMany
+    {
+        return $this->hasMany(CommissionSettlement::class);
+    }
+
+    /**
+     * Get cash registers for the company.
+     *
+     * @return HasMany<CashRegister>
+     */
+    public function cashRegisters(): HasMany
+    {
+        return $this->hasMany(CashRegister::class);
+    }
+
+    /**
+     * Get cash movements for the company.
+     *
+     * @return HasMany<CashMovement>
+     */
+    public function cashMovements(): HasMany
+    {
+        return $this->hasMany(CashMovement::class);
+    }
+
+    /**
      * Get the working hours for professionals in the company.
      *
      * @return HasMany<ProfessionalWorkingHour>
@@ -104,5 +162,39 @@ class Company extends Model
     public function professionalDayOverrides(): HasMany
     {
         return $this->hasMany(ProfessionalDayOverride::class);
+    }
+
+    /**
+     * Get the public URL for the company logo.
+     */
+    public function getLogoUrlAttribute(): ?string
+    {
+        $logoPath = $this->normalizedLogoPath();
+
+        if (! $logoPath || ! Storage::disk('public')->exists($logoPath)) {
+            return null;
+        }
+
+        return Storage::url($logoPath);
+    }
+
+    /**
+     * Normalize stored logo paths to a public-disk relative path.
+     */
+    public function normalizedLogoPath(): ?string
+    {
+        if (! $this->logo) {
+            return null;
+        }
+
+        return ltrim(Str::replaceFirst('storage/', '', str_replace('\\', '/', $this->logo)), '/');
+    }
+
+    /**
+     * Determine if the company finished the first setup.
+     */
+    public function onboardingCompleted(): bool
+    {
+        return $this->onboarding_completed_at !== null;
     }
 }

@@ -3,12 +3,16 @@
         <div class="flex h-20 items-center justify-between gap-6">
             <div class="flex min-w-0 items-center gap-4">
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-3">
-                    <div class="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#d4af37]/20 bg-[#132746] text-[#d4af37] shadow-[0_10px_24px_rgba(9,20,45,0.22)]">
-                        <x-application-logo class="h-6 w-6" />
-                    </div>
+                    @if (! auth()->user()->isSuperAdmin() && auth()->user()->company?->logo_url)
+                        <img src="{{ auth()->user()->company->logo_url }}" alt="Logo de {{ auth()->user()->company->name }}" class="h-11 w-11 rounded-2xl object-cover ring-1 ring-white/10 shadow-[0_10px_24px_rgba(9,20,45,0.22)]">
+                    @else
+                        <div class="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#d4af37]/20 bg-[#132746] text-[#d4af37] shadow-[0_10px_24px_rgba(9,20,45,0.22)]">
+                            <x-application-logo class="h-6 w-6" />
+                        </div>
+                    @endif
                     <div>
-                        <p class="text-sm font-semibold tracking-tight text-white">StudioFlow</p>
-                        <p class="hidden text-xs leading-5 text-[#c7d2e3] sm:block">Agenda inteligente para barbearias, saloes e estetica</p>
+                        <p class="text-sm font-semibold tracking-tight text-white">{{ auth()->user()->isSuperAdmin() ? 'StudioFlow' : (auth()->user()->company?->name ?? 'StudioFlow') }}</p>
+                        <p class="hidden text-xs leading-5 text-[#c7d2e3] sm:block">{{ auth()->user()->isSuperAdmin() ? 'Agenda inteligente para barbearias, saloes e estetica' : (auth()->user()->company?->description ?: 'Agenda inteligente para barbearias, saloes e estetica') }}</p>
                     </div>
                 </a>
 
@@ -90,9 +94,20 @@
                 <x-responsive-nav-link :href="route('services.index')" :active="request()->routeIs('services.*')">
                     {{ __('Services') }}
                 </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('products.index')" :active="request()->routeIs('products.*') || request()->routeIs('product-sales.*')">
+                    Produtos
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('product-sales.index')" :active="request()->routeIs('product-sales.*')">
+                    Vendas
+                </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('appointments.index')" :active="request()->routeIs('appointments.*')">
                     {{ __('Appointments') }}
                 </x-responsive-nav-link>
+                @if (auth()->user()->isAdmin())
+                    <x-responsive-nav-link :href="route('company.edit')" :active="request()->routeIs('company.*')">
+                        Empresa
+                    </x-responsive-nav-link>
+                @endif
                 <x-responsive-nav-link :href="route('schedule.edit')" :active="request()->routeIs('schedule.*') || request()->routeIs('team.availability.*')">
                     Minha agenda
                 </x-responsive-nav-link>

@@ -1,4 +1,6 @@
 <x-app-layout>
+    @php($initialLibraryImage = collect($libraryImages)->firstWhere('path', old('library_image')))
+
     <x-slot name="header">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
@@ -27,12 +29,45 @@
             price: @js((string) old('price', '0.00')),
             active: @js((bool) old('active', true)),
             imageName: '',
+            uploadPreview: '',
+            selectedLibraryImage: @js(old('library_image', '')),
+            selectedLibraryPreview: @js($initialLibraryImage['url'] ?? ''),
+            handleUploadChange(event) {
+                const file = event.target.files[0];
+
+                if (!file) {
+                    this.imageName = '';
+                    this.uploadPreview = '';
+                    return;
+                }
+
+                this.imageName = file.name;
+                this.selectedLibraryImage = '';
+                this.selectedLibraryPreview = '';
+
+                const reader = new FileReader();
+                reader.onload = (loadEvent) => {
+                    this.uploadPreview = loadEvent.target?.result ?? '';
+                };
+                reader.readAsDataURL(file);
+            },
+            chooseLibraryImage(image) {
+                this.selectedLibraryImage = image.path;
+                this.selectedLibraryPreview = image.url;
+                this.imageName = '';
+                this.uploadPreview = '';
+
+                if (this.$refs.imageInput) {
+                    this.$refs.imageInput.value = '';
+                }
+            }
         }"
         class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]"
     >
         <section class="sf-card p-5 sm:p-6">
             <form id="service-create-form" method="POST" action="{{ route('services.store') }}" enctype="multipart/form-data" class="space-y-6">
                 @csrf
+                <input type="hidden" name="library_image" :value="selectedLibraryImage">
 
                 <div class="grid gap-5 lg:grid-cols-2">
                     <div class="lg:col-span-2">
@@ -82,18 +117,55 @@
                     </div>
 
                     <div class="lg:col-span-2">
-                        <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                            <label for="image" class="text-sm font-medium text-white">Imagem do servico</label>
-                            <input
-                                id="image"
-                                name="image"
-                                type="file"
-                                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                                class="sf-input mt-2 block w-full px-3 py-3"
-                                @change="imageName = $event.target.files[0] ? $event.target.files[0].name : ''"
-                            >
-                            <p class="mt-2 text-xs text-[#c7d2e3]">Use JPG, PNG ou WEBP para destacar o servico no catalogo e no agendamento online.</p>
+                        <div class="space-y-5 rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
+                            <div>
+                                <p class="text-sm font-medium text-white">Biblioteca StudioFlow</p>
+                                <p class="mt-2 text-sm text-[#c7d2e3]">
+                                    Escolha uma imagem pronta da nossa base visual ou envie uma imagem do seu computador ou celular.
+                                </p>
+                            </div>
+
+                            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                @foreach ($libraryImages as $libraryImage)
+                                    <button
+                                        type="button"
+                                        @click='chooseLibraryImage(@js($libraryImage))'
+                                        :class="selectedLibraryImage === @js($libraryImage['path']) ? 'border-[#d4af37] bg-[#1b335b] ring-2 ring-[#d4af37]/30' : 'border-white/10 bg-[#1b335b]/60 hover:border-[#d4af37]/60 hover:bg-[#1b335b]'"
+                                        class="overflow-hidden rounded-2xl border text-left transition"
+                                    >
+                                        <div class="aspect-[4/3] overflow-hidden bg-[#10213b]">
+                                            <img src="{{ $libraryImage['url'] }}" alt="{{ $libraryImage['label'] }}" class="h-full w-full object-cover">
+                                        </div>
+                                        <div class="flex items-center justify-between gap-3 px-3 py-3">
+                                            <p class="text-sm font-semibold text-white">{{ $libraryImage['label'] }}</p>
+                                            <span
+                                                x-show="selectedLibraryImage === @js($libraryImage['path'])"
+                                                x-cloak
+                                                class="rounded-full bg-[#d4af37] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#132746]"
+                                            >
+                                                Escolhida
+                                            </span>
+                                        </div>
+                                    </button>
+                                @endforeach
+                            </div>
+
+                            <div class="rounded-2xl border border-dashed border-white/10 bg-[#1b335b]/70 px-4 py-4">
+                                <label for="image" class="text-sm font-medium text-white">Ou envie a sua imagem</label>
+                                <input
+                                    id="image"
+                                    x-ref="imageInput"
+                                    name="image"
+                                    type="file"
+                                    accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                    class="sf-input mt-2 block w-full px-3 py-3"
+                                    @change="handleUploadChange($event)"
+                                >
+                                <p class="mt-2 text-xs text-[#c7d2e3]">Use JPG, PNG ou WEBP para destacar o servico no catalogo e no agendamento online.</p>
+                            </div>
+
                             <x-input-error class="mt-2" :messages="$errors->get('image')" />
+                            <x-input-error class="mt-2" :messages="$errors->get('library_image')" />
                         </div>
                     </div>
                 </div>
@@ -135,14 +207,14 @@
 
                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Imagem</p>
-                        <div class="mt-3 flex h-28 items-center justify-center rounded-2xl border border-dashed border-white/10 bg-[#1b335b]">
-                            <template x-if="imageName">
-                                <div class="px-4 text-center">
-                                    <p class="text-sm font-semibold text-white" x-text="imageName"></p>
-                                    <p class="mt-1 text-xs text-[#c7d2e3]">Imagem pronta para o catalogo visual.</p>
-                                </div>
+                        <div class="mt-3 flex h-32 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-white/10 bg-[#1b335b]">
+                            <template x-if="uploadPreview">
+                                <img :src="uploadPreview" alt="Preview da imagem enviada" class="h-full w-full object-cover">
                             </template>
-                            <template x-if="!imageName">
+                            <template x-if="!uploadPreview && selectedLibraryPreview">
+                                <img :src="selectedLibraryPreview" alt="Preview da imagem escolhida" class="h-full w-full object-cover">
+                            </template>
+                            <template x-if="!uploadPreview && !selectedLibraryPreview">
                                 <div class="flex flex-col items-center gap-3 text-center">
                                     <div class="flex h-12 w-12 items-center justify-center rounded-full bg-[#d4af37]/12 text-[#d4af37]">
                                         <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -151,6 +223,17 @@
                                     </div>
                                     <p class="text-sm font-medium text-[#c7d2e3]">Sem imagem enviada</p>
                                 </div>
+                            </template>
+                        </div>
+                        <div class="mt-3 rounded-2xl border border-white/10 bg-[#1b335b]/60 px-3 py-3 text-xs text-[#c7d2e3]">
+                            <template x-if="imageName">
+                                <p><span class="font-semibold text-white" x-text="imageName"></span> pronta para envio.</p>
+                            </template>
+                            <template x-if="!imageName && selectedLibraryImage">
+                                <p>Imagem da biblioteca pronta para ser usada no servico.</p>
+                            </template>
+                            <template x-if="!imageName && !selectedLibraryImage">
+                                <p>Escolha uma imagem pronta ou envie uma do seu dispositivo.</p>
                             </template>
                         </div>
                     </div>

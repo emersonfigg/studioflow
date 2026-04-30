@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Appointment extends Model
 {
@@ -119,6 +120,16 @@ class Appointment extends Model
     public function payment(): HasOne
     {
         return $this->hasOne(Payment::class);
+    }
+
+    /**
+     * Get product sales registered during this appointment conclusion.
+     *
+     * @return HasMany<ProductSale>
+     */
+    public function productSales(): HasMany
+    {
+        return $this->hasMany(ProductSale::class);
     }
 
     /**

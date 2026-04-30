@@ -18,7 +18,19 @@
                     <div class="inline-flex items-center rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">
                         Agendamento confirmado
                     </div>
-                    <h1 class="mt-4 text-3xl font-semibold tracking-tight text-white">StudioFlow</h1>
+                    <div class="mt-4 flex items-center gap-4">
+                        @if ($company->logo_url)
+                            <img src="{{ $company->logo_url }}" alt="Logo de {{ $company->name }}" class="h-14 w-14 rounded-3xl object-cover ring-1 ring-white/10">
+                        @else
+                            <div class="flex h-14 w-14 items-center justify-center rounded-3xl bg-[#d4af37]/12 text-[#d4af37] ring-1 ring-white/10">
+                                <x-application-logo class="h-7 w-7" />
+                            </div>
+                        @endif
+                        <div>
+                            <h1 class="text-3xl font-semibold tracking-tight text-white">{{ $company->name }}</h1>
+                            <p class="mt-1 text-sm text-[#c7d2e3]">{{ $company->description ?: 'Seu bloco de atendimento foi confirmado com sucesso.' }}</p>
+                        </div>
+                    </div>
                     <p class="mt-2 max-w-2xl text-sm leading-7 text-[#c7d2e3]">
                         Seu bloco de atendimento foi confirmado com sucesso. Confira abaixo todos os detalhes do agendamento.
                     </p>

@@ -2,10 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CashMovement;
+use App\Models\CashRegister;
+use App\Models\CommissionSettlement;
 use App\Models\Payment;
+use App\Models\ProductSale;
 use App\Models\User;
+use App\Services\CashRegisterService;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
@@ -94,33 +100,71 @@ class FinanceController extends Controller
     public function commissions(Request $request): View
     {
         [$from, $to, $selectedUserId, $users, $payments] = $this->baseData($request);
+        $companyId = $request->user()->company_id;
 
-        $rows = $payments
-            ->groupBy('user_id')
-            ->map(function (Collection $group) {
-                /** @var Payment $first */
-                $first = $group->first();
-                $gross = (float) $group->sum(fn (Payment $payment) => (float) $payment->gross_amount);
-                $commission = (float) $group->sum(fn (Payment $payment) => (float) $payment->commission_amount);
+        $commissionPayments = $payments
+            ->filter(fn (Payment $payment): bool => (float) $payment->commission_amount > 0)
+            ->values();
+
+        $settledPaymentIds = CommissionSettlement::query()
+            ->where('company_id', $companyId)
+            ->whereDate('start_date', '<=', $to->toDateString())
+            ->whereDate('end_date', '>=', $from->toDateString())
+            ->when($selectedUserId !== null, fn ($query) => $query->where('user_id', $selectedUserId))
+            ->with('payments:id')
+            ->get()
+            ->flatMap(fn (CommissionSettlement $settlement) => $settlement->payments->pluck('id'))
+            ->unique()
+            ->values();
+
+        $pendingPayments = $commissionPayments
+            ->reject(fn (Payment $payment) => $settledPaymentIds->contains($payment->id))
+            ->values();
+
+        $settlements = CommissionSettlement::query()
+            ->with(['user', 'creator', 'payments.client', 'payments.service'])
+            ->where('company_id', $companyId)
+            ->whereDate('start_date', '<=', $to->toDateString())
+            ->whereDate('end_date', '>=', $from->toDateString())
+            ->when($selectedUserId !== null, fn ($query) => $query->where('user_id', $selectedUserId))
+            ->orderByDesc('paid_at')
+            ->get();
+
+        $rows = $users
+            ->filter(fn (User $user): bool => $selectedUserId === null || $user->id === $selectedUserId)
+            ->map(function (User $user) use ($commissionPayments, $pendingPayments, $settlements): array {
+                $userPayments = $commissionPayments->where('user_id', $user->id);
+                $userPendingPayments = $pendingPayments->where('user_id', $user->id);
+                $userSettlements = $settlements->where('user_id', $user->id);
+                $grossAmount = (float) $userPayments->sum(fn (Payment $payment) => (float) $payment->gross_amount);
+                $pendingCommission = (float) $userPendingPayments->sum(fn (Payment $payment) => (float) $payment->commission_amount);
+                $paidCommission = (float) $userSettlements->sum(fn (CommissionSettlement $settlement) => (float) $settlement->commission_amount);
+                $firstPayment = $userPayments->first();
 
                 return [
-                    'user' => $first->user,
-                    'commission_type' => $first->commission_type,
-                    'commission_rate' => $first->commission_rate,
-                    'services_count' => $group->count(),
-                    'gross_amount' => $gross,
-                    'commission_amount' => $commission,
-                    'effective_rate' => $gross > 0 ? round(($commission / $gross) * 100, 2) : 0.0,
+                    'user' => $user,
+                    'commission_type' => $firstPayment?->commission_type ?? $user->commission_type,
+                    'commission_rate' => $firstPayment?->commission_rate ?? ($user->commission_type === 'percent' ? $user->commission_value : null),
+                    'services_count' => $userPayments->count(),
+                    'gross_amount' => $grossAmount,
+                    'pending_commission_amount' => $pendingCommission,
+                    'paid_commission_amount' => $paidCommission,
+                    'effective_rate' => $grossAmount > 0
+                        ? round((((float) $userPayments->sum(fn (Payment $payment) => (float) $payment->commission_amount)) / $grossAmount) * 100, 2)
+                        : 0.0,
+                    'can_settle' => $pendingCommission > 0,
                 ];
             })
-            ->sortBy(fn (array $row) => $row['user']->name)
+            ->filter(fn (array $row): bool => $row['services_count'] > 0 || $row['paid_commission_amount'] > 0)
             ->values();
 
-        $recentCommissionPayments = $payments
-            ->filter(fn (Payment $payment) => (float) $payment->commission_amount > 0)
-            ->sortByDesc(fn (Payment $payment) => $payment->paid_at)
-            ->take(12)
-            ->values();
+        $recentSettlements = CommissionSettlement::query()
+            ->with(['user', 'creator'])
+            ->where('company_id', $companyId)
+            ->when(! $request->user()->isAdmin(), fn ($query) => $query->where('user_id', $request->user()->id))
+            ->orderByDesc('paid_at')
+            ->limit(12)
+            ->get();
 
         return view('finance.commissions', [
             'rows' => $rows,
@@ -129,8 +173,151 @@ class FinanceController extends Controller
             'from' => $from,
             'to' => $to,
             'canFilterProfessionals' => $request->user()->isAdmin(),
-            'recentCommissionPayments' => $recentCommissionPayments,
+            'recentSettlements' => $recentSettlements,
             'page' => 'commissions',
+        ]);
+    }
+
+    /**
+     * Display daily cash register operations.
+     */
+    public function cash(Request $request, CashRegisterService $cashRegisterService): View
+    {
+        $date = $request->filled('date')
+            ? CarbonImmutable::parse($request->string('date'))
+            : CarbonImmutable::today();
+
+        $register = $cashRegisterService->registerForDate($request->user()->company_id, $date);
+
+        return view('finance.cash', [
+            'date' => $date,
+            'register' => $register?->load('movements'),
+            'page' => 'cash',
+        ]);
+    }
+
+    /**
+     * Open daily cash register.
+     */
+    public function openCash(Request $request, CashRegisterService $cashRegisterService): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'date' => ['required', 'date'],
+            'opening_amount' => ['required', 'numeric', 'min:0'],
+            'notes' => ['nullable', 'string'],
+        ]);
+
+        $date = CarbonImmutable::parse($data['date']);
+
+        $cashRegisterService->open(
+            $request->user(),
+            (float) $data['opening_amount'],
+            $data['notes'] ?? null,
+            $date,
+        );
+
+        return redirect()
+            ->route('finance.cash', ['date' => $date->format('Y-m-d')])
+            ->with('status', 'cash-opened');
+    }
+
+    /**
+     * Close daily cash register.
+     */
+    public function closeCash(Request $request, CashRegisterService $cashRegisterService): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'cash_register_id' => ['required', 'integer'],
+            'closing_amount' => ['nullable', 'numeric', 'min:0'],
+            'notes' => ['nullable', 'string'],
+        ]);
+
+        $register = CashRegister::query()
+            ->where('company_id', $request->user()->company_id)
+            ->findOrFail($data['cash_register_id']);
+
+        $cashRegisterService->close(
+            $register,
+            $request->user(),
+            isset($data['closing_amount']) ? (float) $data['closing_amount'] : null,
+            $data['notes'] ?? null,
+        );
+
+        return redirect()
+            ->route('finance.cash', ['date' => $register->date->format('Y-m-d')])
+            ->with('status', 'cash-closed');
+    }
+
+    /**
+     * Display consolidated financial report.
+     */
+    public function report(Request $request): View
+    {
+        [$from, $to, $selectedUserId, $users] = $this->baseFilters($request);
+        $companyId = $request->user()->company_id;
+
+        $payments = Payment::query()
+            ->with(['client', 'user', 'service'])
+            ->where('company_id', $companyId)
+            ->whereBetween('paid_at', [$from, $to])
+            ->when($selectedUserId !== null, fn ($query) => $query->where('user_id', $selectedUserId))
+            ->get();
+
+        $productSales = ProductSale::query()
+            ->with(['client', 'user', 'items.product'])
+            ->where('company_id', $companyId)
+            ->whereBetween('sold_at', [$from, $to])
+            ->when($selectedUserId !== null, fn ($query) => $query->where('user_id', $selectedUserId))
+            ->get();
+
+        $settlements = CommissionSettlement::query()
+            ->with('user')
+            ->where('company_id', $companyId)
+            ->whereBetween('paid_at', [$from, $to])
+            ->when($selectedUserId !== null, fn ($query) => $query->where('user_id', $selectedUserId))
+            ->get();
+
+        $movements = CashMovement::query()
+            ->with('cashRegister')
+            ->where('company_id', $companyId)
+            ->whereBetween('occurred_at', [$from, $to])
+            ->orderByDesc('occurred_at')
+            ->get();
+
+        $cashRegisters = CashRegister::query()
+            ->with('movements')
+            ->where('company_id', $companyId)
+            ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
+            ->orderByDesc('date')
+            ->get();
+
+        $serviceRevenue = (float) $payments->sum(fn (Payment $payment) => (float) $payment->gross_amount);
+        $productRevenue = (float) $productSales->sum(fn (ProductSale $sale) => (float) $sale->gross_amount);
+        $settlementsAmount = (float) $settlements->sum(fn (CommissionSettlement $settlement) => (float) $settlement->commission_amount);
+        $cashInflows = (float) $movements->where('type', CashMovement::TYPE_INFLOW)->sum('amount');
+        $cashOutflows = (float) $movements->where('type', CashMovement::TYPE_OUTFLOW)->sum('amount');
+
+        return view('finance.report', [
+            'from' => $from,
+            'to' => $to,
+            'users' => $users,
+            'selectedUserId' => $selectedUserId,
+            'canFilterProfessionals' => $request->user()->isAdmin(),
+            'serviceRevenue' => $serviceRevenue,
+            'productRevenue' => $productRevenue,
+            'totalRevenue' => $serviceRevenue + $productRevenue,
+            'settlementsAmount' => $settlementsAmount,
+            'cashInflows' => $cashInflows,
+            'cashOutflows' => $cashOutflows,
+            'payments' => $payments,
+            'productSales' => $productSales,
+            'settlements' => $settlements,
+            'cashRegisters' => $cashRegisters,
+            'page' => 'report',
         ]);
     }
 
@@ -140,6 +327,31 @@ class FinanceController extends Controller
      * @return array{0: CarbonImmutable, 1: CarbonImmutable, 2: int|null, 3: \Illuminate\Database\Eloquent\Collection<int, User>, 4: Collection<int, Payment>}
      */
     private function baseData(Request $request): array
+    {
+        [$from, $to, $selectedUserId, $users] = $this->baseFilters($request);
+
+        $paymentsQuery = Payment::query()
+            ->with(['user', 'client', 'service', 'appointment'])
+            ->where('company_id', $request->user()->company_id)
+            ->whereBetween('paid_at', [$from, $to]);
+
+        if ($selectedUserId !== null) {
+            $paymentsQuery->where('user_id', $selectedUserId);
+        }
+
+        $payments = $paymentsQuery
+            ->orderBy('paid_at')
+            ->get();
+
+        return [$from, $to, $selectedUserId, $users, $payments];
+    }
+
+    /**
+     * Shared finance filters.
+     *
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable, 2: int|null, 3: \Illuminate\Database\Eloquent\Collection<int, User>}
+     */
+    private function baseFilters(Request $request): array
     {
         $companyId = $request->user()->company_id;
         $from = $request->filled('from')
@@ -159,19 +371,6 @@ class FinanceController extends Controller
             ? ($request->integer('user_id') ?: null)
             : $request->user()->id;
 
-        $paymentsQuery = Payment::query()
-            ->with(['user', 'client', 'service', 'appointment'])
-            ->where('company_id', $companyId)
-            ->whereBetween('paid_at', [$from, $to]);
-
-        if ($selectedUserId !== null) {
-            $paymentsQuery->where('user_id', $selectedUserId);
-        }
-
-        $payments = $paymentsQuery
-            ->orderBy('paid_at')
-            ->get();
-
-        return [$from, $to, $selectedUserId, $users, $payments];
+        return [$from, $to, $selectedUserId, $users];
     }
 }

@@ -20,7 +20,13 @@ class CompanyFactory extends Factory
         return [
             'name' => fake()->company(),
             'phone' => fake()->optional()->phoneNumber(),
+            'address' => fake()->optional()->address(),
+            'cnpj' => null,
+            'instagram' => null,
+            'description' => null,
             'logo' => null,
+            'active' => true,
+            'onboarding_completed_at' => now(),
         ];
     }
 }

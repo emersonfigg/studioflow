@@ -152,26 +152,42 @@ class ClientController extends Controller
             'appointments as completed_visits_count' => fn (Builder $query) => $query->where('status', 'completed'),
         ]);
         $client->loadSum('payments as total_spent', 'gross_amount');
+        $client->loadSum('productSales as total_products_spent', 'gross_amount');
 
         $appointments = $client->appointments()
             ->with(['service', 'services', 'user', 'payment'])
             ->latest('start_time')
             ->get();
+        $productSales = $client->productSales()
+            ->with(['user', 'items.product'])
+            ->latest('sold_at')
+            ->get();
 
         $lastCompletedAppointment = $appointments->firstWhere('status', 'completed');
-        $averageTicket = $client->completed_visits_count > 0
-            ? (float) ($client->total_spent ?? 0) / $client->completed_visits_count
+        $lastProductSale = $productSales->first();
+        $servicesSpent = (float) ($client->total_spent ?? 0);
+        $productsSpent = (float) ($client->total_products_spent ?? 0);
+        $totalSpent = $servicesSpent + $productsSpent;
+        $interactionsCount = (int) $client->completed_visits_count + $productSales->count();
+        $averageTicket = $interactionsCount > 0
+            ? $totalSpent / $interactionsCount
             : 0.0;
 
         return view('clients.show', [
             'client' => $client,
             'appointments' => $appointments,
-            'totalSpent' => (float) ($client->total_spent ?? 0),
+            'productSales' => $productSales,
+            'serviceSpent' => $servicesSpent,
+            'productSpent' => $productsSpent,
+            'totalSpent' => $totalSpent,
             'totalVisits' => (int) $client->completed_visits_count,
-            'lastVisitAt' => $lastCompletedAppointment?->start_time ?? $client->last_visit_at,
+            'lastVisitAt' => $lastCompletedAppointment?->start_time ?? $lastProductSale?->sold_at ?? $client->last_visit_at,
             'averageTicket' => $averageTicket,
             'appointmentsThisMonth' => $appointments
                 ->whereBetween('start_time', [$monthStart, $monthEnd])
+                ->count(),
+            'productSalesThisMonth' => $productSales
+                ->whereBetween('sold_at', [$monthStart, $monthEnd])
                 ->count(),
         ]);
     }

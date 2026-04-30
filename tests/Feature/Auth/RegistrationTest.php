@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\Company;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -26,6 +28,18 @@ class RegistrationTest extends TestCase
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertRedirect(route('company.onboarding', absolute: false));
+
+        $user = User::where('email', 'test@example.com')->firstOrFail();
+
+        $this->assertSame('admin', $user->role);
+        $this->assertTrue((bool) $user->active);
+        $this->assertNotNull($user->company_id);
+        $this->assertDatabaseHas(Company::class, [
+            'id' => $user->company_id,
+            'name' => 'Empresa de Test User',
+            'active' => true,
+        ]);
+        $this->assertNull($user->company->onboarding_completed_at);
     }
 }

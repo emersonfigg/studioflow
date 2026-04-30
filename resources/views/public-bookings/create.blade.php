@@ -18,6 +18,7 @@
                 x-data="{
                     selectedServiceIds: @js($selectedServiceIds->map(fn ($id) => (string) $id)->all()),
                     catalog: @js($servicesCatalog),
+                    selectedDate: @js($selectedDate),
                     selectedServices() {
                         return this.catalog.filter((service) => this.selectedServiceIds.includes(String(service.id)));
                     },
@@ -26,6 +27,9 @@
                     },
                     totalPrice() {
                         return this.selectedServices().reduce((total, service) => total + Number(service.price_value), 0);
+                    },
+                    hasSelectedServices() {
+                        return this.selectedServiceIds.length > 0;
                     },
                     formattedTotalPrice() {
                         return this.totalPrice().toFixed(2).replace('.', ',');
@@ -36,7 +40,15 @@
                 <section class="space-y-6">
                     <header class="sf-card overflow-hidden px-5 py-6 sm:px-6">
                         <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
+                            <div class="flex items-start gap-4">
+                                @if ($company->logo_url)
+                                    <img src="{{ $company->logo_url }}" alt="Logo de {{ $company->name }}" class="h-16 w-16 rounded-3xl object-cover ring-1 ring-white/10">
+                                @else
+                                    <div class="flex h-16 w-16 items-center justify-center rounded-3xl bg-[#d4af37]/12 text-[#d4af37] ring-1 ring-white/10">
+                                        <x-application-logo class="h-8 w-8" />
+                                    </div>
+                                @endif
+                                <div>
                                 <div class="inline-flex items-center rounded-full border border-[#d4af37]/20 bg-[#d4af37]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#d4af37]">
                                     StudioFlow Booking
                                 </div>
@@ -44,12 +56,13 @@
                                     Monte seu agendamento completo
                                 </h1>
                                 <p class="mt-2 max-w-2xl text-sm leading-7 text-[#c7d2e3]">
-                                    Escolha um ou mais servicos, selecione o profissional e reserve um bloco de horario livre de uma vez so.
+                                    {{ $company->description ?: 'Escolha um ou mais servicos, selecione o profissional e reserve um bloco de horario livre de uma vez so.' }}
                                 </p>
+                            </div>
                             </div>
                             <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">{{ $company->name }}</p>
-                                <p class="mt-2 text-sm text-[#c7d2e3]">Agendamento online premium</p>
+                                <p class="mt-2 text-sm text-[#c7d2e3]">{{ $company->instagram ?: 'Agendamento online premium' }}</p>
                             </div>
                         </div>
                     </header>
@@ -62,7 +75,7 @@
                                 <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">1</span>
                                 <div>
                                     <h2 class="text-lg font-semibold text-white">1. Escolha os servicos</h2>
-                                    <p class="text-sm text-[#c7d2e3]">Marque um ou mais servicos para montar o atendimento.</p>
+                                    <p class="text-sm text-[#c7d2e3]">Marque um ou mais servicos para montar o atendimento. Voce tambem pode ver os horarios antes e decidir o servico depois.</p>
                                 </div>
                             </div>
 
@@ -140,12 +153,12 @@
                                             onchange="this.form.submit()"
                                             @checked($selected)
                                         >
-                                        <span class="{{ $selected ? 'border-[#d4af37]/50 bg-[#d4af37]/12 shadow-[0_12px_28px_rgba(212,175,55,0.12)]' : 'border-white/10 bg-[#132746] hover:border-[#d4af37]/35 hover:bg-[#183157]' }} flex items-center justify-between gap-4 rounded-[22px] border p-4 text-left transition">
+                                        <span class="{{ $selected ? 'border-[#d4af37] bg-gradient-to-br from-[#d4af37]/20 via-[#1f3a63] to-[#132746] ring-2 ring-[#d4af37]/45 shadow-[0_18px_40px_rgba(212,175,55,0.22)]' : 'border-white/10 bg-[#132746] hover:border-[#d4af37]/35 hover:bg-[#183157] hover:shadow-[0_14px_30px_rgba(8,20,42,0.28)]' }} flex items-center justify-between gap-4 rounded-[22px] border p-4 text-left transition">
                                             <span class="flex min-w-0 items-center gap-3">
                                                 @if ($user->photo_url)
-                                                    <img src="{{ $user->photo_url }}" alt="Foto de {{ $user->name }}" class="h-14 w-14 shrink-0 rounded-full object-cover ring-1 ring-white/10">
+                                                    <img src="{{ $user->photo_url }}" alt="Foto de {{ $user->name }}" class="{{ $selected ? 'ring-[#d4af37]/60' : 'ring-white/10' }} h-14 w-14 shrink-0 rounded-full object-cover ring-2">
                                                 @else
-                                                    <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#d4af37]/12 text-lg font-semibold text-[#d4af37]">
+                                                    <span class="{{ $selected ? 'bg-[#d4af37] text-[#132746]' : 'bg-[#d4af37]/12 text-[#d4af37]' }} flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-semibold">
                                                         {{ $user->avatar_initial }}
                                                     </span>
                                                 @endif
@@ -155,7 +168,12 @@
                                                 </span>
                                             </span>
                                             @if ($selected)
-                                                <span class="rounded-full bg-[#d4af37] px-3 py-1 text-xs font-semibold text-[#132746]">Selecionado</span>
+                                                <span class="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-semibold text-[#132746]">
+                                                    <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                        <path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.415 0l-3.25-3.25a1 1 0 111.414-1.42l2.543 2.544 6.543-6.544a1 1 0 011.415 0z" clip-rule="evenodd" />
+                                                    </svg>
+                                                    Selecionado
+                                                </span>
                                             @endif
                                         </span>
                                     </label>
@@ -180,9 +198,8 @@
                                         $selected = $selectedDate === $quickDate['value'];
                                     @endphp
                                     <button
-                                        type="submit"
-                                        name="date"
-                                        value="{{ $quickDate['value'] }}"
+                                        type="button"
+                                        @click="selectedDate = '{{ $quickDate['value'] }}'; $nextTick(() => $el.form.submit())"
                                         class="{{ $selected ? 'border-[#d4af37]/50 bg-[#d4af37]/12 text-white' : 'border-white/10 bg-[#132746] text-[#c7d2e3] hover:border-[#d4af37]/35 hover:bg-[#183157] hover:text-white' }} rounded-2xl border px-3 py-4 text-center transition"
                                     >
                                         <span class="block text-sm font-semibold">{{ $quickDate['label'] }}</span>
@@ -197,7 +214,7 @@
                                     id="public-date"
                                     name="date"
                                     type="date"
-                                    value="{{ $selectedDate }}"
+                                    x-model="selectedDate"
                                     class="sf-input mt-2 block w-full"
                                     onchange="this.form.submit()"
                                 >
@@ -225,13 +242,47 @@
                             </div>
 
                             <div class="mt-5">
-                                @if ($selectedServiceIds->isEmpty())
-                                    <div class="rounded-2xl border border-dashed border-white/10 bg-[#132746] px-4 py-5 text-sm text-[#c7d2e3]">
-                                        Selecione pelo menos um servico para ver os horarios disponiveis.
+                                @if ($usingEstimatedDuration)
+                                    <div class="mb-4 rounded-2xl border border-[#d4af37]/15 bg-[#d4af37]/10 px-4 py-4 text-sm text-[#f4e2a7]">
+                                        Horarios estimados com duracao padrao de 30 minutos. Escolha o servico para confirmar.
                                     </div>
-                                @elseif ($availableSlots !== [])
+                                @endif
+
+                                @if (($slotOptions ?? []) !== [])
+                                    <div class="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-[#132746] px-4 py-3 text-xs text-[#c7d2e3]">
+                                        <span class="font-semibold uppercase tracking-[0.16em] text-white">Legenda</span>
+                                        <span class="inline-flex items-center gap-2">
+                                            <span class="h-2.5 w-2.5 rounded-full bg-[#d4af37]"></span>
+                                            Livre
+                                        </span>
+                                        <span class="inline-flex items-center gap-2">
+                                            <span class="h-2.5 w-2.5 rounded-full bg-[#8fa0ba]"></span>
+                                            Passou
+                                        </span>
+                                        <span class="inline-flex items-center gap-2">
+                                            <span class="h-2.5 w-2.5 rounded-full bg-[#d96b6b]"></span>
+                                            Reservado
+                                        </span>
+                                    </div>
+                                @endif
+
+                                @if (($slotOptions ?? []) !== [])
                                     <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                                        @foreach ($availableSlots as $slot)
+                                        @foreach ($slotOptions as $slotOption)
+                                            @php
+                                                $slot = $slotOption['time'];
+                                                $disabled = ! $slotOption['available'];
+                                                $reasonLabel = match ($slotOption['reason']) {
+                                                    'past' => 'Passou',
+                                                    'reserved' => 'Reservado',
+                                                    default => null,
+                                                };
+                                                $slotClasses = match ($slotOption['reason']) {
+                                                    'past' => 'border-[#8fa0ba]/25 bg-[#162845] text-[#d5deec]',
+                                                    'reserved' => 'border-[#d96b6b]/35 bg-[#3a1f2b] text-[#ffd9d9]',
+                                                    default => 'border-white/10 bg-[#132746] text-white hover:border-[#d4af37]/35 hover:bg-[#183157] peer-checked:border-[#d4af37]/50 peer-checked:bg-[#d4af37] peer-checked:text-[#132746]',
+                                                };
+                                            @endphp
                                             <label class="cursor-pointer">
                                                 <input
                                                     type="radio"
@@ -239,10 +290,16 @@
                                                     value="{{ $slot }}"
                                                     class="peer sr-only"
                                                     @checked(old('time', $selectedTime) === $slot)
+                                                    @disabled($disabled)
                                                     required
                                                 >
-                                                <span class="flex min-h-[60px] items-center justify-center rounded-2xl border border-white/10 bg-[#132746] px-4 py-4 text-base font-semibold text-white transition peer-checked:border-[#d4af37]/50 peer-checked:bg-[#d4af37] peer-checked:text-[#132746] hover:border-[#d4af37]/35 hover:bg-[#183157]">
-                                                    {{ $slot }}
+                                                <span class="{{ $slotClasses }} flex min-h-[72px] flex-col items-center justify-center rounded-2xl border px-4 py-4 text-center transition {{ $disabled ? 'cursor-not-allowed opacity-85' : '' }}">
+                                                    <span class="text-base font-semibold">{{ $slot }}</span>
+                                                    @if ($reasonLabel)
+                                                        <span class="mt-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] {{ $slotOption['reason'] === 'reserved' ? 'bg-[#d96b6b]/18 text-[#ffd9d9]' : 'bg-white/10 text-[#d5deec]' }}">
+                                                            {{ $reasonLabel }}
+                                                        </span>
+                                                    @endif
                                                 </span>
                                             </label>
                                         @endforeach
@@ -310,13 +367,27 @@
                             <div class="sf-card p-5">
                                 <h3 class="text-base font-semibold text-white">Resumo do agendamento</h3>
                                 <div class="mt-4 space-y-3">
-                                    <template x-for="service in selectedServices()" :key="service.id">
+                                    <template x-if="hasSelectedServices()">
+                                        <div class="space-y-3">
+                                            <template x-for="service in selectedServices()" :key="service.id">
+                                                <div class="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#132746] px-4 py-3">
+                                                    <div class="min-w-0">
+                                                        <p class="truncate text-sm font-semibold text-white" x-text="service.name"></p>
+                                                        <p class="mt-1 text-xs text-[#c7d2e3]" x-text="service.duration + ' min'"></p>
+                                                    </div>
+                                                    <p class="text-sm font-semibold text-[#d4af37]" x-text="'R$ ' + service.price"></p>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="!hasSelectedServices()">
                                         <div class="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#132746] px-4 py-3">
                                             <div class="min-w-0">
-                                                <p class="truncate text-sm font-semibold text-white" x-text="service.name"></p>
-                                                <p class="mt-1 text-xs text-[#c7d2e3]" x-text="service.duration + ' min'"></p>
+                                                <p class="truncate text-sm font-semibold text-white">Escolha depois</p>
+                                                <p class="mt-1 text-xs text-[#c7d2e3]">Voce pode selecionar o servico antes de confirmar.</p>
                                             </div>
-                                            <p class="text-sm font-semibold text-[#d4af37]" x-text="'R$ ' + service.price"></p>
+                                            <p class="text-sm font-semibold text-[#d4af37]">A definir</p>
                                         </div>
                                     </template>
 
@@ -333,20 +404,29 @@
                                         <dd class="text-sm font-semibold text-white">{{ old('time', $selectedTime) ?: 'Selecione' }}</dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-4">
-                                        <dt class="text-sm text-[#c7d2e3]">Duracao total</dt>
-                                        <dd class="text-sm font-semibold text-white" x-text="totalDuration() + ' min'">{{ $totalDurationMinutes }} min</dd>
+                                        <dt class="text-sm text-[#c7d2e3]">Bloco total</dt>
+                                        <dd class="text-sm font-semibold text-white" x-text="hasSelectedServices() ? totalDuration() + ' min' : '30 min estimado'">{{ $usingEstimatedDuration ? '30 min estimado' : $totalDurationMinutes . ' min' }}</dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-4">
                                         <dt class="text-sm text-[#c7d2e3]">Valor total</dt>
-                                        <dd class="text-sm font-semibold text-[#d4af37]" x-text="'R$ ' + formattedTotalPrice()">R$ {{ number_format($totalPrice, 2, ',', '.') }}</dd>
+                                        <dd class="text-sm font-semibold text-[#d4af37]" x-text="hasSelectedServices() ? 'R$ ' + formattedTotalPrice() : 'A definir'">{{ $usingEstimatedDuration ? 'A definir' : 'R$ ' . number_format($totalPrice, 2, ',', '.') }}</dd>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <button type="submit" class="sf-button-primary w-full min-h-[60px] text-base" @disabled($selectedServiceIds->isEmpty())>
+                        <button
+                            type="submit"
+                            class="sf-button-primary w-full min-h-[60px] text-base disabled:cursor-not-allowed disabled:opacity-60"
+                            x-bind:disabled="!hasSelectedServices()"
+                        >
                             Confirmar agendamento
                         </button>
+                        <template x-if="!hasSelectedServices()">
+                            <p class="mt-3 text-center text-sm text-[#c7d2e3]">
+                                Escolha pelo menos um servico antes de confirmar.
+                            </p>
+                        </template>
                     </form>
                 </section>
 
@@ -359,15 +439,27 @@
                             </div>
 
                             <div class="space-y-4 px-5 py-5">
-                                <template x-for="service in selectedServices()" :key="service.id">
-                                    <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                                        <div class="flex items-center justify-between gap-4">
-                                            <div class="min-w-0">
-                                                <p class="truncate text-base font-semibold text-white" x-text="service.name"></p>
-                                                <p class="mt-1 text-sm text-[#c7d2e3]" x-text="service.duration + ' min'"></p>
+                                <template x-if="hasSelectedServices()">
+                                    <div class="space-y-4">
+                                        <template x-for="service in selectedServices()" :key="service.id">
+                                            <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
+                                                <div class="flex items-center justify-between gap-4">
+                                                    <div class="min-w-0">
+                                                        <p class="truncate text-base font-semibold text-white" x-text="service.name"></p>
+                                                        <p class="mt-1 text-sm text-[#c7d2e3]" x-text="service.duration + ' min'"></p>
+                                                    </div>
+                                                    <p class="text-sm font-semibold text-[#d4af37]" x-text="'R$ ' + service.price"></p>
+                                                </div>
                                             </div>
-                                            <p class="text-sm font-semibold text-[#d4af37]" x-text="'R$ ' + service.price"></p>
-                                        </div>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <template x-if="!hasSelectedServices()">
+                                    <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
+                                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Servico</p>
+                                        <p class="mt-2 text-base font-semibold text-white">Escolha depois</p>
+                                        <p class="mt-1 text-sm text-[#c7d2e3]">Veja a agenda primeiro e selecione o servico antes de confirmar.</p>
                                     </div>
                                 </template>
 
@@ -384,13 +476,13 @@
 
                                 <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Bloco total</p>
-                                    <p class="mt-2 text-2xl font-semibold text-white" x-text="totalDuration() + ' min'">{{ $totalDurationMinutes }} min</p>
+                                    <p class="mt-2 text-2xl font-semibold text-white" x-text="hasSelectedServices() ? totalDuration() + ' min' : '30 min estimado'">{{ $usingEstimatedDuration ? '30 min estimado' : $totalDurationMinutes . ' min' }}</p>
                                     <p class="mt-1 text-sm text-[#c7d2e3]">Tempo total reservado para os servicos escolhidos.</p>
                                 </div>
 
                                 <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Valor total</p>
-                                    <p class="mt-2 text-2xl font-semibold text-white" x-text="'R$ ' + formattedTotalPrice()">R$ {{ number_format($totalPrice, 2, ',', '.') }}</p>
+                                    <p class="mt-2 text-2xl font-semibold text-white" x-text="hasSelectedServices() ? 'R$ ' + formattedTotalPrice() : 'A definir'">{{ $usingEstimatedDuration ? 'A definir' : 'R$ ' . number_format($totalPrice, 2, ',', '.') }}</p>
                                     <p class="mt-1 text-sm text-[#c7d2e3]">Total estimado dos servicos selecionados.</p>
                                 </div>
                             </div>

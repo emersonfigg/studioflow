@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\Company;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -51,6 +52,36 @@ class LoginRequest extends FormRequest
         }
 
         $user = Auth::user();
+
+        if ($user && ! $user->isSuperAdmin() && ! $user->company_id) {
+            $company = Company::create([
+                'name' => 'Empresa de ' . $user->name,
+                'active' => true,
+                'onboarding_completed_at' => null,
+            ]);
+
+            $user->forceFill([
+                'company_id' => $company->id,
+                'role' => $user->role ?: 'admin',
+                'active' => $user->active ?? true,
+            ])->save();
+
+            $user->setRelation('company', $company);
+        }
+
+        if (
+            $user
+            && ! $user->isSuperAdmin()
+            && $user->company
+            && $user->role !== 'admin'
+            && $user->company->name === 'Empresa de ' . $user->name
+            && $user->company->users()->count() === 1
+        ) {
+            $user->forceFill([
+                'role' => 'admin',
+                'active' => $user->active ?? true,
+            ])->save();
+        }
 
         if ($user && ! $user->isSuperAdmin() && ! $user->company?->active) {
             Auth::logout();

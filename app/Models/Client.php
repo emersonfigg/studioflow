@@ -69,4 +69,14 @@ class Client extends Model
     {
         return $this->hasMany(Payment::class);
     }
+
+    /**
+     * Get the product sales for the client.
+     *
+     * @return HasMany<ProductSale>
+     */
+    public function productSales(): HasMany
+    {
+        return $this->hasMany(ProductSale::class);
+    }
 }

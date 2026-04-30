@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePaymentRequest;
 use App\Models\Appointment;
+use App\Models\Product;
 use App\Services\PaymentService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -22,13 +23,18 @@ class PaymentController extends Controller
         abort_if($appointment->status === 'cancelled', 422, 'Nao e possivel registrar pagamento para atendimento cancelado.');
 
         return view('payments.create', [
-            'appointment' => $appointment->load(['client', 'service', 'user']),
+            'appointment' => $appointment->load(['client', 'service', 'services', 'user']),
+            'products' => Product::query()
+                ->where('company_id', $request->user()->company_id)
+                ->where('active', true)
+                ->orderBy('name')
+                ->get(),
             'paymentMethods' => [
                 'cash' => 'Dinheiro',
                 'pix' => 'Pix',
                 'card' => 'Cartao',
             ],
-            'defaultGrossAmount' => number_format((float) $appointment->service->price, 2, '.', ''),
+            'defaultGrossAmount' => number_format((float) $appointment->totalPriceAmount(), 2, '.', ''),
         ]);
     }
 
@@ -39,7 +45,7 @@ class PaymentController extends Controller
     {
         $this->ensurePaymentAccess($request, $appointment);
 
-        $paymentService->register($appointment->loadMissing(['user', 'service']), $request->validated());
+        $paymentService->register($appointment->loadMissing(['user', 'service', 'services', 'client']), $request->user(), $request->validated());
 
         return redirect()
             ->route('appointments.show', $appointment)

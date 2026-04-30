@@ -10,6 +10,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ServiceController extends Controller
 {
@@ -40,7 +41,9 @@ class ServiceController extends Controller
     {
         abort_unless($request->user()->isAdmin() && $request->user()->company_id !== null, 403);
 
-        return view('services.create');
+        return view('services.create', [
+            'libraryImages' => $this->serviceLibraryImages(),
+        ]);
     }
 
     /**
@@ -51,10 +54,14 @@ class ServiceController extends Controller
         $data = $request->validated();
         $data['active'] = $request->boolean('active');
         $image = $request->file('image') ?? ($data['image'] ?? null);
+        $libraryImage = $data['library_image'] ?? null;
         unset($data['image']);
+        unset($data['library_image']);
 
         if ($image) {
             $data['image_path'] = $image->store('services', 'public');
+        } elseif ($libraryImage) {
+            $data['image_path'] = $this->copyLibraryImageToServices($libraryImage);
         }
 
         $service = Service::create([
@@ -99,6 +106,7 @@ class ServiceController extends Controller
 
         return view('services.edit', [
             'service' => $service,
+            'libraryImages' => $this->serviceLibraryImages(),
         ]);
     }
 
@@ -112,11 +120,17 @@ class ServiceController extends Controller
         $data = $request->validated();
         $data['active'] = $request->boolean('active');
         $image = $request->file('image') ?? ($data['image'] ?? null);
+        $libraryImage = $data['library_image'] ?? null;
         unset($data['image']);
+        unset($data['library_image']);
 
         if ($image) {
             $newPath = $image->store('services', 'public');
+        } elseif ($libraryImage) {
+            $newPath = $this->copyLibraryImageToServices($libraryImage);
+        }
 
+        if (isset($newPath)) {
             if ($service->image_path) {
                 Storage::disk('public')->delete($service->normalizedImagePath() ?? $service->image_path);
             }
@@ -152,5 +166,45 @@ class ServiceController extends Controller
     private function ensureServiceBelongsToUserCompany(Request $request, Service $service): void
     {
         abort_unless($service->company_id === $request->user()->company_id, 404);
+    }
+
+    /**
+     * Get the built-in image library available for services.
+     *
+     * @return list<array{path: string, url: string, label: string}>
+     */
+    private function serviceLibraryImages(): array
+    {
+        return collect(Storage::disk('public')->files('service-library/services'))
+            ->filter(function (string $path): bool {
+                return in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'webp', 'svg'], true);
+            })
+            ->sort()
+            ->map(function (string $path): array {
+                return [
+                    'path' => $path,
+                    'url' => Storage::url($path),
+                    'label' => Str::of(pathinfo($path, PATHINFO_FILENAME))
+                        ->replace(['-', '_'], ' ')
+                        ->title()
+                        ->toString(),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Copy a library image into the service image storage.
+     */
+    private function copyLibraryImageToServices(string $path): string
+    {
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $filename = Str::slug(pathinfo($path, PATHINFO_FILENAME));
+        $destination = 'services/'.$filename.'-'.Str::lower(Str::random(10)).'.'.$extension;
+
+        Storage::disk('public')->copy($path, $destination);
+
+        return $destination;
     }
 }

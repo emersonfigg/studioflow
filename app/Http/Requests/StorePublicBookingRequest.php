@@ -85,6 +85,7 @@ class StorePublicBookingRequest extends FormRequest
                 $user,
                 $totalDurationMinutes,
                 (string) $this->input('date'),
+                false,
             );
 
             if (! in_array((string) $this->input('time'), $availableSlots, true)) {

@@ -107,6 +107,56 @@ class User extends Authenticatable
     }
 
     /**
+     * Get product sales linked to the professional/user.
+     *
+     * @return HasMany<ProductSale>
+     */
+    public function productSales(): HasMany
+    {
+        return $this->hasMany(ProductSale::class);
+    }
+
+    /**
+     * Get the commission settlements received by the professional.
+     *
+     * @return HasMany<CommissionSettlement>
+     */
+    public function commissionSettlements(): HasMany
+    {
+        return $this->hasMany(CommissionSettlement::class);
+    }
+
+    /**
+     * Get the commission settlements created by the user.
+     *
+     * @return HasMany<CommissionSettlement>
+     */
+    public function createdCommissionSettlements(): HasMany
+    {
+        return $this->hasMany(CommissionSettlement::class, 'created_by');
+    }
+
+    /**
+     * Get cash registers opened by the user.
+     *
+     * @return HasMany<CashRegister>
+     */
+    public function openedCashRegisters(): HasMany
+    {
+        return $this->hasMany(CashRegister::class, 'opened_by');
+    }
+
+    /**
+     * Get cash registers closed by the user.
+     *
+     * @return HasMany<CashRegister>
+     */
+    public function closedCashRegisters(): HasMany
+    {
+        return $this->hasMany(CashRegister::class, 'closed_by');
+    }
+
+    /**
      * Get the weekly working hours configured for the professional.
      *
      * @return HasMany<ProfessionalWorkingHour>

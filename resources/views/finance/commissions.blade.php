@@ -26,12 +26,22 @@
 
     @include('finance.partials.nav', ['page' => $page])
 
+    @if (session('status') === 'commission-settlement-created')
+        <div class="mb-6 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-100">
+            Acerto registrado com sucesso.
+        </div>
+    @elseif (session('status') === 'commission-settlement-empty')
+        <div class="mb-6 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-5 py-4 text-sm text-amber-50">
+            Nao ha comissao pendente para o periodo selecionado.
+        </div>
+    @endif
+
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section class="sf-card overflow-hidden">
             <div class="border-b border-white/10 px-6 py-5">
                 <h3 class="text-base font-semibold text-white">Resumo de comissoes por profissional</h3>
                 <p class="mt-1 text-sm text-[#c7d2e3]">
-                    Analise por regra configurada, comissao efetiva e valor total repassado.
+                    Veja pendencias, repasses ja pagos e total produzido no periodo filtrado.
                 </p>
             </div>
 
@@ -40,39 +50,58 @@
                     Nenhuma comissao encontrada no periodo selecionado.
                 </div>
             @else
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-white/10">
-                        <thead class="bg-[#132746]">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Profissional</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Regra</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Servicos pagos</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Receita bruta</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Comissao</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Taxa efetiva</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-white/8 bg-[#223d69]">
-                            @foreach ($rows as $row)
-                                <tr class="transition hover:bg-white/[0.03]">
-                                    <td class="px-6 py-4 text-sm font-semibold text-white">{{ $row['user']->name }}</td>
-                                    <td class="px-6 py-4 text-sm text-[#c7d2e3]">
-                                        @if ($row['commission_type'] === 'percent')
-                                            {{ number_format((float) $row['commission_rate'], 2, ',', '.') }}%
-                                        @elseif ($row['commission_type'] === 'fixed')
-                                            Valor fixo
-                                        @else
-                                            Sem comissao
-                                        @endif
-                                    </td>
-                                    <td class="px-6 py-4 text-sm text-[#c7d2e3]">{{ $row['services_count'] }}</td>
-                                    <td class="px-6 py-4 text-sm text-[#c7d2e3]">R$ {{ number_format($row['gross_amount'], 2, ',', '.') }}</td>
-                                    <td class="px-6 py-4 text-sm text-[#d4af37]">R$ {{ number_format($row['commission_amount'], 2, ',', '.') }}</td>
-                                    <td class="px-6 py-4 text-sm text-[#c7d2e3]">{{ number_format($row['effective_rate'], 2, ',', '.') }}%</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                <div class="divide-y divide-white/10 bg-[#223d69]">
+                    @foreach ($rows as $row)
+                        <article class="grid gap-4 px-6 py-5 transition hover:bg-white/[0.03] lg:grid-cols-[minmax(0,1.2fr)_repeat(4,minmax(0,0.7fr))_auto] lg:items-center">
+                            <div>
+                                <p class="text-base font-semibold text-white">{{ $row['user']->name }}</p>
+                                <p class="mt-1 text-sm text-[#c7d2e3]">
+                                    @if ($row['commission_type'] === 'percent')
+                                        Regra percentual de {{ number_format((float) $row['commission_rate'], 2, ',', '.') }}%
+                                    @elseif ($row['commission_type'] === 'fixed')
+                                        Regra fixa por atendimento
+                                    @else
+                                        Sem comissao configurada
+                                    @endif
+                                </p>
+                            </div>
+
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Pendente</p>
+                                <p class="mt-2 text-sm font-semibold text-[#d4af37]">R$ {{ number_format($row['pending_commission_amount'], 2, ',', '.') }}</p>
+                            </div>
+
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Ja pago</p>
+                                <p class="mt-2 text-sm font-semibold text-white">R$ {{ number_format($row['paid_commission_amount'], 2, ',', '.') }}</p>
+                            </div>
+
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Produzido</p>
+                                <p class="mt-2 text-sm font-semibold text-white">R$ {{ number_format($row['gross_amount'], 2, ',', '.') }}</p>
+                            </div>
+
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Servicos</p>
+                                <p class="mt-2 text-sm font-semibold text-white">{{ $row['services_count'] }}</p>
+                            </div>
+
+                            <div class="lg:text-right">
+                                @if ($canFilterProfessionals && $row['can_settle'])
+                                    <a
+                                        href="{{ route('finance.commissions.settlements.create', ['user_id' => $row['user']->id, 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')]) }}"
+                                        class="sf-button-primary"
+                                    >
+                                        Fazer acerto
+                                    </a>
+                                @elseif ($row['pending_commission_amount'] <= 0)
+                                    <span class="inline-flex rounded-full border border-white/10 bg-[#132746] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">
+                                        Em dia
+                                    </span>
+                                @endif
+                            </div>
+                        </article>
+                    @endforeach
                 </div>
             @endif
         </section>
@@ -80,17 +109,26 @@
         <aside class="sf-card p-5">
             <h3 class="text-base font-semibold text-white">Ultimos repasses</h3>
             <div class="mt-5 space-y-3">
-                @forelse ($recentCommissionPayments as $payment)
+                @forelse ($recentSettlements as $settlement)
                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                         <div class="flex items-start justify-between gap-4">
                             <div>
-                                <p class="text-sm font-semibold text-white">{{ $payment->user->name }}</p>
-                                <p class="mt-1 text-sm text-[#c7d2e3]">{{ $payment->client->name }} • {{ $payment->service->name }}</p>
-                                <p class="mt-1 text-xs uppercase tracking-[0.18em] text-[#c7d2e3]">{{ $payment->paid_at->format('d/m/Y H:i') }}</p>
+                                <p class="text-sm font-semibold text-white">{{ $settlement->user->name }}</p>
+                                <p class="mt-1 text-sm text-[#c7d2e3]">
+                                    {{ $settlement->start_date->format('d/m/Y') }} ate {{ $settlement->end_date->format('d/m/Y') }}
+                                </p>
+                                <p class="mt-1 text-xs uppercase tracking-[0.18em] text-[#c7d2e3]">{{ $settlement->paid_at->format('d/m/Y H:i') }}</p>
                             </div>
                             <div class="text-right">
-                                <p class="text-sm font-semibold text-[#d4af37]">R$ {{ number_format((float) $payment->commission_amount, 2, ',', '.') }}</p>
-                                <p class="mt-1 text-xs text-[#c7d2e3]">{{ ucfirst($payment->payment_method) }}</p>
+                                <p class="text-sm font-semibold text-[#d4af37]">R$ {{ number_format((float) $settlement->commission_amount, 2, ',', '.') }}</p>
+                                <p class="mt-1 text-xs text-[#c7d2e3]">
+                                    {{ match ($settlement->payment_method) {
+                                        'cash' => 'Dinheiro',
+                                        'pix' => 'Pix',
+                                        'bank_transfer' => 'Transferencia',
+                                        default => ucfirst($settlement->payment_method),
+                                    } }}
+                                </p>
                             </div>
                         </div>
                     </div>

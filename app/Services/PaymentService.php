@@ -9,12 +9,23 @@ use Illuminate\Support\Facades\DB;
 
 class PaymentService
 {
+    public function __construct(
+        private readonly CashRegisterService $cashRegisterService,
+        private readonly ProductSaleService $productSaleService,
+    ) {
+    }
+
     /**
      * Register a payment for an appointment and mark it as completed.
      *
-     * @param  array{gross_amount:numeric-string|float|int,payment_method:string,notes?:string|null}  $data
+     * @param  array{
+     *   gross_amount:numeric-string|float|int,
+     *   payment_method:string,
+     *   notes?:string|null,
+     *   items?:array<int, array{product_id:int, quantity:int}>
+     * }  $data
      */
-    public function register(Appointment $appointment, array $data): Payment
+    public function register(Appointment $appointment, User $actor, array $data): Payment
     {
         /** @var User $professional */
         $professional = $appointment->user;
@@ -28,6 +39,7 @@ class PaymentService
         return DB::transaction(function () use (
             $appointment,
             $professional,
+            $actor,
             $data,
             $grossAmount,
             $commissionAmount,
@@ -52,6 +64,18 @@ class PaymentService
             $appointment->update([
                 'status' => 'completed',
             ]);
+
+            $this->cashRegisterService->recordPayment($payment->load('client'));
+
+            if (! empty($data['items'])) {
+                $this->productSaleService->registerForAppointment(
+                    $actor,
+                    $appointment->loadMissing('client'),
+                    $data['items'],
+                    $data['payment_method'],
+                    $data['notes'] ?? null,
+                );
+            }
 
             return $payment;
         });

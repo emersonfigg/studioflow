@@ -2,12 +2,16 @@
 
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\CommissionSettlementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProfessionalAvailabilityController;
 use App\Http\Controllers\PublicBookingController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductSaleController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SuperAdminCompanyController;
 use App\Http\Controllers\SuperAdminDashboardController;
@@ -41,6 +45,13 @@ Route::middleware(['auth', 'active_company'])->group(function () {
     Route::post('clients/inline', [ClientController::class, 'storeInline'])
         ->name('clients.inline.store');
     Route::resource('clients', ClientController::class);
+    Route::get('company/onboarding', [CompanyController::class, 'onboarding'])->name('company.onboarding');
+    Route::get('company', [CompanyController::class, 'edit'])->name('company.edit');
+    Route::patch('company', [CompanyController::class, 'update'])->name('company.update');
+    Route::resource('products', ProductController::class)->except(['show']);
+    Route::get('products/sales', [ProductSaleController::class, 'index'])->name('product-sales.index');
+    Route::get('products/sales/create', [ProductSaleController::class, 'create'])->name('product-sales.create');
+    Route::post('products/sales', [ProductSaleController::class, 'store'])->name('product-sales.store');
     Route::resource('services', ServiceController::class);
     Route::resource('team', TeamMemberController::class)->except(['show', 'destroy']);
     Route::patch('team/{team}/toggle-active', [TeamMemberController::class, 'toggleActive'])
@@ -49,16 +60,32 @@ Route::middleware(['auth', 'active_company'])->group(function () {
         ->name('schedule.edit');
     Route::put('my-schedule', [ProfessionalAvailabilityController::class, 'updateOwn'])
         ->name('schedule.update');
+    Route::delete('my-schedule/day', [ProfessionalAvailabilityController::class, 'clearOwn'])
+        ->name('schedule.clear');
     Route::get('team/{team}/availability', [ProfessionalAvailabilityController::class, 'editTeam'])
         ->name('team.availability.edit');
     Route::put('team/{team}/availability', [ProfessionalAvailabilityController::class, 'updateTeam'])
         ->name('team.availability.update');
+    Route::delete('team/{team}/availability/day', [ProfessionalAvailabilityController::class, 'clearTeam'])
+        ->name('team.availability.clear');
     Route::get('finance', [FinanceController::class, 'index'])
         ->name('finance.index');
     Route::get('finance/production', [FinanceController::class, 'production'])
         ->name('finance.production');
     Route::get('finance/commissions', [FinanceController::class, 'commissions'])
         ->name('finance.commissions');
+    Route::get('finance/cash', [FinanceController::class, 'cash'])
+        ->name('finance.cash');
+    Route::post('finance/cash/open', [FinanceController::class, 'openCash'])
+        ->name('finance.cash.open');
+    Route::post('finance/cash/close', [FinanceController::class, 'closeCash'])
+        ->name('finance.cash.close');
+    Route::get('finance/report', [FinanceController::class, 'report'])
+        ->name('finance.report');
+    Route::get('finance/commissions/settlements/create', [CommissionSettlementController::class, 'create'])
+        ->name('finance.commissions.settlements.create');
+    Route::post('finance/commissions/settlements', [CommissionSettlementController::class, 'store'])
+        ->name('finance.commissions.settlements.store');
     Route::get('production', [FinanceController::class, 'production'])
         ->name('production.index');
 

@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\Appointment;
 use App\Models\Payment;
+use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -29,6 +30,9 @@ class StorePaymentRequest extends FormRequest
             'gross_amount' => ['required', 'numeric', 'min:0.01'],
             'payment_method' => ['required', Rule::in(Payment::PAYMENT_METHODS)],
             'notes' => ['nullable', 'string'],
+            'items' => ['nullable', 'array'],
+            'items.*.product_id' => ['required_with:items', 'integer'],
+            'items.*.quantity' => ['required_with:items', 'integer', 'min:1'],
         ];
     }
 
@@ -51,6 +55,26 @@ class StorePaymentRequest extends FormRequest
 
             if ($appointment->payment()->exists()) {
                 $validator->errors()->add('payment_method', 'Este atendimento ja possui pagamento registrado.');
+            }
+
+            $productIds = collect($this->input('items', []))
+                ->pluck('product_id')
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($productIds->isEmpty()) {
+                return;
+            }
+
+            $validProductIds = Product::query()
+                ->where('company_id', $appointment->company_id)
+                ->where('active', true)
+                ->whereIn('id', $productIds)
+                ->pluck('id');
+
+            if ($validProductIds->count() !== $productIds->count()) {
+                $validator->errors()->add('items', 'Um ou mais produtos nao pertencem a sua empresa ou nao estao ativos.');
             }
         });
     }

@@ -11,6 +11,7 @@
 
             <div class="flex flex-wrap gap-3">
                 <a href="{{ route('appointments.create', ['client_id' => $client->id]) }}" class="sf-button-primary">Novo agendamento</a>
+                <a href="{{ route('product-sales.create', ['client_id' => $client->id]) }}" class="sf-button-secondary">Nova venda</a>
                 @if (auth()->user()->isAdmin())
                     <a href="{{ route('clients.edit', $client) }}" class="sf-button-secondary">Editar cliente</a>
                 @endif
@@ -21,7 +22,11 @@
     <div class="space-y-6">
         @if (session('status'))
             <div class="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-100">
-                {{ session('status') === 'client-updated' ? 'Cliente atualizado com sucesso.' : session('status') }}
+                {{ match (session('status')) {
+                    'client-updated' => 'Cliente atualizado com sucesso.',
+                    'product-sale-created' => 'Venda de produto registrada com sucesso.',
+                    default => session('status'),
+                } }}
             </div>
         @endif
 
@@ -29,6 +34,7 @@
             <article class="sf-card p-5">
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Total gasto</p>
                 <p class="mt-3 text-3xl font-semibold text-white">R$ {{ number_format($totalSpent, 2, ',', '.') }}</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Servicos: R$ {{ number_format($serviceSpent, 2, ',', '.') }} · Produtos: R$ {{ number_format($productSpent, 2, ',', '.') }}</p>
             </article>
             <article class="sf-card p-5">
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Total visitas</p>
@@ -45,51 +51,108 @@
         </section>
 
         <section class="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-            <article class="sf-card overflow-hidden">
-                <div class="border-b border-white/10 px-5 py-4">
-                    <h3 class="text-lg font-semibold text-white">Historico de atendimentos</h3>
-                    <p class="mt-1 text-sm text-[#c7d2e3]">{{ $appointmentsThisMonth }} agendamento(s) neste mes.</p>
-                </div>
+            <div class="space-y-6">
+                <article class="sf-card overflow-hidden">
+                    <div class="border-b border-white/10 px-5 py-4">
+                        <h3 class="text-lg font-semibold text-white">Historico de atendimentos</h3>
+                        <p class="mt-1 text-sm text-[#c7d2e3]">{{ $appointmentsThisMonth }} agendamento(s) neste mes.</p>
+                    </div>
 
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-white/10">
-                        <thead class="bg-[#132746]">
-                            <tr>
-                                <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Data</th>
-                                <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Servico</th>
-                                <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Profissional</th>
-                                <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Valor</th>
-                                <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-white/10">
-                            @forelse ($appointments as $appointment)
-                                @php
-                                    $serviceLabel = $appointment->bookedServices()->pluck('name')->join(', ');
-                                    $grossAmount = $appointment->payment?->gross_amount ?? $appointment->totalPriceAmount();
-                                @endphp
-                                <tr class="transition hover:bg-white/5">
-                                    <td class="px-5 py-4 text-sm text-white">{{ $appointment->start_time->format('d/m/Y H:i') }}</td>
-                                    <td class="px-5 py-4 text-sm text-[#c7d2e3]">{{ $serviceLabel !== '' ? $serviceLabel : ($appointment->service?->name ?? '-') }}</td>
-                                    <td class="px-5 py-4 text-sm text-[#c7d2e3]">{{ $appointment->user?->name ?? '-' }}</td>
-                                    <td class="px-5 py-4 text-sm font-semibold text-white">R$ {{ number_format((float) $grossAmount, 2, ',', '.') }}</td>
-                                    <td class="px-5 py-4">
-                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset {{ $appointment->statusBadgeClasses() }}">
-                                            {{ $appointment->statusLabel() }}
-                                        </span>
-                                    </td>
-                                </tr>
-                            @empty
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-white/10">
+                            <thead class="bg-[#132746]">
                                 <tr>
-                                    <td colspan="5" class="px-5 py-10 text-center text-sm text-[#c7d2e3]">
-                                        Nenhum atendimento encontrado para este cliente.
-                                    </td>
+                                    <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Data</th>
+                                    <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Servico</th>
+                                    <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Profissional</th>
+                                    <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Valor</th>
+                                    <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Status</th>
                                 </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </article>
+                            </thead>
+                            <tbody class="divide-y divide-white/10">
+                                @forelse ($appointments as $appointment)
+                                    @php
+                                        $serviceLabel = $appointment->bookedServices()->pluck('name')->join(', ');
+                                        $grossAmount = $appointment->payment?->gross_amount ?? $appointment->totalPriceAmount();
+                                    @endphp
+                                    <tr class="transition hover:bg-white/5">
+                                        <td class="px-5 py-4 text-sm text-white">{{ $appointment->start_time->format('d/m/Y H:i') }}</td>
+                                        <td class="px-5 py-4 text-sm text-[#c7d2e3]">{{ $serviceLabel !== '' ? $serviceLabel : ($appointment->service?->name ?? '-') }}</td>
+                                        <td class="px-5 py-4 text-sm text-[#c7d2e3]">{{ $appointment->user?->name ?? '-' }}</td>
+                                        <td class="px-5 py-4 text-sm font-semibold text-white">R$ {{ number_format((float) $grossAmount, 2, ',', '.') }}</td>
+                                        <td class="px-5 py-4">
+                                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset {{ $appointment->statusBadgeClasses() }}">
+                                                {{ $appointment->statusLabel() }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="px-5 py-10 text-center text-sm text-[#c7d2e3]">
+                                            Nenhum atendimento encontrado para este cliente.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="sf-card overflow-hidden">
+                    <div class="border-b border-white/10 px-5 py-4">
+                        <h3 class="text-lg font-semibold text-white">Historico de compras</h3>
+                        <p class="mt-1 text-sm text-[#c7d2e3]">{{ $productSalesThisMonth }} venda(s) de produto neste mes.</p>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-white/10">
+                            <thead class="bg-[#132746]">
+                                <tr>
+                                    <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Data</th>
+                                    <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Produtos</th>
+                                    <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Profissional</th>
+                                    <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Pagamento</th>
+                                    <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white/10">
+                                @forelse ($productSales as $sale)
+                                    <tr class="transition hover:bg-white/5">
+                                        <td class="px-5 py-4 text-sm text-white">{{ $sale->sold_at->format('d/m/Y H:i') }}</td>
+                                        <td class="px-5 py-4 text-sm text-[#c7d2e3]">
+                                            <div class="space-y-2">
+                                                @foreach ($sale->items as $item)
+                                                    <div class="flex items-center gap-3">
+                                                        @if ($item->product->image_url)
+                                                            <img src="{{ $item->product->image_url }}" alt="Imagem de {{ $item->product->name }}" class="h-10 w-10 rounded-xl object-cover ring-1 ring-white/10">
+                                                        @else
+                                                            <div class="flex h-10 w-10 items-center justify-center rounded-xl border border-dashed border-white/10 bg-[#132746] text-[#d4af37]">
+                                                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                                                    <path d="M7.5 6A2.5 2.5 0 005 8.5v7A2.5 2.5 0 007.5 18h9a2.5 2.5 0 002.5-2.5v-7A2.5 2.5 0 0016.5 6h-9zm0 1.5h9A1 1 0 0117.5 8.5v4.085l-2.23-2.23a1.75 1.75 0 00-2.475 0l-2.92 2.92-1.17-1.17a1.75 1.75 0 00-2.475 0L6.5 13.835V8.5a1 1 0 011-1zm8.75 2.25a1.25 1.25 0 11-2.5 0 1.25 1.25 0 012.5 0zM7.29 13.166a.25.25 0 01.354 0l1.7 1.7a.75.75 0 001.06 0l3.451-3.45a.25.25 0 01.354 0l2.291 2.29v1.794a1 1 0 01-1 1h-9a1 1 0 01-1-1v-.544l1.79-1.79z" />
+                                                                </svg>
+                                                            </div>
+                                                        @endif
+                                                        <span>{{ $item->product->name }} x{{ $item->quantity }}</span>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </td>
+                                        <td class="px-5 py-4 text-sm text-[#c7d2e3]">{{ $sale->user?->name ?? '-' }}</td>
+                                        <td class="px-5 py-4 text-sm text-[#c7d2e3]">{{ ucfirst($sale->payment_method) }}</td>
+                                        <td class="px-5 py-4 text-sm font-semibold text-white">R$ {{ number_format((float) $sale->gross_amount, 2, ',', '.') }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="px-5 py-10 text-center text-sm text-[#c7d2e3]">
+                                            Nenhuma compra de produto registrada para este cliente.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </div>
 
             <div class="space-y-6">
                 <article class="sf-card p-5">

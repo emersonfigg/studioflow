@@ -4,223 +4,333 @@
             <div>
                 <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Minha agenda</p>
                 <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
-                    {{ $isAdminView ? 'Disponibilidade de ' . $targetUser->name : 'Minha disponibilidade' }}
+                    {{ $isAdminView ? 'Agenda de ' . $targetUser->name : 'Disponibilidade por data' }}
                 </h2>
                 <p class="mt-2 text-sm text-[#c7d2e3]">
-                    Configure sua escala semanal e ajuste excecoes de datas especificas para o agendamento online.
+                    Clique em um dia do calendario para configurar os turnos daquele atendimento. Quando nao houver configuracao especifica, a agenda continua usando a escala semanal existente como fallback.
                 </p>
             </div>
 
-            @if ($isAdminView)
-                <a href="{{ route('team.index') }}" class="sf-button-secondary">
-                    Voltar para equipe
+            <div class="flex flex-wrap gap-3">
+                @if ($isAdminView)
+                    <a href="{{ route('team.index') }}" class="sf-button-secondary">
+                        Voltar para equipe
+                    </a>
+                @endif
+                <a href="{{ route('public-bookings.create', ['company' => $targetUser->company_id, 'user_id' => $targetUser->id, 'date' => $selectedDate, 'filters_submitted' => 1]) }}" class="sf-button-secondary">
+                    Ver no agendamento publico
                 </a>
-            @endif
+            </div>
         </div>
     </x-slot>
 
-    <div
-        x-data="{
-            weekdayOptions: @js($weekdayOptions),
-            workingHours: @js($workingHours),
-            overrides: @js($overrides),
-            addWorkingHour() {
-                this.workingHours.push({ weekday: 1, start_time: '08:00', end_time: '18:00', active: true });
-            },
-            removeWorkingHour(index) {
-                this.workingHours.splice(index, 1);
-            },
-            addOverride() {
-                this.overrides.push({ date: '', is_day_off: false, start_time: '', end_time: '', notes: '' });
-            },
-            removeOverride(index) {
-                this.overrides.splice(index, 1);
-            }
-        }"
-        class="space-y-6"
-    >
+    @php
+        $weekdayHeaders = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'];
+        $updateRoute = $isAdminView
+            ? route('team.availability.update', ['team' => $targetUser, 'month' => $selectedMonth, 'date' => $selectedDate])
+            : route('schedule.update', ['month' => $selectedMonth, 'date' => $selectedDate]);
+        $clearRoute = $isAdminView
+            ? route('team.availability.clear', ['team' => $targetUser, 'month' => $selectedMonth, 'date' => $selectedDate])
+            : route('schedule.clear', ['month' => $selectedMonth, 'date' => $selectedDate]);
+        $currentIntervals = $selectedDayState['intervals'] ?? [
+            ['start_time' => '', 'end_time' => ''],
+            ['start_time' => '', 'end_time' => ''],
+        ];
+    @endphp
+
+    <div x-data="{ worksThisDay: '{{ $selectedDayState['works_this_day'] ? '1' : '0' }}' }" class="space-y-6">
         @if (session('status') === 'availability-updated')
             <div class="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-100">
-                Disponibilidade atualizada com sucesso.
+                Dia atualizado com sucesso.
             </div>
         @endif
 
-        <form method="POST" action="{{ $isAdminView ? route('team.availability.update', $targetUser) : route('schedule.update') }}" class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-            @csrf
-            @method('PUT')
-
-            <div class="space-y-6">
-                <section class="sf-card p-5 sm:p-6">
-                    <div class="flex items-center justify-between gap-4">
-                        <div>
-                            <h3 class="text-lg font-semibold text-white">Escala semanal</h3>
-                            <p class="mt-1 text-sm text-[#c7d2e3]">Adicione quantos intervalos quiser em cada dia da semana.</p>
-                        </div>
-
-                        <button type="button" class="sf-button-primary" @click="addWorkingHour()">
-                            Adicionar horario
-                        </button>
-                    </div>
-
-                    <div class="mt-5 space-y-4">
-                        <template x-if="workingHours.length === 0">
-                            <div class="rounded-2xl border border-dashed border-white/10 bg-[#132746] px-4 py-5 text-sm text-[#c7d2e3]">
-                                Nenhum horario semanal configurado ainda.
-                            </div>
-                        </template>
-
-                        <template x-for="(workingHour, index) in workingHours" :key="'working-hour-' + index">
-                            <div class="rounded-2xl border border-white/10 bg-[#132746] p-4">
-                                <div class="grid gap-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_auto]">
-                                    <div>
-                                        <label class="text-sm font-medium text-white">Dia da semana</label>
-                                        <select class="sf-select mt-2 block w-full" :name="`working_hours[${index}][weekday]`" x-model="workingHour.weekday">
-                                            <template x-for="weekday in weekdayOptions" :key="weekday.value">
-                                                <option :value="weekday.value" x-text="weekday.label"></option>
-                                            </template>
-                                        </select>
-                                        @error('working_hours.*.weekday')
-                                            <p class="mt-2 text-sm text-rose-200">{{ $message }}</p>
-                                        @enderror
-                                    </div>
-
-                                    <div>
-                                        <label class="text-sm font-medium text-white">Inicio</label>
-                                        <input type="time" class="sf-input mt-2 block w-full" :name="`working_hours[${index}][start_time]`" x-model="workingHour.start_time">
-                                    </div>
-
-                                    <div>
-                                        <label class="text-sm font-medium text-white">Fim</label>
-                                        <input type="time" class="sf-input mt-2 block w-full" :name="`working_hours[${index}][end_time]`" x-model="workingHour.end_time">
-                                    </div>
-
-                                    <div class="flex items-end">
-                                        <button type="button" class="inline-flex min-h-[46px] items-center justify-center rounded-xl border border-rose-300/15 bg-rose-400/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-rose-100 transition hover:bg-rose-400/15" @click="removeWorkingHour(index)">
-                                            Remover
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-
-                        @foreach ($errors->get('working_hours.*.start_time') as $messages)
-                            @foreach ($messages as $message)
-                                <p class="text-sm text-rose-200">{{ $message }}</p>
-                            @endforeach
-                        @endforeach
-                        @foreach ($errors->get('working_hours.*.end_time') as $messages)
-                            @foreach ($messages as $message)
-                                <p class="text-sm text-rose-200">{{ $message }}</p>
-                            @endforeach
-                        @endforeach
-                    </div>
-                </section>
-
-                <section class="sf-card p-5 sm:p-6">
-                    <div class="flex items-center justify-between gap-4">
-                        <div>
-                            <h3 class="text-lg font-semibold text-white">Excecoes por data</h3>
-                            <p class="mt-1 text-sm text-[#c7d2e3]">Use para folgas ou horarios especiais em dias especificos.</p>
-                        </div>
-
-                        <button type="button" class="sf-button-secondary" @click="addOverride()">
-                            Nova excecao
-                        </button>
-                    </div>
-
-                    <div class="mt-5 space-y-4">
-                        <template x-if="overrides.length === 0">
-                            <div class="rounded-2xl border border-dashed border-white/10 bg-[#132746] px-4 py-5 text-sm text-[#c7d2e3]">
-                                Nenhuma excecao cadastrada.
-                            </div>
-                        </template>
-
-                        <template x-for="(override, index) in overrides" :key="'override-' + index">
-                            <div class="rounded-2xl border border-white/10 bg-[#132746] p-4">
-                                <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_auto]">
-                                    <div>
-                                        <label class="text-sm font-medium text-white">Data</label>
-                                        <input type="date" class="sf-input mt-2 block w-full" :name="`overrides[${index}][date]`" x-model="override.date">
-                                    </div>
-
-                                    <div>
-                                        <label class="text-sm font-medium text-white">Inicio especial</label>
-                                        <input type="time" class="sf-input mt-2 block w-full" :name="`overrides[${index}][start_time]`" x-model="override.start_time" :disabled="override.is_day_off">
-                                    </div>
-
-                                    <div>
-                                        <label class="text-sm font-medium text-white">Fim especial</label>
-                                        <input type="time" class="sf-input mt-2 block w-full" :name="`overrides[${index}][end_time]`" x-model="override.end_time" :disabled="override.is_day_off">
-                                    </div>
-
-                                    <div class="flex items-end">
-                                        <button type="button" class="inline-flex min-h-[46px] items-center justify-center rounded-xl border border-rose-300/15 bg-rose-400/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-rose-100 transition hover:bg-rose-400/15" @click="removeOverride(index)">
-                                            Remover
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div class="mt-4 grid gap-4 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center">
-                                    <label class="inline-flex items-center gap-3 rounded-xl border border-white/10 bg-[#1b335b] px-4 py-3 text-sm text-white">
-                                        <input type="hidden" :name="`overrides[${index}][is_day_off]`" value="0">
-                                        <input type="checkbox" class="h-4 w-4 rounded border-white/20 bg-[#132746] text-[#d4af37] focus:ring-[#d4af37]" :name="`overrides[${index}][is_day_off]`" value="1" x-model="override.is_day_off">
-                                        Marcar como folga
-                                    </label>
-
-                                    <div>
-                                        <label class="text-sm font-medium text-white">Observacoes</label>
-                                        <textarea rows="2" class="sf-input mt-2 block w-full" :name="`overrides[${index}][notes]`" x-model="override.notes" placeholder="Ex.: feriado, evento especial, plantao reduzido"></textarea>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-
-                        @foreach ($errors->get('overrides.*.date') as $messages)
-                            @foreach ($messages as $message)
-                                <p class="text-sm text-rose-200">{{ $message }}</p>
-                            @endforeach
-                        @endforeach
-                        @foreach ($errors->get('overrides.*.end_time') as $messages)
-                            @foreach ($messages as $message)
-                                <p class="text-sm text-rose-200">{{ $message }}</p>
-                            @endforeach
-                        @endforeach
-                    </div>
-                </section>
+        @if (session('status') === 'availability-cleared')
+            <div class="rounded-2xl border border-sky-300/20 bg-sky-500/10 px-5 py-4 text-sm text-sky-100">
+                Configuracao removida. Este dia voltou a usar a escala semanal como fallback.
             </div>
+        @endif
+
+        <div class="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_420px]">
+            <section class="sf-card p-5 sm:p-6">
+                <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Calendario</p>
+                        <h3 class="mt-2 text-2xl font-semibold text-white">{{ $selectedMonthLabel }}</h3>
+                        <p class="mt-2 text-sm text-[#c7d2e3]">
+                            Dias dourados possuem horarios configurados. Dias vermelhos/cinza estao marcados como folga.
+                        </p>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <a href="{{ request()->fullUrlWithQuery(['month' => $previousMonth, 'date' => \Carbon\CarbonImmutable::parse($previousMonth . '-01')->startOfMonth()->toDateString()]) }}" class="sf-button-secondary !px-4">
+                            Mes anterior
+                        </a>
+                        <a href="{{ request()->fullUrlWithQuery(['month' => $nextMonth, 'date' => \Carbon\CarbonImmutable::parse($nextMonth . '-01')->startOfMonth()->toDateString()]) }}" class="sf-button-secondary !px-4">
+                            Proximo mes
+                        </a>
+                    </div>
+                </div>
+
+                <div class="mt-6 grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">
+                    @foreach ($weekdayHeaders as $weekdayHeader)
+                        <div class="rounded-xl border border-white/6 bg-[#132746] px-2 py-3">{{ $weekdayHeader }}</div>
+                    @endforeach
+                </div>
+
+                <div class="mt-3 grid gap-2">
+                    @foreach ($calendarWeeks as $week)
+                        <div class="grid grid-cols-7 gap-2">
+                            @foreach ($week as $day)
+                                @php
+                                    $buttonClasses = 'group relative min-h-[88px] overflow-hidden rounded-2xl border p-3 text-left transition duration-150';
+
+                                    if (! $day['is_current_month']) {
+                                        $buttonClasses .= ' border-white/5 bg-[#132746]/55 text-[#7f94b4] hover:border-white/10 hover:bg-[#132746]/80';
+                                    } elseif ($day['is_selected']) {
+                                        $buttonClasses .= ' border-[#d4af37]/45 bg-[#d4af37]/12 text-white shadow-[0_14px_28px_rgba(212,175,55,0.14)]';
+                                    } else {
+                                        $buttonClasses .= ' border-white/8 bg-[#132746] text-white hover:border-[#d4af37]/25 hover:bg-[#183055]';
+                                    }
+                                @endphp
+
+                                <a
+                                    href="{{ request()->fullUrlWithQuery(['month' => $selectedMonth, 'date' => $day['date']]) }}"
+                                    class="{{ $buttonClasses }}"
+                                >
+                                    @if ($day['is_today'])
+                                        <span
+                                            class="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[#d4af37] shadow-[0_0_0_4px_rgba(212,175,55,0.14)]"
+                                            title="Hoje"
+                                        >
+                                        </span>
+                                    @endif
+
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div>
+                                            <p class="text-[11px] uppercase tracking-[0.18em] {{ $day['is_current_month'] ? 'text-[#c7d2e3]' : 'text-[#6f84a8]' }}">
+                                                {{ $day['label'] }}
+                                            </p>
+                                            <p class="mt-2 text-xl font-semibold">{{ $day['day_number'] }}</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-4 flex items-center gap-2">
+                                        @if ($day['status'] === 'configured')
+                                            <span class="h-2.5 w-2.5 rounded-full bg-[#d4af37] shadow-[0_0_0_5px_rgba(212,175,55,0.12)]"></span>
+                                            <span class="text-xs text-[#d8e1f1]">Horarios salvos</span>
+                                        @elseif ($day['status'] === 'day_off')
+                                            <span class="h-2.5 w-2.5 rounded-full bg-rose-300 shadow-[0_0_0_5px_rgba(251,113,133,0.12)]"></span>
+                                            <span class="text-xs text-[#d8e1f1]">Folga</span>
+                                        @else
+                                            <span class="text-xs text-[#8fa5c7]">Usando escala base</span>
+                                        @endif
+                                    </div>
+                                </a>
+                            @endforeach
+                        </div>
+                    @endforeach
+                </div>
+            </section>
 
             <aside class="space-y-6">
-                <section class="sf-card p-5">
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Resumo</p>
-                    <div class="mt-4 space-y-3">
-                        <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                            <p class="text-sm text-[#c7d2e3]">Profissional</p>
-                            <p class="mt-2 text-base font-semibold text-white">{{ $targetUser->name }}</p>
+                <section class="sf-card p-5 sm:p-6">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Dia selecionado</p>
+                            <h3 class="mt-2 text-2xl font-semibold text-white">{{ $selectedDateLabel }}</h3>
+                            <p class="mt-2 text-sm text-[#c7d2e3]">
+                                Configure os turnos reais desse dia. Ex: 08:00-11:00 e 13:00-19:00.
+                            </p>
                         </div>
-                        <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                            <p class="text-sm text-[#c7d2e3]">Intervalos semanais</p>
-                            <p class="mt-2 text-2xl font-semibold text-white" x-text="workingHours.length"></p>
+
+                        @if ($hasSpecificConfiguration)
+                            <span class="rounded-full border border-[#d4af37]/20 bg-[#d4af37]/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#d4af37]">
+                                Configurado
+                            </span>
+                        @else
+                            <span class="rounded-full border border-white/10 bg-[#132746] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">
+                                Fallback semanal
+                            </span>
+                        @endif
+                    </div>
+
+                    <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-2xl border border-white/8 bg-[#132746] px-4 py-4">
+                            <p class="text-sm text-[#c7d2e3]">Dias configurados no mes</p>
+                            <p class="mt-2 text-2xl font-semibold text-white">{{ $configuredDaysCount }}</p>
                         </div>
-                        <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                            <p class="text-sm text-[#c7d2e3]">Excecoes futuras</p>
-                            <p class="mt-2 text-2xl font-semibold text-white" x-text="overrides.length"></p>
+                        <div class="rounded-2xl border border-white/8 bg-[#132746] px-4 py-4">
+                            <p class="text-sm text-[#c7d2e3]">Folgas no mes</p>
+                            <p class="mt-2 text-2xl font-semibold text-white">{{ $dayOffCount }}</p>
                         </div>
                     </div>
                 </section>
 
-                <section class="sf-card p-5">
-                    <h3 class="text-base font-semibold text-white">Como funciona</h3>
-                    <ul class="mt-4 space-y-3 text-sm leading-6 text-[#c7d2e3]">
-                        <li>Use varios intervalos no mesmo dia para almoco ou turnos diferentes.</li>
-                        <li>Marque folga para bloquear todo o dia no autoagendamento.</li>
-                        <li>Horario especial substitui a escala semanal naquela data.</li>
-                    </ul>
-                </section>
+                <form method="POST" action="{{ $updateRoute }}" class="sf-card p-5 sm:p-6">
+                    @csrf
+                    @method('PUT')
 
-                <button type="submit" class="sf-button-primary w-full">
-                    Salvar disponibilidade
-                </button>
+                    <input type="hidden" name="date" value="{{ $selectedDate }}">
+                    <input type="hidden" name="works_this_day" x-model="worksThisDay">
+
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">Configuracao do dia</h3>
+                        <p class="mt-2 text-sm text-[#c7d2e3]">
+                            Adicione ate dois turnos. Para folga total, marque o dia como folga.
+                        </p>
+                    </div>
+
+                    <div class="mt-5 grid gap-3">
+                        <button
+                            type="button"
+                            class="flex items-center justify-between rounded-2xl border px-4 py-4 text-left transition"
+                            :class="worksThisDay === '1' ? 'border-[#d4af37]/35 bg-[#d4af37]/12 text-white' : 'border-white/8 bg-[#132746] text-[#c7d2e3]'"
+                            @click="worksThisDay = '1'"
+                        >
+                            <span>
+                                <span class="block text-sm font-semibold">Trabalha neste dia</span>
+                                <span class="mt-1 block text-xs text-[#c7d2e3]">Libera horarios apenas dentro dos turnos salvos.</span>
+                            </span>
+                            <span class="rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]" :class="worksThisDay === '1' ? 'bg-[#d4af37] text-[#132746]' : 'bg-white/8 text-[#c7d2e3]'">
+                                Sim
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="flex items-center justify-between rounded-2xl border px-4 py-4 text-left transition"
+                            :class="worksThisDay === '0' ? 'border-rose-300/25 bg-rose-400/10 text-white' : 'border-white/8 bg-[#132746] text-[#c7d2e3]'"
+                            @click="worksThisDay = '0'"
+                        >
+                            <span>
+                                <span class="block text-sm font-semibold">Folga neste dia</span>
+                                <span class="mt-1 block text-xs text-[#c7d2e3]">Nenhum horario sera exibido no agendamento online.</span>
+                            </span>
+                            <span class="rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]" :class="worksThisDay === '0' ? 'bg-rose-300 text-[#132746]' : 'bg-white/8 text-[#c7d2e3]'">
+                                Nao
+                            </span>
+                        </button>
+                    </div>
+
+                    <div x-show="worksThisDay === '1'" x-cloak class="mt-6 space-y-4">
+                        <div class="rounded-2xl border border-white/8 bg-[#132746] p-4">
+                            <div class="flex items-center justify-between gap-4">
+                                <div>
+                                    <p class="text-sm font-semibold text-white">Turno 1</p>
+                                    <p class="mt-1 text-xs text-[#c7d2e3]">Obrigatorio quando houver atendimento no dia.</p>
+                                </div>
+                                <span class="rounded-full border border-[#d4af37]/25 bg-[#d4af37]/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#d4af37]">
+                                    Principal
+                                </span>
+                            </div>
+
+                            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label class="text-sm font-medium text-white">Inicio do turno 1</label>
+                                    <input type="time" name="intervals[0][start_time]" value="{{ old('intervals.0.start_time', $currentIntervals[0]['start_time'] ?? '') }}" class="sf-input mt-2 block w-full" :disabled="worksThisDay === '0'">
+                                    @error('intervals.0.start_time')
+                                        <p class="mt-2 text-sm text-rose-200">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-white">Fim do turno 1</label>
+                                    <input type="time" name="intervals[0][end_time]" value="{{ old('intervals.0.end_time', $currentIntervals[0]['end_time'] ?? '') }}" class="sf-input mt-2 block w-full" :disabled="worksThisDay === '0'">
+                                    @error('intervals.0.end_time')
+                                        <p class="mt-2 text-sm text-rose-200">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rounded-2xl border border-white/8 bg-[#132746] p-4">
+                            <div class="flex items-center justify-between gap-4">
+                                <div>
+                                    <p class="text-sm font-semibold text-white">Turno 2</p>
+                                    <p class="mt-1 text-xs text-[#c7d2e3]">Opcional para pausar almoco ou abrir horario noturno.</p>
+                                </div>
+                                <span class="rounded-full border border-white/10 bg-[#1b335b] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#c7d2e3]">
+                                    Opcional
+                                </span>
+                            </div>
+
+                            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label class="text-sm font-medium text-white">Inicio do turno 2</label>
+                                    <input type="time" name="intervals[1][start_time]" value="{{ old('intervals.1.start_time', $currentIntervals[1]['start_time'] ?? '') }}" class="sf-input mt-2 block w-full" :disabled="worksThisDay === '0'">
+                                    @error('intervals.1.start_time')
+                                        <p class="mt-2 text-sm text-rose-200">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-white">Fim do turno 2</label>
+                                    <input type="time" name="intervals[1][end_time]" value="{{ old('intervals.1.end_time', $currentIntervals[1]['end_time'] ?? '') }}" class="sf-input mt-2 block w-full" :disabled="worksThisDay === '0'">
+                                    @error('intervals.1.end_time')
+                                        <p class="mt-2 text-sm text-rose-200">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div x-show="worksThisDay === '0'" x-cloak class="mt-6 rounded-2xl border border-rose-300/18 bg-rose-400/10 px-4 py-4 text-sm text-rose-100">
+                        Este dia sera tratado como folga total e nao exibira horarios no agendamento online.
+                    </div>
+
+                    <div class="mt-6">
+                        <label class="text-sm font-medium text-white">Observacoes</label>
+                        <textarea name="notes" rows="3" class="sf-input mt-2 block w-full" placeholder="Ex.: horario reduzido, atendimento externo, plantao especial">{{ old('notes', $selectedDayState['notes'] ?? '') }}</textarea>
+                        @error('notes')
+                            <p class="mt-2 text-sm text-rose-200">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    @error('date')
+                        <p class="mt-4 text-sm text-rose-200">{{ $message }}</p>
+                    @enderror
+
+                    <div class="mt-6 flex flex-col gap-3">
+                        <button type="submit" class="sf-button-primary w-full">
+                            Salvar dia
+                        </button>
+                        <button type="submit" class="sf-button-secondary w-full !border-rose-300/15 !bg-rose-400/10 !text-rose-100 hover:!bg-rose-400/15" @click="worksThisDay = '0'">
+                            Marcar como folga
+                        </button>
+                    </div>
+                </form>
+
+                <section class="sf-card p-5 sm:p-6">
+                    <h3 class="text-base font-semibold text-white">Escala semanal de fallback</h3>
+                    <p class="mt-2 text-sm text-[#c7d2e3]">
+                        Se este dia nao tiver configuracao propria, o autoagendamento usa estes blocos base.
+                    </p>
+
+                    <div class="mt-4 space-y-3">
+                        @forelse ($weeklyFallbackBlocks as $block)
+                            <div class="rounded-2xl border border-white/8 bg-[#132746] px-4 py-4">
+                                <p class="text-sm font-semibold text-white">{{ $block['start_time'] }} as {{ $block['end_time'] }}</p>
+                                <p class="mt-1 text-xs text-[#c7d2e3]">Escala semanal existente</p>
+                            </div>
+                        @empty
+                            <div class="rounded-2xl border border-dashed border-white/10 bg-[#132746] px-4 py-5 text-sm text-[#c7d2e3]">
+                                Nenhum turno semanal cadastrado para este dia. Se limpar a configuracao, ele ficara sem horarios.
+                            </div>
+                        @endforelse
+                    </div>
+
+                    @if ($hasSpecificConfiguration)
+                        <form method="POST" action="{{ $clearRoute }}" class="mt-5">
+                            @csrf
+                            @method('DELETE')
+                            <input type="hidden" name="date" value="{{ $selectedDate }}">
+
+                            <button type="submit" class="sf-button-ghost w-full !border-white/10 !text-[#c7d2e3] hover:!border-[#d4af37]/35 hover:!text-white">
+                                Limpar configuracao do dia
+                            </button>
+                        </form>
+                    @endif
+                </section>
             </aside>
-        </form>
+        </div>
     </div>
 </x-app-layout>

@@ -157,6 +157,73 @@ class ServiceTest extends TestCase
         ]);
     }
 
+    public function test_company_admin_can_create_and_update_service_using_library_images(): void
+    {
+        Storage::fake('public');
+
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+
+        Storage::disk('public')->put(
+            'service-library/services/corte-premium.svg',
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#d4af37"/></svg>'
+        );
+        Storage::disk('public')->put(
+            'service-library/services/barba-luxo.svg',
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#1b335b"/></svg>'
+        );
+
+        $this
+            ->actingAs($admin)
+            ->get('/services/create')
+            ->assertOk()
+            ->assertSee('/storage/service-library/services/corte-premium.svg')
+            ->assertSee('/storage/service-library/services/barba-luxo.svg');
+
+        $this
+            ->actingAs($admin)
+            ->post('/services', [
+                'name' => 'Servico com biblioteca',
+                'duration_minutes' => 45,
+                'price' => '89.90',
+                'active' => '1',
+                'library_image' => 'service-library/services/corte-premium.svg',
+            ])
+            ->assertRedirect();
+
+        $service = Service::where('name', 'Servico com biblioteca')->firstOrFail();
+
+        $this->assertNotNull($service->image_path);
+        $this->assertStringStartsWith('services/corte-premium-', $service->image_path);
+        Storage::disk('public')->assertExists($service->image_path);
+        $this->assertSame(
+            Storage::disk('public')->get('service-library/services/corte-premium.svg'),
+            Storage::disk('public')->get($service->image_path)
+        );
+
+        $oldPath = $service->image_path;
+
+        $this
+            ->actingAs($admin)
+            ->patch("/services/{$service->id}", [
+                'name' => 'Servico com biblioteca',
+                'duration_minutes' => 45,
+                'price' => '89.90',
+                'active' => '1',
+                'library_image' => 'service-library/services/barba-luxo.svg',
+            ])
+            ->assertRedirect(route('services.show', $service, absolute: false));
+
+        $service->refresh();
+
+        $this->assertNotSame($oldPath, $service->image_path);
+        Storage::disk('public')->assertExists($service->image_path);
+        $this->assertSame(
+            Storage::disk('public')->get('service-library/services/barba-luxo.svg'),
+            Storage::disk('public')->get($service->image_path)
+        );
+    }
+
     public function test_user_cannot_access_services_from_another_company(): void
     {
         $company = Company::factory()->create();

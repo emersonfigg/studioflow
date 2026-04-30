@@ -6,6 +6,8 @@ use Database\Factories\PaymentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Payment extends Model
 {
@@ -103,5 +105,39 @@ class Payment extends Model
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);
+    }
+
+    /**
+     * Get the commission settlements linked to the payment.
+     *
+     * @return BelongsToMany<CommissionSettlement>
+     */
+    public function commissionSettlements(): BelongsToMany
+    {
+        return $this->belongsToMany(CommissionSettlement::class, 'commission_settlement_payment');
+    }
+
+    /**
+     * Get cash movements generated from the payment.
+     *
+     * @return HasMany<CashMovement>
+     */
+    public function cashMovements(): HasMany
+    {
+        return $this->hasMany(CashMovement::class, 'source_id')
+            ->where('source_type', self::class);
+    }
+
+    /**
+     * Determine the human label for the payment method.
+     */
+    public function paymentMethodLabel(): string
+    {
+        return match ($this->payment_method) {
+            'cash' => 'Dinheiro',
+            'pix' => 'Pix',
+            'card' => 'Cartao',
+            default => ucfirst($this->payment_method),
+        };
     }
 }
