@@ -12,6 +12,7 @@ use App\Http\Controllers\PublicBookingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductSaleController;
+use App\Http\Controllers\SetupSuperAdminController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SuperAdminCompanyController;
 use App\Http\Controllers\SuperAdminDashboardController;
@@ -22,6 +23,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/_setup/super-admin', SetupSuperAdminController::class);
 
 Route::get('/agendar/{company}', [PublicBookingController::class, 'create'])
     ->name('public-bookings.create');
