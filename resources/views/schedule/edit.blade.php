@@ -51,8 +51,8 @@
             </div>
         @endif
 
-        <div class="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_420px]">
-            <section class="sf-card p-5 sm:p-6">
+        <div class="grid gap-4 xl:grid-cols-[minmax(560px,1fr)_minmax(320px,360px)]">
+            <section class="sf-card p-4 sm:p-5">
                 <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Calendário</p>
@@ -72,18 +72,18 @@
                     </div>
                 </div>
 
-                <div class="mt-6 grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">
+                <div class="mt-6 grid grid-cols-7 gap-1.5 text-center text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">
                     @foreach ($weekdayHeaders as $weekdayHeader)
-                        <div class="rounded-xl border border-white/6 bg-[#132746] px-2 py-3">{{ $weekdayHeader }}</div>
+                        <div class="rounded-xl border border-white/6 bg-[#132746] px-2 py-2">{{ $weekdayHeader }}</div>
                     @endforeach
                 </div>
 
-                <div class="mt-3 grid gap-2">
+                <div class="mt-2 grid gap-1.5">
                     @foreach ($calendarWeeks as $week)
-                        <div class="grid grid-cols-7 gap-2">
+                        <div class="grid grid-cols-7 gap-1.5">
                             @foreach ($week as $day)
                                 @php
-                                    $buttonClasses = 'group relative min-h-[88px] overflow-hidden rounded-2xl border p-3 text-left transition duration-150';
+                                    $buttonClasses = 'group relative min-h-[72px] overflow-hidden rounded-xl border p-2.5 text-left transition duration-150';
 
                                     if (! $day['is_current_month']) {
                                         $buttonClasses .= ' border-white/5 bg-[#132746]/55 text-[#7f94b4] hover:border-white/10 hover:bg-[#132746]/80';
@@ -108,22 +108,22 @@
 
                                     <div class="flex items-start justify-between gap-2">
                                         <div>
-                                            <p class="text-[11px] uppercase tracking-[0.18em] {{ $day['is_current_month'] ? 'text-[#c7d2e3]' : 'text-[#6f84a8]' }}">
+                                            <p class="text-[10px] uppercase tracking-[0.14em] {{ $day['is_current_month'] ? 'text-[#c7d2e3]' : 'text-[#6f84a8]' }}">
                                                 {{ $day['label'] }}
                                             </p>
-                                            <p class="mt-2 text-xl font-semibold">{{ $day['day_number'] }}</p>
+                                            <p class="mt-1.5 text-lg font-semibold leading-none">{{ $day['day_number'] }}</p>
                                         </div>
                                     </div>
 
-                                    <div class="mt-4 flex items-center gap-2">
+                                    <div class="mt-3 flex items-center gap-1.5">
                                         @if ($day['status'] === 'configured')
-                                            <span class="h-2.5 w-2.5 rounded-full bg-[#d4af37] shadow-[0_0_0_5px_rgba(212,175,55,0.12)]"></span>
-                                            <span class="text-xs text-[#d8e1f1]">Horários salvos</span>
+                                            <span class="h-2 w-2 shrink-0 rounded-full bg-[#d4af37] shadow-[0_0_0_4px_rgba(212,175,55,0.12)]"></span>
+                                            <span class="text-[11px] leading-4 text-[#d8e1f1]">Horários salvos</span>
                                         @elseif ($day['status'] === 'day_off')
-                                            <span class="h-2.5 w-2.5 rounded-full bg-rose-300 shadow-[0_0_0_5px_rgba(251,113,133,0.12)]"></span>
-                                            <span class="text-xs text-[#d8e1f1]">Folga</span>
+                                            <span class="h-2 w-2 shrink-0 rounded-full bg-rose-300 shadow-[0_0_0_4px_rgba(251,113,133,0.12)]"></span>
+                                            <span class="text-[11px] leading-4 text-[#d8e1f1]">Folga</span>
                                         @else
-                                            <span class="text-xs text-[#8fa5c7]">Usando escala base</span>
+                                            <span class="text-[11px] leading-4 text-[#8fa5c7]">Escala base</span>
                                         @endif
                                     </div>
                                 </a>
@@ -133,12 +133,12 @@
                 </div>
             </section>
 
-            <aside class="space-y-6">
-                <section class="sf-card p-5 sm:p-6">
+            <aside class="space-y-4">
+                <section class="sf-card p-4 sm:p-5">
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Dia selecionado</p>
-                            <h3 class="mt-2 text-2xl font-semibold text-white">{{ $selectedDateLabel }}</h3>
+                            <h3 class="mt-1.5 text-xl font-semibold text-white">{{ $selectedDateLabel }}</h3>
                             <p class="mt-2 text-sm text-[#c7d2e3]">
                                 Configure os turnos reais desse dia. Ex: 08:00-11:00 e 13:00-19:00.
                             </p>
@@ -155,19 +155,19 @@
                         @endif
                     </div>
 
-                    <div class="mt-5 grid gap-3 sm:grid-cols-2">
-                        <div class="rounded-2xl border border-white/8 bg-[#132746] px-4 py-4">
+                    <div class="mt-4 grid gap-2 sm:grid-cols-2">
+                        <div class="rounded-xl border border-white/8 bg-[#132746] px-3 py-3">
                             <p class="text-sm text-[#c7d2e3]">Dias configurados no mês</p>
-                            <p class="mt-2 text-2xl font-semibold text-white">{{ $configuredDaysCount }}</p>
+                            <p class="mt-1.5 text-xl font-semibold text-white">{{ $configuredDaysCount }}</p>
                         </div>
-                        <div class="rounded-2xl border border-white/8 bg-[#132746] px-4 py-4">
+                        <div class="rounded-xl border border-white/8 bg-[#132746] px-3 py-3">
                             <p class="text-sm text-[#c7d2e3]">Folgas no mês</p>
-                            <p class="mt-2 text-2xl font-semibold text-white">{{ $dayOffCount }}</p>
+                            <p class="mt-1.5 text-xl font-semibold text-white">{{ $dayOffCount }}</p>
                         </div>
                     </div>
                 </section>
 
-                <form method="POST" action="{{ $updateRoute }}" class="sf-card p-5 sm:p-6">
+                <form method="POST" action="{{ $updateRoute }}" class="sf-card p-4 sm:p-5">
                     @csrf
                     @method('PUT')
 
@@ -181,10 +181,10 @@
                         </p>
                     </div>
 
-                    <div class="mt-5 grid gap-3">
+                    <div class="mt-4 grid gap-2">
                         <button
                             type="button"
-                            class="flex items-center justify-between rounded-2xl border px-4 py-4 text-left transition"
+                            class="flex items-center justify-between rounded-xl border px-3 py-3 text-left transition"
                             :class="worksThisDay === '1' ? 'border-[#d4af37]/35 bg-[#d4af37]/12 text-white' : 'border-white/8 bg-[#132746] text-[#c7d2e3]'"
                             @click="worksThisDay = '1'"
                         >
@@ -199,7 +199,7 @@
 
                         <button
                             type="button"
-                            class="flex items-center justify-between rounded-2xl border px-4 py-4 text-left transition"
+                            class="flex items-center justify-between rounded-xl border px-3 py-3 text-left transition"
                             :class="worksThisDay === '0' ? 'border-rose-300/25 bg-rose-400/10 text-white' : 'border-white/8 bg-[#132746] text-[#c7d2e3]'"
                             @click="worksThisDay = '0'"
                         >
@@ -213,8 +213,8 @@
                         </button>
                     </div>
 
-                    <div x-show="worksThisDay === '1'" x-cloak class="mt-6 space-y-4">
-                        <div class="rounded-2xl border border-white/8 bg-[#132746] p-4">
+                    <div x-show="worksThisDay === '1'" x-cloak class="mt-4 space-y-3">
+                        <div class="rounded-xl border border-white/8 bg-[#132746] p-3">
                             <div class="flex items-center justify-between gap-4">
                                 <div>
                                     <p class="text-sm font-semibold text-white">Turno 1</p>
@@ -225,7 +225,7 @@
                                 </span>
                             </div>
 
-                            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                            <div class="mt-3 grid gap-2 sm:grid-cols-2">
                                 <div>
                                     <label class="text-sm font-medium text-white">Início do turno 1</label>
                                     <input type="time" name="intervals[0][start_time]" value="{{ old('intervals.0.start_time', $currentIntervals[0]['start_time'] ?? '') }}" class="sf-input mt-2 block w-full" :disabled="worksThisDay === '0'">
@@ -243,7 +243,7 @@
                             </div>
                         </div>
 
-                        <div class="rounded-2xl border border-white/8 bg-[#132746] p-4">
+                        <div class="rounded-xl border border-white/8 bg-[#132746] p-3">
                             <div class="flex items-center justify-between gap-4">
                                 <div>
                                     <p class="text-sm font-semibold text-white">Turno 2</p>
@@ -254,7 +254,7 @@
                                 </span>
                             </div>
 
-                            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                            <div class="mt-3 grid gap-2 sm:grid-cols-2">
                                 <div>
                                     <label class="text-sm font-medium text-white">Início do turno 2</label>
                                     <input type="time" name="intervals[1][start_time]" value="{{ old('intervals.1.start_time', $currentIntervals[1]['start_time'] ?? '') }}" class="sf-input mt-2 block w-full" :disabled="worksThisDay === '0'">
@@ -273,11 +273,11 @@
                         </div>
                     </div>
 
-                    <div x-show="worksThisDay === '0'" x-cloak class="mt-6 rounded-2xl border border-rose-300/18 bg-rose-400/10 px-4 py-4 text-sm text-rose-100">
+                    <div x-show="worksThisDay === '0'" x-cloak class="mt-4 rounded-xl border border-rose-300/18 bg-rose-400/10 px-3 py-3 text-sm text-rose-100">
                         Este dia será tratado como folga total e não exibirá horários no agendamento online.
                     </div>
 
-                    <div class="mt-6">
+                    <div class="mt-4">
                         <label class="text-sm font-medium text-white">Observações</label>
                         <textarea name="notes" rows="3" class="sf-input mt-2 block w-full" placeholder="Ex.: horário reduzido, atendimento externo, plantão especial">{{ old('notes', $selectedDayState['notes'] ?? '') }}</textarea>
                         @error('notes')
@@ -289,7 +289,7 @@
                         <p class="mt-4 text-sm text-rose-200">{{ $message }}</p>
                     @enderror
 
-                    <div class="mt-6 flex flex-col gap-3">
+                    <div class="mt-4 flex flex-col gap-2">
                         <button type="submit" class="sf-button-primary w-full">
                             Salvar dia
                         </button>
@@ -299,15 +299,15 @@
                     </div>
                 </form>
 
-                <section class="sf-card p-5 sm:p-6">
+                <section class="sf-card p-4 sm:p-5">
                     <h3 class="text-base font-semibold text-white">Escala semanal de base</h3>
                     <p class="mt-2 text-sm text-[#c7d2e3]">
                         Se este dia não tiver configuração própria, o autoagendamento usa estes blocos base.
                     </p>
 
-                    <div class="mt-4 space-y-3">
+                    <div class="mt-3 space-y-2">
                         @forelse ($weeklyFallbackBlocks as $block)
-                            <div class="rounded-2xl border border-white/8 bg-[#132746] px-4 py-4">
+                            <div class="rounded-xl border border-white/8 bg-[#132746] px-3 py-3">
                                 <p class="text-sm font-semibold text-white">{{ $block['start_time'] }} as {{ $block['end_time'] }}</p>
                                 <p class="mt-1 text-xs text-[#c7d2e3]">Escala semanal existente</p>
                             </div>
