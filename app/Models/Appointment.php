@@ -138,11 +138,11 @@ class Appointment extends Model
     public function statusLabel(): string
     {
         return match ($this->status) {
-            'scheduled' => __('Scheduled'),
-            'confirmed' => __('Confirmed'),
-            'in_progress' => __('In Progress'),
-            'completed' => __('Completed'),
-            'cancelled' => __('Cancelled'),
+            'scheduled' => 'Agendado',
+            'confirmed' => 'Confirmado',
+            'in_progress' => 'Em atendimento',
+            'completed' => 'Concluído',
+            'cancelled' => 'Cancelado',
             default => $this->status,
         };
     }

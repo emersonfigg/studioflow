@@ -159,7 +159,7 @@
         <div>
             <x-input-label for="start_time" :value="__('Start')" />
             <x-text-input id="start_time" name="start_time" type="datetime-local" class="mt-1 block w-full" :value="old('start_time', optional($appointment?->start_time)->format('Y-m-d\TH:i'))" required />
-            <p class="mt-2 text-sm text-[#A1A1AA]">{{ __('End time is calculatéd automatically from the selected service duration.') }}</p>
+            <p class="mt-2 text-sm text-[#A1A1AA]">{{ __('End time is calculated automatically from the selected service duration.') }}</p>
             <x-input-error class="mt-2" :messages="$errors->get('start_time')" />
         </div>
 
@@ -170,11 +170,11 @@
                     @foreach ($statuses as $status)
                         <option value="{{ $status }}" @selected(old('status', $appointment?->status ?? 'scheduled') === $status)>
                             {{ match ($status) {
-                                'scheduled' => __('Scheduled'),
-                                'confirmed' => __('Confirmed'),
-                                'in_progress' => __('In Progress'),
-                                'completed' => __('Completed'),
-                                'cancelled' => __('Cancelled'),
+                                'scheduled' => 'Agendado',
+                                'confirmed' => 'Confirmado',
+                                'in_progress' => 'Em atendimento',
+                                'completed' => 'Concluído',
+                                'cancelled' => 'Cancelado',
                                 default => $status,
                             } }}
                         </option>
