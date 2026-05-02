@@ -22,6 +22,10 @@ return Application::configure(basePath: dirname(__DIR__))
                 | \Illuminate\Http\Request::HEADER_X_FORWARDED_PREFIX
         );
 
+        $middleware->validateCsrfTokens(except: [
+            'logout',
+        ]);
+
         $middleware->alias([
             'active_company' => EnsureCompanyIsActive::class,
             'super_admin' => EnsureSuperAdmin::class,
