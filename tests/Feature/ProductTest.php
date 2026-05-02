@@ -42,6 +42,7 @@ class ProductTest extends TestCase
                 'description' => 'Uso diario.',
                 'image' => UploadedFile::fake()->image('shampoo.webp'),
                 'price' => '49.90',
+                'stock_quantity' => 12,
                 'active' => '1',
             ])
             ->assertRedirect(route('products.index', absolute: false));
@@ -54,6 +55,7 @@ class ProductTest extends TestCase
                 'sku' => 'PMD-200',
                 'description' => 'Fixacao forte.',
                 'price' => '39.90',
+                'stock_quantity' => 8,
                 'active' => '1',
             ])
             ->assertRedirect(route('products.index', absolute: false));
@@ -62,6 +64,7 @@ class ProductTest extends TestCase
             'id' => $created->id,
             'company_id' => $company->id,
             'name' => 'Shampoo Completo',
+            'stock_quantity' => 12,
         ]);
         $this->assertNotNull($created->image_path);
         Storage::disk('public')->assertExists($created->image_path);
@@ -70,6 +73,7 @@ class ProductTest extends TestCase
             'id' => $product->id,
             'name' => 'Pomada Matte Forte',
             'price' => '39.90',
+            'stock_quantity' => 8,
         ]);
     }
 
@@ -85,6 +89,7 @@ class ProductTest extends TestCase
         $product = Product::factory()->for($company)->create([
             'name' => 'Pomada Gold',
             'price' => 35.00,
+            'stock_quantity' => 5,
             'image_path' => UploadedFile::fake()->image('pomada.webp')->store('products', 'public'),
         ]);
 
@@ -112,12 +117,40 @@ class ProductTest extends TestCase
             'amount' => '70.00',
         ]);
 
+        $this->assertSame(3, $product->refresh()->stock_quantity);
+
         $this->actingAs($admin)
             ->get(route('clients.show', $client, false))
             ->assertOk()
             ->assertSee('Histórico de compras')
             ->assertSee('Pomada Gold x2')
             ->assertSee('R$ 70,00');
+    }
+
+    public function test_product_sale_cannot_exceed_stock_quantity(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+        $product = Product::factory()->for($company)->create([
+            'stock_quantity' => 1,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('product-sales.create', absolute: false))
+            ->post(route('product-sales.store', absolute: false), [
+                'client_id' => $client->id,
+                'payment_method' => 'pix',
+                'sold_at' => '2026-04-30 10:00:00',
+                'items' => [
+                    ['product_id' => $product->id, 'quantity' => 2],
+                ],
+            ])
+            ->assertRedirect(route('product-sales.create', absolute: false))
+            ->assertSessionHasErrors('items');
+
+        $this->assertSame(1, $product->refresh()->stock_quantity);
+        $this->assertDatabaseCount('product_sales', 0);
     }
 
     public function test_admin_can_remove_product_image_on_update(): void
@@ -138,6 +171,7 @@ class ProductTest extends TestCase
                 'sku' => $product->sku,
                 'description' => $product->description,
                 'price' => $product->price,
+                'stock_quantity' => $product->stock_quantity,
                 'active' => '1',
                 'remove_image' => '1',
             ])

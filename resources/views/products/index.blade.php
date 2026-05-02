@@ -43,6 +43,10 @@
                 <p class="mt-3 text-3xl font-semibold text-white">{{ $soldItemsCount }}</p>
             </article>
             <article class="sf-card p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Estoque total</p>
+                <p class="mt-3 text-3xl font-semibold text-white">{{ $stockTotal }}</p>
+            </article>
+            <article class="sf-card p-5">
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Receita de produtos</p>
                 <p class="mt-3 text-3xl font-semibold text-white">R$ {{ number_format($inventoryRevenue, 2, ',', '.') }}</p>
             </article>
@@ -77,6 +81,9 @@
                             <div class="text-left md:text-right">
                                 <p class="text-2xl font-semibold text-white">R$ {{ number_format((float) $product->price, 2, ',', '.') }}</p>
                                 <p class="mt-1 text-xs uppercase tracking-[0.18em] text-[#c7d2e3]">{{ $product->sku ?: 'Sem SKU' }}</p>
+                                <p class="mt-2 text-sm font-semibold {{ $product->stock_quantity > 0 ? 'text-emerald-100' : 'text-rose-100' }}">
+                                    Estoque: {{ $product->stock_quantity }} un.
+                                </p>
                             </div>
                         </div>
 

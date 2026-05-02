@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Appointment;
 use App\Models\Payment;
 use App\Models\Product;
-use App\Models\Appointment;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -77,6 +77,23 @@ class StoreProductSaleRequest extends FormRequest
             if ($validProductIds->count() !== $productIds->count()) {
                 $validator->errors()->add('items', 'Um ou mais produtos nao pertencem a sua empresa.');
             }
+
+            $products = Product::query()
+                ->where('company_id', $companyId)
+                ->whereIn('id', $productIds)
+                ->get(['id', 'stock_quantity'])
+                ->keyBy('id');
+
+            collect($this->input('items', []))
+                ->groupBy('product_id')
+                ->each(function ($items, $productId) use ($products, $validator): void {
+                    $product = $products->get((int) $productId);
+                    $quantity = collect($items)->sum(fn (array $item): int => (int) ($item['quantity'] ?? 0));
+
+                    if ($product && $product->stock_quantity < $quantity) {
+                        $validator->errors()->add('items', 'Estoque insuficiente para um ou mais produtos selecionados.');
+                    }
+                });
         });
     }
 }

@@ -36,6 +36,7 @@ class UserFactory extends Factory
             'commission_type' => null,
             'commission_value' => null,
             'active' => true,
+            'schedule_type' => 'fixed',
             'remember_token' => Str::random(10),
         ];
     }

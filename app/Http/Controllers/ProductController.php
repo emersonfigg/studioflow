@@ -39,6 +39,7 @@ class ProductController extends Controller
             'soldItemsCount' => (int) ProductSaleItem::query()
                 ->whereHas('sale', fn ($query) => $query->where('company_id', $companyId))
                 ->sum('quantity'),
+            'stockTotal' => (int) Product::query()->where('company_id', $companyId)->sum('stock_quantity'),
             'inventoryRevenue' => (float) (ProductSaleItem::query()
                 ->whereHas('sale', fn ($query) => $query->where('company_id', $companyId))
                 ->sum('total_price') ?? 0),

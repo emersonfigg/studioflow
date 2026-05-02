@@ -10,13 +10,13 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ProductSaleService
 {
     public function __construct(
         private readonly CashRegisterService $cashRegisterService,
-    ) {
-    }
+    ) {}
 
     /**
      * Register a product sale with items and cash entry.
@@ -36,18 +36,19 @@ class ProductSaleService
         $companyId = $actor->company_id;
         $productIds = collect($data['items'])->pluck('product_id')->all();
 
-        /** @var Collection<int, Product> $products */
-        $products = Product::query()
-            ->where('company_id', $companyId)
-            ->whereIn('id', $productIds)
-            ->get()
-            ->keyBy('id');
-
         $soldAt = ! empty($data['sold_at'])
             ? CarbonImmutable::parse($data['sold_at'])
             : CarbonImmutable::now();
 
-        return DB::transaction(function () use ($actor, $data, $products, $soldAt, $companyId): ProductSale {
+        return DB::transaction(function () use ($actor, $data, $productIds, $soldAt, $companyId): ProductSale {
+            /** @var Collection<int, Product> $products */
+            $products = Product::query()
+                ->where('company_id', $companyId)
+                ->whereIn('id', $productIds)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
             /** @var Client $client */
             $client = Client::query()
                 ->where('company_id', $companyId)
@@ -59,6 +60,21 @@ class ProductSaleService
 
                 return round((float) ($product?->price ?? 0) * (int) $item['quantity'], 2);
             });
+
+            $requestedByProduct = collect($data['items'])
+                ->groupBy('product_id')
+                ->map(fn (Collection $items): int => $items->sum(fn (array $item): int => (int) $item['quantity']));
+
+            foreach ($requestedByProduct as $productId => $quantity) {
+                /** @var Product|null $product */
+                $product = $products->get((int) $productId);
+
+                if (! $product || $product->stock_quantity < $quantity) {
+                    throw ValidationException::withMessages([
+                        'items' => 'Estoque insuficiente para um ou mais produtos selecionados.',
+                    ]);
+                }
+            }
 
             $sale = ProductSale::create([
                 'company_id' => $companyId,
@@ -81,6 +97,8 @@ class ProductSaleService
                     'unit_price' => $product->price,
                     'total_price' => round((float) $product->price * (int) $item['quantity'], 2),
                 ]);
+
+                $product->decrement('stock_quantity', (int) $item['quantity']);
             }
 
             $client->update([

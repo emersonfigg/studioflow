@@ -32,6 +32,7 @@ class User extends Authenticatable
         'commission_type',
         'commission_value',
         'active',
+        'schedule_type',
         'photo_path',
     ];
 

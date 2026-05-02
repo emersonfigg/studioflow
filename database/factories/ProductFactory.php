@@ -24,6 +24,7 @@ class ProductFactory extends Factory
             'sku' => strtoupper(fake()->bothify('PRD-###')),
             'description' => fake()->sentence(),
             'price' => fake()->randomFloat(2, 10, 120),
+            'stock_quantity' => fake()->numberBetween(5, 50),
             'active' => true,
         ];
     }

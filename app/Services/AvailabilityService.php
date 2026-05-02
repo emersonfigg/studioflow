@@ -14,7 +14,7 @@ use Illuminate\Support\Collection;
 
 class AvailabilityService
 {
-    private const SLOT_INTERVAL_MINUTES = 30;
+    private const SLOT_INTERVAL_MINUTES = 5;
 
     private const MIN_LEAD_TIME_MINUTES = 30;
 
@@ -203,6 +203,10 @@ class AvailabilityService
                 return collect([$this->intervalForTimes($day, (string) $override->start_time, (string) $override->end_time)])
                     ->filter();
             }
+        }
+
+        if (($user->schedule_type ?? 'fixed') === 'dynamic') {
+            return collect();
         }
 
         return $user->workingHours()

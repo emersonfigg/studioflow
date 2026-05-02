@@ -84,6 +84,23 @@ class StorePaymentRequest extends FormRequest
             if ($validProductIds->count() !== $productIds->count()) {
                 $validator->errors()->add('items', 'Um ou mais produtos nao pertencem a sua empresa ou nao estao ativos.');
             }
+
+            $products = Product::query()
+                ->where('company_id', $appointment->company_id)
+                ->whereIn('id', $productIds)
+                ->get(['id', 'stock_quantity'])
+                ->keyBy('id');
+
+            collect($this->input('items', []))
+                ->groupBy('product_id')
+                ->each(function ($items, $productId) use ($products, $validator): void {
+                    $product = $products->get((int) $productId);
+                    $quantity = collect($items)->sum(fn (array $item): int => (int) ($item['quantity'] ?? 0));
+
+                    if ($product && $product->stock_quantity < $quantity) {
+                        $validator->errors()->add('items', 'Estoque insuficiente para um ou mais produtos selecionados.');
+                    }
+                });
         });
     }
 }

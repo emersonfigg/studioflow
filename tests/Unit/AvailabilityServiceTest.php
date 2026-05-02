@@ -155,20 +155,12 @@ class AvailabilityServiceTest extends TestCase
 
         $slots = app(AvailabilityService::class)->availableSlotsForDuration($company, $user, 75, '2026-04-28');
 
-        $this->assertSame([
-            '14:30',
-            '15:00',
-            '15:30',
-            '16:00',
-            '16:30',
-            '17:00',
-            '17:30',
-            '18:00',
-            '18:30',
-            '19:00',
-            '19:30',
-            '20:00',
-        ], $slots);
+        $this->assertNotContains('14:00', $slots);
+        $this->assertNotContains('14:25', $slots);
+        $this->assertContains('14:30', $slots);
+        $this->assertContains('14:35', $slots);
+        $this->assertContains('19:55', $slots);
+        $this->assertContains('20:00', $slots);
     }
 
     public function test_today_without_public_margin_can_return_the_first_slot_for_internal_use(): void
@@ -419,28 +411,77 @@ class AvailabilityServiceTest extends TestCase
 
         $slots = app(AvailabilityService::class)->availableSlotsForDuration($company, $user, 75, '2026-04-28');
 
-        $this->assertSame([
-            '11:00',
-            '11:30',
-            '12:00',
-            '12:30',
-            '13:00',
-            '14:00',
-            '14:30',
-            '15:00',
-            '15:30',
-            '16:00',
-            '16:30',
-            '17:00',
-            '17:30',
-            '18:00',
-            '18:30',
-            '19:00',
-            '19:30',
-            '20:00',
-        ], $slots);
-
+        $this->assertContains('11:00', $slots);
+        $this->assertContains('11:05', $slots);
+        $this->assertContains('12:55', $slots);
+        $this->assertContains('13:00', $slots);
+        $this->assertContains('14:00', $slots);
+        $this->assertContains('14:05', $slots);
+        $this->assertContains('19:55', $slots);
+        $this->assertContains('20:00', $slots);
         $this->assertNotContains('13:30', $slots);
+    }
+
+    public function test_dynamic_schedule_uses_only_configured_day_overrides(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-15 10:00:00');
+
+        $company = Company::factory()->create();
+        $user = User::factory()->for($company)->create([
+            'schedule_type' => 'dynamic',
+        ]);
+        $this->createWorkingHour($company, $user, 4, '08:00', '18:00');
+
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 60,
+        ]);
+
+        $this->assertSame([], app(AvailabilityService::class)->availableSlots($company, $user, $service, '2026-04-16'));
+
+        $override = ProfessionalDayOverride::create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'date' => '2026-04-16',
+            'is_day_off' => false,
+        ]);
+
+        $this->createOverrideIntervals($override, [
+            ['start_time' => '09:00', 'end_time' => '12:00'],
+        ]);
+
+        $slots = app(AvailabilityService::class)->availableSlots($company, $user, $service, '2026-04-16');
+
+        $this->assertContains('09:00', $slots);
+        $this->assertContains('09:05', $slots);
+        $this->assertNotContains('08:00', $slots);
+    }
+
+    public function test_slots_resume_at_appointment_end_with_five_minute_granularity(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-15 10:00:00');
+
+        $company = Company::factory()->create();
+        $user = User::factory()->for($company)->create();
+        $this->createWorkingHour($company, $user, 4, '08:00', '11:00');
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 45,
+        ]);
+
+        Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $user->id,
+            'service_id' => $service->id,
+            'start_time' => '2026-04-16 08:00:00',
+            'end_time' => '2026-04-16 08:45:00',
+            'status' => 'scheduled',
+        ]);
+
+        $slots = app(AvailabilityService::class)->availableSlots($company, $user, $service, '2026-04-16');
+
+        $this->assertNotContains('08:30', $slots);
+        $this->assertContains('08:45', $slots);
+        $this->assertContains('08:50', $slots);
     }
 
     public function test_tuesday_working_hour_returns_slots_for_tuesday_date(): void

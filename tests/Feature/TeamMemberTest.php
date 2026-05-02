@@ -50,6 +50,12 @@ class TeamMemberTest extends TestCase
                 'password' => 'password123',
                 'role' => 'staff',
                 'active' => '1',
+                'schedule_type' => 'fixed',
+                'fixed_weekdays' => [1, 2, 3, 4, 5, 6],
+                'fixed_intervals' => [
+                    ['start_time' => '08:00', 'end_time' => '11:00'],
+                    ['start_time' => '13:00', 'end_time' => '18:00'],
+                ],
                 'commission_type' => 'none',
                 'commission_value' => null,
                 'photo' => $photo,
@@ -60,6 +66,21 @@ class TeamMemberTest extends TestCase
 
         $this->assertSame($company->id, $member->company_id);
         $this->assertSame('staff', $member->role);
+        $this->assertSame('fixed', $member->schedule_type);
+        $this->assertDatabaseHas('professional_working_hours', [
+            'company_id' => $company->id,
+            'user_id' => $member->id,
+            'weekday' => 1,
+            'start_time' => '08:00',
+            'end_time' => '11:00',
+        ]);
+        $this->assertDatabaseHas('professional_working_hours', [
+            'company_id' => $company->id,
+            'user_id' => $member->id,
+            'weekday' => 6,
+            'start_time' => '13:00',
+            'end_time' => '18:00',
+        ]);
         $this->assertNotNull($member->photo_path);
         Storage::disk('public')->assertExists($member->photo_path);
     }
@@ -87,6 +108,12 @@ class TeamMemberTest extends TestCase
                 'password' => '',
                 'role' => 'staff',
                 'active' => '1',
+                'schedule_type' => 'fixed',
+                'fixed_weekdays' => [1, 2, 3, 4, 5, 6],
+                'fixed_intervals' => [
+                    ['start_time' => '08:00', 'end_time' => '11:00'],
+                    ['start_time' => '13:00', 'end_time' => '18:00'],
+                ],
                 'commission_type' => 'percent',
                 'commission_value' => '45.50',
             ])
@@ -110,6 +137,7 @@ class TeamMemberTest extends TestCase
                 'password' => '',
                 'role' => 'staff',
                 'active' => '1',
+                'schedule_type' => 'dynamic',
                 'commission_type' => 'percent',
                 'commission_value' => '45.50',
                 'photo' => $newPhoto,
@@ -119,6 +147,10 @@ class TeamMemberTest extends TestCase
         $member->refresh();
 
         $this->assertNotSame('professionals/original-photo.jpg', $member->photo_path);
+        $this->assertSame('dynamic', $member->schedule_type);
+        $this->assertDatabaseMissing('professional_working_hours', [
+            'user_id' => $member->id,
+        ]);
         Storage::disk('public')->assertExists($member->photo_path);
     }
 
@@ -185,6 +217,12 @@ class TeamMemberTest extends TestCase
                 'password' => '',
                 'role' => 'staff',
                 'active' => '1',
+                'schedule_type' => 'fixed',
+                'fixed_weekdays' => [1, 2, 3, 4, 5, 6],
+                'fixed_intervals' => [
+                    ['start_time' => '08:00', 'end_time' => '11:00'],
+                    ['start_time' => '13:00', 'end_time' => '18:00'],
+                ],
                 'commission_type' => 'fixed',
                 'commission_value' => '50.00',
             ])

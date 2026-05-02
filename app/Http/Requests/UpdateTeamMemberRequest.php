@@ -36,6 +36,12 @@ class UpdateTeamMemberRequest extends FormRequest
             'password' => ['nullable', 'string', 'min:8'],
             'role' => ['required', Rule::in(['admin', 'staff'])],
             'active' => ['nullable', 'boolean'],
+            'schedule_type' => ['required', Rule::in(['fixed', 'dynamic'])],
+            'fixed_weekdays' => ['nullable', 'array'],
+            'fixed_weekdays.*' => ['integer', 'between:0,6'],
+            'fixed_intervals' => ['nullable', 'array', 'max:2'],
+            'fixed_intervals.*.start_time' => ['nullable', 'date_format:H:i'],
+            'fixed_intervals.*.end_time' => ['nullable', 'date_format:H:i', 'after:fixed_intervals.*.start_time'],
             'commission_type' => ['nullable', Rule::in(['none', 'percent', 'fixed'])],
             'commission_value' => [
                 new RequiredIf(in_array($this->input('commission_type'), ['percent', 'fixed'], true)),

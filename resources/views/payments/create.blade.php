@@ -23,6 +23,7 @@
                 'price' => (float) $product->price,
                 'formatted_price' => number_format((float) $product->price, 2, ',', '.'),
                 'image_url' => $product->image_url,
+                'stock_quantity' => $product->stock_quantity,
             ]])),
             skuSearch: '',
             get filteredProducts() {
@@ -228,7 +229,7 @@
                                         </template>
                                         <div class="min-w-0 flex-1">
                                             <p class="truncate text-sm font-semibold text-white" x-text="product.name"></p>
-                                            <p class="mt-1 text-xs text-[#c7d2e3]" x-text="`${product.sku || 'Sem SKU'} · R$ ${product.formatted_price}`"></p>
+                                            <p class="mt-1 text-xs text-[#c7d2e3]" x-text="`${product.sku || 'Sem SKU'} · R$ ${product.formatted_price} · Estoque ${product.stock_quantity}`"></p>
                                         </div>
                                     </button>
                                 </template>
@@ -265,7 +266,7 @@
                                     <select class="sf-select mt-2 block w-full" :name="`items[${index}][product_id]`" x-model="item.product_id">
                                         <option value="">Selecione</option>
                                         @foreach ($products as $product)
-                                            <option value="{{ $product->id }}">{{ $product->sku ?: 'Sem SKU' }} · {{ $product->name }} · R$ {{ number_format((float) $product->price, 2, ',', '.') }}</option>
+                                            <option value="{{ $product->id }}">{{ $product->sku ?: 'Sem SKU' }} · {{ $product->name }} · R$ {{ number_format((float) $product->price, 2, ',', '.') }} · Estoque {{ $product->stock_quantity }}</option>
                                         @endforeach
                                     </select>
                                     <p class="mt-2 text-xs text-[#c7d2e3]" x-show="item.product_id && products[item.product_id]" x-text="item.product_id && products[item.product_id] ? `SKU ${products[item.product_id].sku || 'sem cadastro'}` : ''"></p>

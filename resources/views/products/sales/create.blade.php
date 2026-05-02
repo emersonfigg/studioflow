@@ -21,6 +21,7 @@
             'sku' => $product->sku,
             'price' => number_format((float) $product->price, 2, ',', '.'),
             'image_url' => $product->image_url,
+            'stock_quantity' => $product->stock_quantity,
         ]])) }},
         skuSearch: '',
         get filteredProducts() {
@@ -158,7 +159,7 @@
                                     </template>
                                     <div class="min-w-0 flex-1">
                                         <p class="truncate text-sm font-semibold text-white" x-text="product.name"></p>
-                                        <p class="mt-1 text-xs text-[#c7d2e3]" x-text="`${product.sku || 'Sem SKU'} · R$ ${product.price}`"></p>
+                                        <p class="mt-1 text-xs text-[#c7d2e3]" x-text="`${product.sku || 'Sem SKU'} · R$ ${product.price} · Estoque ${product.stock_quantity}`"></p>
                                     </div>
                                 </button>
                             </template>
@@ -189,10 +190,10 @@
                                 <select class="sf-select mt-2 block w-full" :name="`items[${index}][product_id]`" x-model="item.product_id" required>
                                     <option value="">Selecione</option>
                                     @foreach ($products as $product)
-                                        <option value="{{ $product->id }}">{{ $product->sku ?: 'Sem SKU' }} · {{ $product->name }} · R$ {{ number_format((float) $product->price, 2, ',', '.') }}</option>
+                                        <option value="{{ $product->id }}">{{ $product->sku ?: 'Sem SKU' }} · {{ $product->name }} · R$ {{ number_format((float) $product->price, 2, ',', '.') }} · Estoque {{ $product->stock_quantity }}</option>
                                     @endforeach
                                 </select>
-                                <p class="mt-2 text-xs text-[#c7d2e3]" x-show="item.product_id && products[item.product_id]" x-text="item.product_id && products[item.product_id] ? `SKU ${products[item.product_id].sku || 'sem cadastro'} · R$ ${products[item.product_id].price}` : ''"></p>
+                                <p class="mt-2 text-xs text-[#c7d2e3]" x-show="item.product_id && products[item.product_id]" x-text="item.product_id && products[item.product_id] ? `SKU ${products[item.product_id].sku || 'sem cadastro'} · R$ ${products[item.product_id].price} · Estoque ${products[item.product_id].stock_quantity}` : ''"></p>
                             </div>
                             <div>
                                 <label class="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Qtd.</label>
@@ -229,7 +230,7 @@
                         @endif
                         <div class="min-w-0">
                             <p class="truncate text-sm font-semibold text-white">{{ $product->name }}</p>
-                            <p class="mt-1 text-xs text-[#c7d2e3]">{{ $product->sku ?: 'Sem SKU' }} · R$ {{ number_format((float) $product->price, 2, ',', '.') }}</p>
+                            <p class="mt-1 text-xs text-[#c7d2e3]">{{ $product->sku ?: 'Sem SKU' }} · R$ {{ number_format((float) $product->price, 2, ',', '.') }} · Estoque {{ $product->stock_quantity }}</p>
                         </div>
                     </div>
                 @endforeach
