@@ -18,7 +18,7 @@
 
     <div class="space-y-6">
         <section class="sf-card overflow-hidden px-6 py-6 sm:px-8">
-            <div class="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+            <div class="flex flex-col gap-6 2xl:flex-row 2xl:items-end 2xl:justify-between">
                 <div class="max-w-2xl">
                     <div class="inline-flex items-center rounded-full border border-[#d4af37]/20 bg-[#d4af37]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#d4af37]">
                         StudioFlow
@@ -31,14 +31,14 @@
                     </p>
                 </div>
 
-                <div class="grid gap-3 sm:grid-cols-2">
-                    <a href="{{ route('appointments.create') }}" class="sf-button-primary min-w-[210px]">
+                <div class="flex w-full flex-col gap-3 sm:flex-row 2xl:w-auto 2xl:shrink-0">
+                    <a href="{{ route('appointments.create') }}" class="sf-button-primary w-full whitespace-nowrap sm:w-auto sm:min-w-[210px]">
                         <svg class="mr-2 h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                             <path d="M10 4a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 0110 4z"/>
                         </svg>
                         Novo agendamento
                     </a>
-                    <a href="{{ route('clients.create') }}" class="sf-button-secondary min-w-[210px]">
+                    <a href="{{ route('clients.create') }}" class="sf-button-secondary w-full whitespace-nowrap sm:w-auto sm:min-w-[210px]">
                         <svg class="mr-2 h-4 w-4 text-[#d4af37]" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                             <path d="M10 9a3 3 0 100-6 3 3 0 000 6zM5 15.25A3.25 3.25 0 018.25 12h3.5A3.25 3.25 0 0115 15.25V16a.75.75 0 01-.75.75h-8.5A.75.75 0 015 16v-.75z"/>
                         </svg>
