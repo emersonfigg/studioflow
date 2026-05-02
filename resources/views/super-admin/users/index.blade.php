@@ -2,8 +2,8 @@
     <x-slot name="header">
         <div>
             <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Super Admin</p>
-            <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">Usuarios globais</h2>
-            <p class="mt-2 text-sm text-[#c7d2e3]">Visao completa de contas, papeis e vinculacao com empresas.</p>
+            <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">Usuários globais</h2>
+            <p class="mt-2 text-sm text-[#c7d2e3]">Visao completa de contas, papéis e vinculacao com empresas.</p>
         </div>
     </x-slot>
 

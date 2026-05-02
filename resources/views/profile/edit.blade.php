@@ -11,7 +11,7 @@
                             Perfil
                         </h1>
                         <p class="mt-2 max-w-2xl text-sm leading-7 text-[#c7d2e3] sm:text-base">
-                            Gerencie seus dados de acesso e seguranca.
+                            Gerencie seus dados de acessó e seguranca.
                         </p>
                     </div>
                 </div>

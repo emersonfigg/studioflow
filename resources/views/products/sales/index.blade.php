@@ -12,7 +12,7 @@
 
     <section class="sf-card overflow-hidden">
         <div class="border-b border-white/10 px-5 py-4">
-            <h3 class="text-lg font-semibold text-white">Historico de vendas</h3>
+            <h3 class="text-lg font-semibold text-white">Histórico de vendas</h3>
         </div>
         <div class="space-y-4 px-5 py-5">
             @forelse ($sales as $sale)

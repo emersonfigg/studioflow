@@ -63,7 +63,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v11a2 2 0 002 2z" />
                         </svg>
                     </div>
-                    <h3 class="mt-6 text-2xl font-semibold text-white">Nenhum agendamento para esta data.</h3>
+                    <h3 class="mt-6 text-2xl font-semibold text-white">Nenhum agendamento para está data.</h3>
                     <p class="mt-3 text-sm leading-7 text-[#c7d2e3]">
                         Ajuste a data, filtre por profissional ou crie um novo atendimento para preencher a agenda.
                     </p>
@@ -81,7 +81,7 @@
                         <div class="border-b border-white/10 bg-[#132746] px-5 py-4">
                             <div class="flex items-center justify-between gap-4">
                                 <div>
-                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Horario</p>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Horário</p>
                                     <h3 class="mt-1 text-2xl font-semibold text-white">{{ $time }}</h3>
                                 </div>
                                 <p class="text-sm text-[#c7d2e3]">{{ $groupedAppointments->count() }} agendamento(s)</p>
@@ -120,7 +120,7 @@
                                                     <p class="mt-1 text-sm font-semibold text-white">{{ $appointment->user->name }}</p>
                                                 </div>
                                                 <div class="lg:col-span-2">
-                                                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#c7d2e3]">Servico(s)</p>
+                                                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#c7d2e3]">Serviço(s)</p>
                                                     <p class="mt-1 text-sm text-white">{{ $servicesLabel !== '' ? $servicesLabel : $appointment->service->name }}</p>
                                                 </div>
                                             </div>

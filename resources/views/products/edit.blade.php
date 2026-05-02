@@ -4,7 +4,7 @@
             <div>
                 <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Produtos</p>
                 <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">Editar produto</h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Ajuste preco, descricao e status comercial do item.</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Ajuste preço, descrição e status comercial do item.</p>
             </div>
 
             <div class="flex flex-wrap gap-3">

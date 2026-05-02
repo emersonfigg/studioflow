@@ -3,8 +3,8 @@
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
                 <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Financeiro</p>
-                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">Relatorio financeiro</h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Cruze servicos, produtos, repasses e caixa por periodo.</p>
+                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">Relatório financeiro</h2>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Cruze serviços, produtos, repasses e caixa por período.</p>
             </div>
 
             <form method="GET" action="{{ route('finance.report') }}" class="flex flex-wrap items-center gap-3">
@@ -27,7 +27,7 @@
 
     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <article class="sf-card p-5">
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Servicos</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Serviços</p>
             <p class="mt-3 text-3xl font-semibold text-white">R$ {{ number_format($serviceRevenue, 2, ',', '.') }}</p>
         </article>
         <article class="sf-card p-5">
@@ -51,7 +51,7 @@
     <div class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <section class="sf-card overflow-hidden">
             <div class="border-b border-white/10 px-6 py-5">
-                <h3 class="text-base font-semibold text-white">Recebimentos de servicos</h3>
+                <h3 class="text-base font-semibold text-white">Recebimentos de serviços</h3>
             </div>
             <div class="space-y-3 px-5 py-5">
                 @forelse ($payments as $payment)
@@ -68,7 +68,7 @@
                         </div>
                     </div>
                 @empty
-                    <div class="text-sm text-[#c7d2e3]">Nenhum servico pago no periodo.</div>
+                    <div class="text-sm text-[#c7d2e3]">Nenhum serviço pago no período.</div>
                 @endforelse
             </div>
         </section>
@@ -92,7 +92,7 @@
                         </div>
                     </div>
                 @empty
-                    <div class="text-sm text-[#c7d2e3]">Nenhuma venda de produto no periodo.</div>
+                    <div class="text-sm text-[#c7d2e3]">Nenhuma venda de produto no período.</div>
                 @endforelse
             </div>
         </section>
@@ -107,7 +107,7 @@
                         <div class="flex items-start justify-between gap-4">
                             <div>
                                 <p class="text-sm font-semibold text-white">{{ $settlement->user->name }}</p>
-                                <p class="mt-1 text-sm text-[#c7d2e3]">{{ $settlement->start_date->format('d/m') }} ate {{ $settlement->end_date->format('d/m') }}</p>
+                                <p class="mt-1 text-sm text-[#c7d2e3]">{{ $settlement->start_date->format('d/m') }} até {{ $settlement->end_date->format('d/m') }}</p>
                             </div>
                             <div class="text-right">
                                 <p class="text-sm font-semibold text-rose-200">R$ {{ number_format((float) $settlement->commission_amount, 2, ',', '.') }}</p>
@@ -116,7 +116,7 @@
                         </div>
                     </div>
                 @empty
-                    <div class="text-sm text-[#c7d2e3]">Nenhum acerto no periodo.</div>
+                    <div class="text-sm text-[#c7d2e3]">Nenhum acerto no período.</div>
                 @endforelse
             </div>
         </section>
@@ -140,7 +140,7 @@
                         </div>
                     </div>
                 @empty
-                    <div class="text-sm text-[#c7d2e3]">Nenhum caixa encontrado no periodo.</div>
+                    <div class="text-sm text-[#c7d2e3]">Nenhum caixa encontrado no período.</div>
                 @endforelse
             </div>
         </section>

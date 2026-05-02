@@ -4,11 +4,11 @@
     <x-slot name="header">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">SERVICOS</p>
+                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">SERVIÇOS</p>
                 <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
-                    Novo servico
+                    Novo serviço
                 </h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Cadastre preco, duracao, disponibilidade e imagem</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Cadastre preço, duração, disponibilidade e imagem</p>
             </div>
 
             <div class="flex flex-wrap items-center gap-3">
@@ -16,7 +16,7 @@
                     Voltar
                 </a>
                 <button type="submit" form="service-create-form" class="sf-button-primary">
-                    Salvar servico
+                    Salvar serviço
                 </button>
             </div>
         </div>
@@ -26,7 +26,7 @@
         x-data="{
             name: @js(old('name', '')),
             duration: @js((string) old('duration_minutes', '60')),
-            price: @js((string) old('price', '0.00')),
+            price: @js((string) old('price', '0,00')),
             active: @js((bool) old('active', true)),
             imageName: '',
             uploadPreview: '',
@@ -86,7 +86,7 @@
                     </div>
 
                     <div>
-                        <label for="duration_minutes" class="text-sm font-medium text-white">Duracao (min)</label>
+                        <label for="duration_minutes" class="text-sm font-medium text-white">Duração (min)</label>
                         <input
                             id="duration_minutes"
                             name="duration_minutes"
@@ -101,14 +101,14 @@
                     </div>
 
                     <div>
-                        <label for="price" class="text-sm font-medium text-white">Preco</label>
+                        <label for="price" class="text-sm font-medium text-white">Preço</label>
                         <input
                             id="price"
                             name="price"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value="{{ old('price', '0.00') }}"
+                            type="text"
+                            inputmode="decimal"
+                            placeholder="R$ 0,00"
+                            value="{{ old('price', '0,00') }}"
                             x-model="price"
                             class="sf-input mt-2 block w-full"
                             required
@@ -161,7 +161,7 @@
                                     class="sf-input mt-2 block w-full px-3 py-3"
                                     @change="handleUploadChange($event)"
                                 >
-                                <p class="mt-2 text-xs text-[#c7d2e3]">Use JPG, PNG ou WEBP para destacar o servico no catalogo e no agendamento online.</p>
+                                <p class="mt-2 text-xs text-[#c7d2e3]">Use JPG, PNG ou WEBP para destacar o serviço no catalogo e no agendamento online.</p>
                             </div>
 
                             <x-input-error class="mt-2" :messages="$errors->get('image')" />
@@ -184,7 +184,7 @@
                         >
                         <div>
                             <label for="active" class="text-sm font-medium text-white">Status ativo</label>
-                            <p class="mt-1 text-sm text-[#c7d2e3]">Servicos ativos aparecem na agenda interna e podem ser usados no agendamento online.</p>
+                            <p class="mt-1 text-sm text-[#c7d2e3]">Serviços ativos aparecem na agenda interna e podem ser usados no agendamento online.</p>
                         </div>
                     </div>
                     <x-input-error class="mt-2" :messages="$errors->get('active')" />
@@ -195,14 +195,14 @@
         <aside class="space-y-6">
             <section class="sf-card overflow-hidden">
                 <div class="border-b border-white/10 px-5 py-5">
-                    <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Preview</p>
-                    <h3 class="mt-2 text-xl font-semibold text-white">Como o servico vai aparecer</h3>
+                    <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Pré-visualização</p>
+                    <h3 class="mt-2 text-xl font-semibold text-white">Como o serviço vai aparecer</h3>
                 </div>
 
                 <div class="space-y-4 px-5 py-5">
                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Nome</p>
-                        <p class="mt-2 text-lg font-semibold text-white" x-text="name || 'Novo servico premium'"></p>
+                        <p class="mt-2 text-lg font-semibold text-white" x-text="name || 'Novo serviço completo'"></p>
                     </div>
 
                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
@@ -230,7 +230,7 @@
                                 <p><span class="font-semibold text-white" x-text="imageName"></span> pronta para envio.</p>
                             </template>
                             <template x-if="!imageName && selectedLibraryImage">
-                                <p>Imagem da biblioteca pronta para ser usada no servico.</p>
+                                <p>Imagem da biblioteca pronta para ser usada no serviço.</p>
                             </template>
                             <template x-if="!imageName && !selectedLibraryImage">
                                 <p>Escolha uma imagem pronta ou envie uma do seu dispositivo.</p>
@@ -240,19 +240,19 @@
 
                     <div class="grid grid-cols-2 gap-3">
                         <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Preco</p>
-                            <p class="mt-2 text-lg font-semibold text-white" x-text="'R$ ' + (price || '0.00').replace('.', ',')"></p>
+                            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Preço</p>
+                            <p class="mt-2 text-lg font-semibold text-white" x-text="new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(`${price || '0'}`.replace(/[R$\s.]/g, '').replace(',', '.')) || 0)"></p>
                         </div>
                         <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Duracao</p>
+                            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Duração</p>
                             <p class="mt-2 text-lg font-semibold text-white" x-text="(duration || '0') + ' min'"></p>
                         </div>
                     </div>
 
                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Disponibilidade</p>
-                        <p class="mt-2 text-sm font-medium text-white">Aparecera no agendamento online</p>
-                        <p class="mt-2 text-sm" :class="active ? 'text-emerald-200' : 'text-[#c7d2e3]'" x-text="active ? 'Ativo e pronto para a agenda.' : 'Inativo ate nova ativacao.'"></p>
+                        <p class="mt-2 text-sm font-medium text-white">Aparecerá no agendamento online</p>
+                        <p class="mt-2 text-sm" :class="active ? 'text-emerald-200' : 'text-[#c7d2e3]'" x-text="active ? 'Ativo e pronto para a agenda.' : 'Inativo até nova ativação.'"></p>
                     </div>
                 </div>
             </section>

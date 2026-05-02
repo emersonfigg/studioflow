@@ -34,14 +34,14 @@ class PublicBookingTest extends TestCase
         $company = Company::factory()->create([
             'name' => 'Studio Flow',
             'instagram' => '@studioflowoficial',
-            'description' => 'Barbearia premium com agendamento online e equipe especializada.',
+            'description' => 'Barbearia completa com agendamento online e equipe especializada.',
         ]);
         Storage::disk('public')->put('companies/studio-flow-logo.jpg', 'studio-flow-logo');
         $company->update(['logo' => 'companies/studio-flow-logo.jpg']);
         Storage::disk('public')->put('services/corte-premium.jpg', 'corte-premium');
 
         $firstService = Service::factory()->for($company)->create([
-            'name' => 'Corte Premium',
+            'name' => 'Corte Completo',
             'duration_minutes' => 60,
             'active' => true,
             'price' => 120.00,
@@ -76,7 +76,7 @@ class PublicBookingTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Corte Premium')
+            ->assertSee('Corte Completo')
             ->assertSee('Barba Relax')
             ->assertSee('120,00')
             ->assertSee('55,00')
@@ -84,7 +84,7 @@ class PublicBookingTest extends TestCase
             ->assertSee('/storage/services/corte-premium.jpg')
             ->assertSee('/storage/companies/studio-flow-logo.jpg')
             ->assertSee('@studioflowoficial')
-            ->assertSee('Barbearia premium com agendamento online e equipe especializada.')
+            ->assertSee('Barbearia completa com agendamento online e equipe especializada.')
             ->assertSee('Ana')
             ->assertSee('Profissional')
             ->assertSee('/storage/professionals/ana-photo.jpg')
@@ -127,7 +127,7 @@ class PublicBookingTest extends TestCase
             ->assertSee('11:00')
             ->assertSee('11:30')
             ->assertSee('20:00')
-            ->assertSee('Horarios estimados com duracao padrao de 30 minutos. Escolha o servico para confirmar.')
+            ->assertSee('Horários estimados com duração padrão de 30 minutos. Escolha o serviço para confirmar.')
             ->assertSee('Escolha depois')
             ->assertSee('30 min estimado')
             ->assertSee('A definir');
@@ -184,13 +184,13 @@ class PublicBookingTest extends TestCase
             ->assertDontSee('value="' . $admin->id . '" checked', false);
     }
 
-    public function test_public_booking_shows_service_image_fallback_when_image_is_missing(): void
+    public function test_public_booking_shows_service_image_base_when_image_is_missing(): void
     {
         CarbonImmutable::setTestNow('2026-04-27 10:00:00');
 
         $company = Company::factory()->create();
         $service = Service::factory()->for($company)->create([
-            'name' => 'Barba Premium',
+            'name' => 'Barba Completa',
             'active' => true,
             'image_path' => null,
         ]);
@@ -204,7 +204,7 @@ class PublicBookingTest extends TestCase
             'filters_submitted' => 1,
         ]))
             ->assertOk()
-            ->assertSee('Barba Premium')
+            ->assertSee('Barba Completa')
             ->assertSee('Selecionado')
             ->assertDontSee('/storage/services/');
     }
@@ -265,7 +265,7 @@ class PublicBookingTest extends TestCase
 
         $company = Company::factory()->create();
         $firstService = Service::factory()->for($company)->create([
-            'name' => 'Corte Premium',
+            'name' => 'Corte Completo',
             'duration_minutes' => 60,
             'active' => true,
             'price' => 120.00,
@@ -398,7 +398,7 @@ class PublicBookingTest extends TestCase
             ->assertSee('140,00')
             ->assertSee('75')
             ->assertSee('Agendado')
-            ->assertSee('Agendar outro horario')
+            ->assertSee('Agendar outro horário')
             ->assertSee('Chamar no WhatsApp');
     }
 

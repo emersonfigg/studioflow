@@ -37,7 +37,7 @@ class ProductTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('products.store', absolute: false), [
-                'name' => 'Shampoo Premium',
+                'name' => 'Shampoo Completo',
                 'sku' => 'SHP-100',
                 'description' => 'Uso diario.',
                 'image' => UploadedFile::fake()->image('shampoo.webp'),
@@ -46,7 +46,7 @@ class ProductTest extends TestCase
             ])
             ->assertRedirect(route('products.index', absolute: false));
 
-        $created = Product::query()->where('company_id', $company->id)->where('name', 'Shampoo Premium')->firstOrFail();
+        $created = Product::query()->where('company_id', $company->id)->where('name', 'Shampoo Completo')->firstOrFail();
 
         $this->actingAs($admin)
             ->patch(route('products.update', $product, false), [
@@ -61,7 +61,7 @@ class ProductTest extends TestCase
         $this->assertDatabaseHas('products', [
             'id' => $created->id,
             'company_id' => $company->id,
-            'name' => 'Shampoo Premium',
+            'name' => 'Shampoo Completo',
         ]);
         $this->assertNotNull($created->image_path);
         Storage::disk('public')->assertExists($created->image_path);
@@ -115,7 +115,7 @@ class ProductTest extends TestCase
         $this->actingAs($admin)
             ->get(route('clients.show', $client, false))
             ->assertOk()
-            ->assertSee('Historico de compras')
+            ->assertSee('Histórico de compras')
             ->assertSee('Pomada Gold x2')
             ->assertSee('R$ 70,00');
     }

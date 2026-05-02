@@ -4,7 +4,7 @@
             <div>
                 <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Financeiro</p>
                 <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
-                    Dashboard de faturamento
+                    Painel de faturamento
                 </h2>
             </div>
 
@@ -30,22 +30,22 @@
         <article class="sf-card-soft p-5">
             <p class="text-sm font-medium text-[#c7d2e3]">Receita bruta</p>
             <p class="mt-4 text-4xl font-semibold tracking-tight text-white">R$ {{ number_format($grossAmount, 2, ',', '.') }}</p>
-            <p class="mt-2 text-sm text-[#c7d2e3]">Total recebido no periodo.</p>
+            <p class="mt-2 text-sm text-[#c7d2e3]">Total recebido no período.</p>
         </article>
         <article class="sf-card-soft p-5">
-            <p class="text-sm font-medium text-[#c7d2e3]">Comissoes</p>
+            <p class="text-sm font-medium text-[#c7d2e3]">Comissões</p>
             <p class="mt-4 text-4xl font-semibold tracking-tight text-white">R$ {{ number_format($commissionAmount, 2, ',', '.') }}</p>
             <p class="mt-2 text-sm text-[#c7d2e3]">Repasse aos profissionais.</p>
         </article>
         <article class="sf-card-soft p-5">
             <p class="text-sm font-medium text-[#c7d2e3]">Liquido da empresa</p>
             <p class="mt-4 text-4xl font-semibold tracking-tight text-white">R$ {{ number_format($netAmount, 2, ',', '.') }}</p>
-            <p class="mt-2 text-sm text-[#c7d2e3]">Margem apos comissoes.</p>
+            <p class="mt-2 text-sm text-[#c7d2e3]">Margem apos comissões.</p>
         </article>
         <article class="sf-card-soft p-5">
             <p class="text-sm font-medium text-[#c7d2e3]">Ticket medio</p>
             <p class="mt-4 text-4xl font-semibold tracking-tight text-white">R$ {{ number_format($averageTicket, 2, ',', '.') }}</p>
-            <p class="mt-2 text-sm text-[#c7d2e3]">{{ $appointmentsCount }} atendimentos pagos no periodo.</p>
+            <p class="mt-2 text-sm text-[#c7d2e3]">{{ $appointmentsCount }} atendimentos pagos no período.</p>
         </article>
     </div>
 
@@ -62,7 +62,7 @@
                     </div>
                 @empty
                     <div class="rounded-2xl border border-dashed border-white/10 bg-[#132746] px-4 py-4 text-sm text-[#c7d2e3]">
-                        Nenhum pagamento encontrado no periodo.
+                        Nenhum pagamento encontrado no período.
                     </div>
                 @endforelse
             </div>
@@ -70,13 +70,13 @@
 
         <section class="sf-card overflow-hidden">
             <div class="border-b border-white/10 px-6 py-5">
-                <h3 class="text-base font-semibold text-white">Ultimos recebimentos</h3>
+                <h3 class="text-base font-semibold text-white">Últimos recebimentos</h3>
                 <p class="mt-1 text-sm text-[#c7d2e3]">Movimentacoes mais recentes registradas em caixa.</p>
             </div>
 
             @if ($recentPayments->isEmpty())
                 <div class="px-6 py-10 text-sm text-[#c7d2e3]">
-                    Nenhum pagamento encontrado no periodo selecionado.
+                    Nenhum pagamento encontrado no período selecionado.
                 </div>
             @else
                 <div class="overflow-x-auto">
@@ -86,7 +86,7 @@
                                 <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Data</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Cliente</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Barbeiro</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Metodo</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Método</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Bruto</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Liquido</th>
                             </tr>

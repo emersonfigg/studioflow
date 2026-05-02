@@ -6,6 +6,7 @@ use App\Http\Requests\StorePaymentRequest;
 use App\Models\Appointment;
 use App\Models\Product;
 use App\Services\PaymentService;
+use App\Support\BrazilianCurrency;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,9 +33,9 @@ class PaymentController extends Controller
             'paymentMethods' => [
                 'cash' => 'Dinheiro',
                 'pix' => 'Pix',
-                'card' => 'Cartao',
+                'card' => 'Cartão',
             ],
-            'defaultGrossAmount' => number_format((float) $appointment->totalPriceAmount(), 2, '.', ''),
+            'defaultGrossAmount' => BrazilianCurrency::input($appointment->totalPriceAmount()),
         ]);
     }
 

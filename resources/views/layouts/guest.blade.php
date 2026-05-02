@@ -24,21 +24,21 @@
                             </div>
 
                             <h1 class="mt-6 text-4xl font-semibold tracking-tight text-white">
-                                Agenda inteligente para barbearias, saloes e estetica
+                                Agenda inteligente para barbearias, salões e estética
                             </h1>
 
                             <p class="mt-4 max-w-lg text-base leading-7 text-[#c7d2e3]">
-                                Organize atendimentos, acompanhe clientes e compartilhe seu link publico de agendamento em uma experiencia elegante e profissional.
+                                Organize atendimentos, acompanhe clientes e compartilhe seu link público de agendamento em uma experiência elegante e profissional.
                             </p>
 
                             <div class="mt-8 grid max-w-lg gap-4 sm:grid-cols-2">
                                 <div class="rounded-[24px] border border-white/8 bg-[#223d69] px-5 py-4 shadow-[0_18px_40px_rgba(7,17,38,0.18)]">
-                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Operacao</p>
-                                    <p class="mt-2 text-lg font-semibold text-white">Agenda, equipe e clientes no mesmo fluxo</p>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Operação</p>
+                                    <p class="mt-2 text-lg font-semibold text-white">Agenda, equipe e clientes no mêsmo fluxo</p>
                                 </div>
 
                                 <div class="rounded-[24px] border border-white/8 bg-[#223d69] px-5 py-4 shadow-[0_18px_40px_rgba(7,17,38,0.18)]">
-                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Conversao</p>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Conversão</p>
                                     <p class="mt-2 text-lg font-semibold text-white">Autoagendamento e financeiro sem trocar de sistema</p>
                                 </div>
                             </div>
@@ -51,7 +51,7 @@
                                 <x-application-logo class="h-11 w-11 text-[#d4af37]" />
                                 <div>
                                     <p class="text-lg font-semibold text-white">StudioFlow</p>
-                                    <p class="text-sm text-[#c7d2e3]">Agenda inteligente para barbearias, saloes e estetica</p>
+                                    <p class="text-sm text-[#c7d2e3]">Agenda inteligente para barbearias, salões e estética</p>
                                 </div>
                             </a>
                         </div>

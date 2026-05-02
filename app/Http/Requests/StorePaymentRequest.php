@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesBrazilianCurrency;
 use App\Models\Appointment;
 use App\Models\Payment;
 use App\Models\Product;
@@ -11,6 +12,8 @@ use Illuminate\Validation\Validator;
 
 class StorePaymentRequest extends FormRequest
 {
+    use NormalizesBrazilianCurrency;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -34,6 +37,11 @@ class StorePaymentRequest extends FormRequest
             'items.*.product_id' => ['required_with:items', 'integer'],
             'items.*.quantity' => ['required_with:items', 'integer', 'min:1'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->normalizeCurrencyFields(['gross_amount']);
     }
 
     /**

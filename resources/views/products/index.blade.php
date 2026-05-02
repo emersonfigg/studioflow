@@ -8,7 +8,7 @@
             </div>
 
             <div class="flex flex-wrap gap-3">
-                <a href="{{ route('product-sales.index') }}" class="sf-button-ghost">Historico de vendas</a>
+                <a href="{{ route('product-sales.index') }}" class="sf-button-ghost">Histórico de vendas</a>
                 <a href="{{ route('product-sales.create') }}" class="sf-button-secondary">Nova venda</a>
                 @if (auth()->user()->isAdmin())
                     <a href="{{ route('products.create') }}" class="sf-button-primary">+ Novo produto</a>
@@ -35,7 +35,7 @@
                 <p class="mt-3 text-3xl font-semibold text-white">{{ $activeProductsCount }}</p>
             </article>
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Preco medio</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Preço medio</p>
                 <p class="mt-3 text-3xl font-semibold text-white">R$ {{ number_format($averagePrice, 2, ',', '.') }}</p>
             </article>
             <article class="sf-card p-5">
@@ -70,7 +70,7 @@
                                             {{ $product->active ? 'Ativo' : 'Inativo' }}
                                         </span>
                                     </div>
-                                    <p class="mt-2 text-sm text-[#c7d2e3]">{{ $product->description ?: 'Sem descricao cadastrada.' }}</p>
+                                    <p class="mt-2 text-sm text-[#c7d2e3]">{{ $product->description ?: 'Sem descrição cadastrada.' }}</p>
                                 </div>
                             </div>
 
@@ -106,7 +106,7 @@
 
             <aside class="sf-card overflow-hidden">
                 <div class="border-b border-white/10 px-5 py-4">
-                    <h3 class="text-lg font-semibold text-white">Ultimas vendas de produtos</h3>
+                    <h3 class="text-lg font-semibold text-white">Últimas vendas de produtos</h3>
                 </div>
                 <div class="space-y-3 px-5 py-5">
                     @forelse ($recentSaleItems as $item)

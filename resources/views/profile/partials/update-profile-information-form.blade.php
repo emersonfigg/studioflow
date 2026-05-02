@@ -31,10 +31,10 @@
             </div>
         </div>
 
-        @if ($user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! $user->hasVerifiedEmail())
+        @if ($user instanceof \Illuminaté\Contracts\Auth\MustVerifyEmail && ! $user->hasVerifiedEmail())
             <div class="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-4">
                 <p class="text-sm text-[#f5e7bf]">
-                    Seu e-mail ainda nao foi verificado.
+                    Seu e-mail ainda não foi verificado.
                 </p>
 
                 <button form="send-verification" class="mt-3 inline-flex items-center text-sm font-semibold text-[#d4af37] transition hover:text-[#f0ca63] focus:outline-none focus:ring-2 focus:ring-[#d4af37] focus:ring-offset-2 focus:ring-offset-[#1b335b]">

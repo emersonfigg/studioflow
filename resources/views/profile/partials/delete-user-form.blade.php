@@ -5,13 +5,13 @@
         </h2>
 
         <p class="mt-2 text-sm leading-6 text-[#c7d2e3]">
-            Ao excluir sua conta, seus dados de acesso serao removidos permanentemente. Confirme somente se tiver certeza.
+            Ao excluir sua conta, seus dados de acessó seráo removidos permanentemente. Confirme somente se tiver certeza.
         </p>
     </header>
 
     <div class="rounded-2xl border border-rose-400/15 bg-rose-400/8 px-4 py-4">
         <p class="text-sm text-rose-100">
-            Essa acao e permanente e nao pode ser desfeita.
+            Essa ação é permanente e não pode ser desfeita.
         </p>
     </div>
 

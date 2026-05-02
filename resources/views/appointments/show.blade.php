@@ -122,7 +122,7 @@
                         <dd class="mt-1 text-sm font-semibold text-white">R$ {{ number_format((float) $appointment->payment->gross_amount, 2, ',', '.') }}</dd>
                     </div>
                     <div>
-                        <dt class="text-sm text-[#c7d2e3]">Comissao</dt>
+                        <dt class="text-sm text-[#c7d2e3]">Comissão</dt>
                         <dd class="mt-1 text-sm font-semibold text-white">R$ {{ number_format((float) $appointment->payment->commission_amount, 2, ',', '.') }}</dd>
                     </div>
                     <div>
@@ -136,7 +136,7 @@
                 </dl>
             @else
                 <p class="mt-4 text-sm leading-6 text-[#c7d2e3]">
-                    Ainda nao ha pagamento registrado para este atendimento.
+                    Ainda não há pagamento registrado para este atendimento.
                 </p>
 
                 @if ($appointment->status === 'completed' && (auth()->user()->isAdmin() || auth()->id() === $appointment->user_id))

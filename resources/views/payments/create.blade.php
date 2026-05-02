@@ -8,7 +8,7 @@
                 </h2>
             </div>
             <p class="max-w-xl text-sm leading-6 text-[#c7d2e3]">
-                Registre o pagamento e finalize o atendimento com comissao calculada automaticamente.
+                Registre o pagamento e finalize o atendimento com comissão calculada automaticamente.
             </p>
         </div>
     </x-slot>
@@ -83,7 +83,16 @@
                 return this.items.reduce((total, item) => total + this.itemTotal(item), 0);
             },
             grandTotal() {
-                return Number(this.serviceAmount || 0) + this.productTotal();
+                return this.parseCurrency(this.serviceAmount) + this.productTotal();
+            },
+            parseCurrency(value) {
+                if (typeof value === 'number') {
+                    return value;
+                }
+
+                const normalized = `${value || 0}`.replace(/[R$\s.]/g, '').replace(',', '.');
+
+                return Number(normalized || 0);
             },
             formatCurrency(value) {
                 return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
@@ -103,22 +112,22 @@
                     <dd class="mt-1 text-sm font-semibold text-white">{{ $appointment->user->name }}</dd>
                 </div>
                 <div class="rounded-2xl border border-white/10 bg-[#132746] px-3 py-3">
-                    <dt class="text-sm text-[#c7d2e3]">Servico</dt>
+                    <dt class="text-sm text-[#c7d2e3]">Serviço</dt>
                     <dd class="mt-1 text-sm font-semibold text-white">{{ $appointment->bookedServices()->pluck('name')->join(', ') }}</dd>
                 </div>
                 <div class="rounded-2xl border border-white/10 bg-[#132746] px-3 py-3">
-                    <dt class="text-sm text-[#c7d2e3]">Horario</dt>
+                    <dt class="text-sm text-[#c7d2e3]">Horário</dt>
                     <dd class="mt-1 text-sm font-semibold text-white">{{ $appointment->start_time->format('d/m/Y H:i') }}</dd>
                 </div>
                 <div class="rounded-2xl border border-white/10 bg-[#132746] px-3 py-3 sm:col-span-2 xl:col-span-1">
-                    <dt class="text-sm text-[#c7d2e3]">Comissao configurada</dt>
+                    <dt class="text-sm text-[#c7d2e3]">Comissão configurada</dt>
                     <dd class="mt-1 text-sm font-semibold text-white">
                         @if ($appointment->user->commission_type === 'percent')
                             {{ number_format((float) $appointment->user->commission_value, 2, ',', '.') }}%
                         @elseif ($appointment->user->commission_type === 'fixed')
                             R$ {{ number_format((float) $appointment->user->commission_value, 2, ',', '.') }}
                         @else
-                            Sem comissao
+                            Sem comissão
                         @endif
                     </dd>
                 </div>
@@ -128,8 +137,8 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Resumo financeiro</p>
                 <div class="mt-4 space-y-3 text-sm text-[#c7d2e3]">
                     <div class="flex items-center justify-between gap-3">
-                        <span>Servicos</span>
-                        <span class="font-semibold text-white" x-text="formatCurrency(Number(serviceAmount || 0))"></span>
+                        <span>Serviços</span>
+                        <span class="font-semibold text-white" x-text="formatCurrency(parseCurrency(serviceAmount))"></span>
                     </div>
                     <div class="flex items-center justify-between gap-3">
                         <span>Produtos</span>
@@ -151,13 +160,13 @@
 
                 <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
                     <div>
-                    <x-input-label for="gross_amount" value="Valor dos servicos" />
+                    <x-input-label for="gross_amount" value="Valor dos serviços" />
                     <x-text-input
                         id="gross_amount"
                         name="gross_amount"
-                        type="number"
-                        min="0.01"
-                        step="0.01"
+                        type="text"
+                        inputmode="decimal"
+                        placeholder="R$ 0,00"
                         class="mt-1 block w-full"
                         :value="old('gross_amount', $defaultGrossAmount)"
                         x-model="serviceAmount"
@@ -182,7 +191,7 @@
                     <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div>
                             <h3 class="text-base font-semibold text-white">Produtos vendidos neste atendimento</h3>
-                            <p class="mt-1 text-xs leading-6 text-[#c7d2e3]">Adicione produtos e o sistema registra a venda no historico do cliente e no caixa junto com o fechamento.</p>
+                            <p class="mt-1 text-xs leading-6 text-[#c7d2e3]">Adicione produtos e o sistema registra a venda no histórico do cliente e no caixa junto com o fechamento.</p>
                         </div>
                         <button type="button" @click="addItem()" class="sf-button-ghost px-3 py-2 text-xs">+ Adicionar produto</button>
                     </div>
@@ -198,7 +207,7 @@
                                 placeholder="Ex: POM-100 ou nome do produto"
                                 class="sf-input mt-2 block w-full"
                             >
-                            <p class="mt-2 text-[11px] text-[#c7d2e3]">Digite o SKU para localizar rapido e jogar o produto direto no fechamento.</p>
+                            <p class="mt-2 text-[11px] text-[#c7d2e3]">Digite o SKU para localizar rápido e jogar o produto direto no fechamento.</p>
 
                             <div x-show="filteredProducts.length > 0" x-cloak class="mt-3 grid gap-2 sm:grid-cols-2">
                                 <template x-for="[productId, product] in filteredProducts" :key="productId">
@@ -283,7 +292,7 @@
                 </div>
 
                 <div>
-                    <x-input-label for="notes" value="Observacoes" />
+                    <x-input-label for="notes" value="Observações" />
                     <textarea id="notes" name="notes" rows="3" class="sf-input mt-1 block w-full">{{ old('notes') }}</textarea>
                     <x-input-error class="mt-2" :messages="$errors->get('notes')" />
                 </div>

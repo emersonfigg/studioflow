@@ -24,7 +24,7 @@
             <article class="sf-card p-5">
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Resumo</p>
                 <p class="mt-3 text-sm leading-7 text-[#c7d2e3]">
-                    Um cadastro bem preenchido ajuda na recorrencia, no historico e na experiencia do atendimento.
+                    Um cadastro bem preenchido ajuda na recorrencia, no histórico e na experiencia do atendimento.
                 </p>
             </article>
         </aside>

@@ -12,7 +12,7 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="min-h-screen bg-[#1b335b] text-white antialiased">
-        <div class="relative isolate min-h-screen overflow-hidden bg-[#1b335b]">
+        <div class="relative isolaté min-h-screen overflow-hidden bg-[#1b335b]">
             <div class="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(212,175,55,0.18),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(19,39,70,0.7),_transparent_38%)]"></div>
 
             <div class="relative mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8">
@@ -52,7 +52,7 @@
                             </h1>
 
                             <p class="mt-5 max-w-2xl text-base leading-7 text-[#c7d2e3] sm:text-lg">
-                                Organize horarios, clientes, equipe, comissoes e autoagendamento em um so lugar.
+                                Organize horários, clientes, equipe, comissões e autoagendamento em um só lugar.
                             </p>
 
                             <div class="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -70,9 +70,9 @@
                             <div class="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                                 @foreach ([
                                     ['title' => 'Agenda online', 'description' => 'Organize atendimentos, status e disponibilidade em tempo real.'],
-                                    ['title' => 'Controle de equipe', 'description' => 'Gerencie profissionais, escalas, papeis e producao da operacao.'],
-                                    ['title' => 'Comissoes automaticas', 'description' => 'Registre pagamentos e acompanhe comissoes sem planilhas paralelas.'],
-                                    ['title' => 'Link publico de agendamento', 'description' => 'Receba novos agendamentos com uma jornada simples e mobile-first.'],
+                                    ['title' => 'Controle de equipe', 'description' => 'Gerencie profissionais, escalas, papéis e produção da operação.'],
+                                    ['title' => 'Comissões automaticas', 'description' => 'Registre pagamentos e acompanhe comissões sem planilhas paralelas.'],
+                                    ['title' => 'Link público de agendamento', 'description' => 'Receba novos agendamentos com uma jornada simples e pensada para celular.'],
                                 ] as $benefit)
                                     <article class="rounded-[24px] border border-white/8 bg-[#223d69] p-5 shadow-[0_24px_40px_rgba(9,20,45,0.2)] transition duration-200 hover:-translate-y-0.5 hover:border-[#d4af37]/24 hover:shadow-[0_30px_50px_rgba(9,20,45,0.26)]">
                                         <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-[#d4af37] ring-1 ring-[#d4af37]/15">
@@ -89,10 +89,10 @@
 
                         <aside class="rounded-[28px] border border-white/10 bg-[#132746] p-6 shadow-[0_36px_60px_rgba(9,20,45,0.34)] sm:p-7">
                             <div class="rounded-[24px] border border-white/8 bg-[#223d69] p-5">
-                                <p class="text-xs font-semibold uppercase tracking-[0.22em] text-[#d4af37]">Acesso rapido</p>
-                                <h2 class="mt-4 text-2xl font-semibold text-white">Entre e comande sua operacao</h2>
+                                <p class="text-xs font-semibold uppercase tracking-[0.22em] text-[#d4af37]">Acessó rápido</p>
+                                <h2 class="mt-4 text-2xl font-semibold text-white">Entre e comande sua operação</h2>
                                 <p class="mt-3 text-sm leading-6 text-[#c7d2e3]">
-                                    Use o StudioFlow para centralizar agenda, time, clientes, financeiro e o link publico de agendamento.
+                                    Use o StudioFlow para centralizar agenda, time, clientes, financeiro e o link público de agendamento.
                                 </p>
 
                                 <div class="mt-6 space-y-3">
@@ -114,7 +114,7 @@
                                     <p class="mt-2 text-lg font-semibold text-white">Do agendamento ao pagamento</p>
                                 </div>
                                 <div class="rounded-[24px] border border-white/8 bg-[#223d69] px-5 py-4">
-                                    <p class="text-xs uppercase tracking-[0.18em] text-[#c7d2e3]">Experiencia premium</p>
+                                    <p class="text-xs uppercase tracking-[0.18em] text-[#c7d2e3]">Experiência completa</p>
                                     <p class="mt-2 text-lg font-semibold text-white">Mobile-first para equipe e clientes</p>
                                 </div>
                             </div>

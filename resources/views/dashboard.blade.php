@@ -11,7 +11,7 @@
             </div>
 
             <p class="max-w-xl text-sm leading-6 text-[#c7d2e3]">
-                Visao executiva da operacao, dos atendimentos do dia e da producao financeira da empresa.
+                Visão executiva da operação, dos atendimentos do dia e da produção financeira da empresa.
             </p>
         </div>
     </x-slot>
@@ -24,10 +24,10 @@
                         StudioFlow
                     </div>
                     <h1 class="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                        Controle a agenda, a producao e a margem com clareza.
+                        Controle a agenda, a produção e a margem com clareza.
                     </h1>
                     <p class="mt-3 max-w-xl text-sm leading-7 text-[#c7d2e3]">
-                        Um painel direto para acompanhar operacao, receita, comissoes e relacionamento com clientes em tempo real.
+                        Um painel direto para acompanhar operação, receita, comissões e relacionamento com clientes em tempo real.
                     </p>
                 </div>
 
@@ -60,7 +60,7 @@
                 <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#d4af37] to-transparent"></div>
                 <p class="text-sm font-medium text-[#c7d2e3]">Próximos Atendimentos</p>
                 <p class="mt-4 text-4xl font-semibold tracking-tight text-white">{{ $upcomingAttendances }}</p>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Compromissos futuros ja confirmados.</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Compromissos futuros já confirmados.</p>
             </article>
 
             <article class="sf-card-soft relative overflow-hidden p-5">
@@ -74,7 +74,7 @@
                 <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#d4af37] to-transparent"></div>
                 <p class="text-sm font-medium text-[#c7d2e3]">Serviços</p>
                 <p class="mt-4 text-4xl font-semibold tracking-tight text-white">{{ $servicesCount }}</p>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Servicos ativos e operacionais.</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Serviços ativos e operacionais.</p>
             </article>
         </section>
 
@@ -86,19 +86,19 @@
             </article>
 
             <article class="sf-card-soft p-5">
-                <p class="text-sm font-medium text-[#c7d2e3]">Comissoes hoje</p>
+                <p class="text-sm font-medium text-[#c7d2e3]">Comissões hoje</p>
                 <p class="mt-4 text-4xl font-semibold tracking-tight text-white">R$ {{ number_format($commissionsToday, 2, ',', '.') }}</p>
                 <p class="mt-2 text-sm text-[#c7d2e3]">Repasse dos profissionais no dia.</p>
             </article>
 
             <article class="sf-card-soft p-5">
-                <p class="text-sm font-medium text-[#c7d2e3]">Liquido hoje</p>
+                <p class="text-sm font-medium text-[#c7d2e3]">Líquido hoje</p>
                 <p class="mt-4 text-4xl font-semibold tracking-tight text-white">R$ {{ number_format($netToday, 2, ',', '.') }}</p>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Margem liquida da empresa hoje.</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Margem líquida da empresa hoje.</p>
             </article>
 
             <article class="sf-card-soft p-5">
-                <p class="text-sm font-medium text-[#c7d2e3]">Atendimentos concluidos</p>
+                <p class="text-sm font-medium text-[#c7d2e3]">Atendimentos concluídos</p>
                 <p class="mt-4 text-4xl font-semibold tracking-tight text-white">{{ $completedToday }}</p>
                 <p class="mt-2 text-sm text-[#c7d2e3]">Pagamentos registrados no dia.</p>
             </article>
@@ -106,7 +106,7 @@
 
         <section class="grid gap-6 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
             <aside class="sf-card p-5">
-                <h3 class="text-base font-semibold text-white">Link publico de agendamento</h3>
+                <h3 class="text-base font-semibold text-white">Link público de agendamento</h3>
                 <p class="mt-1 text-sm leading-6 text-[#c7d2e3]">
                     Compartilhe este acesso com clientes para receber pedidos sem login.
                 </p>
@@ -131,7 +131,7 @@
                     </div>
                 @else
                     <div class="mt-5 rounded-2xl border border-dashed border-white/10 bg-[#132746] p-4 text-sm text-[#c7d2e3]">
-                        Nenhuma empresa vinculada para gerar o link publico.
+                        Nenhuma empresa vinculada para gerar o link público.
                     </div>
                 @endif
 
@@ -140,7 +140,7 @@
                         Ver agenda
                     </a>
                     <a href="{{ route('production.index') }}" class="sf-button-ghost">
-                        Ver producao
+                        Ver produção
                     </a>
                 </div>
             </aside>
@@ -148,8 +148,8 @@
             <section class="sf-card overflow-hidden">
                 <div class="flex flex-col gap-2 border-b border-white/10 px-6 py-5 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <h3 class="text-base font-semibold text-white">Ultimos agendamentos do dia</h3>
-                        <p class="mt-1 text-sm text-[#c7d2e3]">Acompanhe a movimentacao mais recente da agenda de hoje.</p>
+                        <h3 class="text-base font-semibold text-white">Últimos agendamentos do dia</h3>
+                        <p class="mt-1 text-sm text-[#c7d2e3]">Acompanhe a movimentação mais recente da agenda de hoje.</p>
                     </div>
                     <p class="text-sm text-[#c7d2e3]">{{ now()->format('d/m/Y') }}</p>
                 </div>
@@ -163,9 +163,9 @@
                         <table class="min-w-full divide-y divide-white/10">
                             <thead class="bg-[#132746]">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Horario</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Horário</th>
                                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Cliente</th>
-                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Servico</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Serviço</th>
                                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Profissional</th>
                                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Status</th>
                                 </tr>

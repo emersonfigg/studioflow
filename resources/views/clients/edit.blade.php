@@ -4,7 +4,7 @@
             <div>
                 <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Clientes</p>
                 <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">Editar cliente</h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Atualize dados de contato, observacoes e historico basico.</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Atualize dados de contato, observações e histórico basico.</p>
             </div>
             <a href="{{ route('clients.show', $client) }}" class="sf-button-secondary">Voltar</a>
         </div>

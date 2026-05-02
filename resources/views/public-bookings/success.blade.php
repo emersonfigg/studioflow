@@ -50,12 +50,12 @@
                                 <p class="mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset {{ $appointment->statusBadgeClasses() }}">
                                     {{ $appointment->statusLabel() }}
                                 </p>
-                                <p class="mt-2 text-sm text-[#c7d2e3]">Origem: Agendamento publico</p>
+                                <p class="mt-2 text-sm text-[#c7d2e3]">Origem: Agendamento público</p>
                             </div>
                         </div>
 
                         <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Servicos selecionados</p>
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Serviços selecionados</p>
                             <div class="mt-4 space-y-3">
                                 @foreach ($appointment->bookedServices() as $service)
                                     <div class="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#1b335b] px-4 py-3">
@@ -81,18 +81,18 @@
                                 <div class="px-4 py-4">
                                     <dt class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Valor total</dt>
                                     <dd class="mt-2 text-sm font-semibold text-white">R$ {{ number_format($appointment->totalPriceAmount(), 2, ',', '.') }}</dd>
-                                    <p class="mt-1 text-sm text-[#c7d2e3]">Resumo dos servicos selecionados no agendamento.</p>
+                                    <p class="mt-1 text-sm text-[#c7d2e3]">Resumo dos serviços selecionados no agendamento.</p>
                                 </div>
                             </dl>
                         </div>
 
                         <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Detalhes do horario</p>
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Detalhes do horário</p>
                             <p class="mt-2 text-sm text-white">Data: {{ $appointment->start_time->format('d/m/Y') }}</p>
-                            <p class="mt-1 text-sm text-white">Inicio: {{ $appointment->start_time->format('H:i') }}</p>
+                            <p class="mt-1 text-sm text-white">Início: {{ $appointment->start_time->format('H:i') }}</p>
                             <p class="mt-1 text-sm text-white">Fim: {{ $appointment->end_time->format('H:i') }}</p>
                             @if ($appointment->notes)
-                                <p class="mt-3 text-sm text-[#c7d2e3]">Observacoes: {{ $appointment->notes }}</p>
+                                <p class="mt-3 text-sm text-[#c7d2e3]">Observações: {{ $appointment->notes }}</p>
                             @endif
                         </div>
                     </div>
@@ -103,7 +103,7 @@
                             <p class="mt-3 text-sm text-[#c7d2e3]">Tudo certo para o seu atendimento na {{ $company->name }}.</p>
                             <div class="mt-5 space-y-3">
                                 <div class="flex items-center justify-between gap-4">
-                                    <span class="text-sm text-[#c7d2e3]">Servicos</span>
+                                    <span class="text-sm text-[#c7d2e3]">Serviços</span>
                                     <span class="text-sm font-semibold text-white">{{ $appointment->bookedServices()->count() }}</span>
                                 </div>
                                 <div class="flex items-center justify-between gap-4">
@@ -111,11 +111,11 @@
                                     <span class="text-sm font-semibold text-white">{{ $appointment->user->name }}</span>
                                 </div>
                                 <div class="flex items-center justify-between gap-4">
-                                    <span class="text-sm text-[#c7d2e3]">Horario</span>
+                                    <span class="text-sm text-[#c7d2e3]">Horário</span>
                                     <span class="text-sm font-semibold text-white">{{ $appointment->start_time->format('d/m H:i') }}</span>
                                 </div>
                                 <div class="flex items-center justify-between gap-4">
-                                    <span class="text-sm text-[#c7d2e3]">Duracao total</span>
+                                    <span class="text-sm text-[#c7d2e3]">Duração total</span>
                                     <span class="text-sm font-semibold text-white">{{ $appointment->totalDurationMinutes() }} min</span>
                                 </div>
                                 <div class="flex items-center justify-between gap-4">
@@ -126,7 +126,7 @@
                         </div>
 
                         <a href="{{ route('public-bookings.create', $company) }}" class="sf-button-primary w-full min-h-[56px] text-base">
-                            Agendar outro horario
+                            Agendar outro horário
                         </a>
 
                         <a href="{{ $whatsAppUrl }}" class="sf-button-secondary w-full min-h-[56px] text-base" target="_blank" rel="noreferrer">

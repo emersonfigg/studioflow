@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>Agendar horario - {{ $company->name }}</title>
+        <title>Agendar horário - {{ $company->name }}</title>
 
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
@@ -50,19 +50,19 @@
                                 @endif
                                 <div>
                                 <div class="inline-flex items-center rounded-full border border-[#d4af37]/20 bg-[#d4af37]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#d4af37]">
-                                    StudioFlow Booking
+                                    Agendamento StudioFlow
                                 </div>
                                 <h1 class="mt-4 text-3xl font-semibold tracking-tight text-white">
                                     Monte seu agendamento completo
                                 </h1>
                                 <p class="mt-2 max-w-2xl text-sm leading-7 text-[#c7d2e3]">
-                                    {{ $company->description ?: 'Escolha um ou mais servicos, selecione o profissional e reserve um bloco de horario livre de uma vez so.' }}
+                                    {{ $company->description ?: 'Escolha um ou mais serviços, selecione o profissional e reserve um bloco de horário livre de uma vez só.' }}
                                 </p>
                             </div>
                             </div>
                             <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">{{ $company->name }}</p>
-                                <p class="mt-2 text-sm text-[#c7d2e3]">{{ $company->instagram ?: 'Agendamento online premium' }}</p>
+                                <p class="mt-2 text-sm text-[#c7d2e3]">{{ $company->instagram ?: 'Agendamento online completo' }}</p>
                             </div>
                         </div>
                     </header>
@@ -74,8 +74,8 @@
                             <div class="flex items-center gap-3">
                                 <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">1</span>
                                 <div>
-                                    <h2 class="text-lg font-semibold text-white">1. Escolha os servicos</h2>
-                                    <p class="text-sm text-[#c7d2e3]">Marque um ou mais servicos para montar o atendimento. Voce tambem pode ver os horarios antes e decidir o servico depois.</p>
+                                    <h2 class="text-lg font-semibold text-white">1. Escolha os serviços</h2>
+                                    <p class="text-sm text-[#c7d2e3]">Marque um ou mais serviços para montar o atendimento. Você também pode ver os horários antes e decidir o serviço depois.</p>
                                 </div>
                             </div>
 
@@ -188,7 +188,7 @@
                                 <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">3</span>
                                 <div>
                                     <h2 class="text-lg font-semibold text-white">3. Escolha a data</h2>
-                                    <p class="text-sm text-[#c7d2e3]">Veja apenas horarios com o bloco completo livre.</p>
+                                    <p class="text-sm text-[#c7d2e3]">Veja apenas horários com o bloco completo livre.</p>
                                 </div>
                             </div>
 
@@ -236,15 +236,15 @@
                             <div class="flex items-center gap-3">
                                 <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">4</span>
                                 <div>
-                                    <h2 class="text-lg font-semibold text-white">4. Horarios disponiveis</h2>
-                                    <p class="text-sm text-[#c7d2e3]">Mostrando apenas horarios com o bloco total livre.</p>
+                                    <h2 class="text-lg font-semibold text-white">4. Horários disponiveis</h2>
+                                    <p class="text-sm text-[#c7d2e3]">Mostrando apenas horários com o bloco total livre.</p>
                                 </div>
                             </div>
 
                             <div class="mt-5">
                                 @if ($usingEstimatedDuration)
                                     <div class="mb-4 rounded-2xl border border-[#d4af37]/15 bg-[#d4af37]/10 px-4 py-4 text-sm text-[#f4e2a7]">
-                                        Horarios estimados com duracao padrao de 30 minutos. Escolha o servico para confirmar.
+                                        Horários estimados com duração padrão de 30 minutos. Escolha o serviço para confirmar.
                                     </div>
                                 @endif
 
@@ -306,7 +306,7 @@
                                     </div>
                                 @else
                                     <div class="rounded-2xl border border-dashed border-white/10 bg-[#132746] px-4 py-5 text-sm text-[#c7d2e3]">
-                                        Nenhum horario disponivel para essa data. Tente outro dia.
+                                        Nenhum horário disponível para essa data. Tente outro dia.
                                     </div>
                                 @endif
                             </div>
@@ -351,7 +351,7 @@
                                 </div>
 
                                 <div>
-                                    <label for="notes" class="text-sm font-medium text-white">Observacoes</label>
+                                    <label for="notes" class="text-sm font-medium text-white">Observações</label>
                                     <textarea
                                         id="notes"
                                         name="notes"
@@ -385,7 +385,7 @@
                                         <div class="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#132746] px-4 py-3">
                                             <div class="min-w-0">
                                                 <p class="truncate text-sm font-semibold text-white">Escolha depois</p>
-                                                <p class="mt-1 text-xs text-[#c7d2e3]">Voce pode selecionar o servico antes de confirmar.</p>
+                                                <p class="mt-1 text-xs text-[#c7d2e3]">Você pode selecionar o serviço antes de confirmar.</p>
                                             </div>
                                             <p class="text-sm font-semibold text-[#d4af37]">A definir</p>
                                         </div>
@@ -400,7 +400,7 @@
                                         <dd class="text-sm font-semibold text-white">{{ \Carbon\CarbonImmutable::parse($selectedDate)->format('d/m/Y') }}</dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-4">
-                                        <dt class="text-sm text-[#c7d2e3]">Horario</dt>
+                                        <dt class="text-sm text-[#c7d2e3]">Horário</dt>
                                         <dd class="text-sm font-semibold text-white">{{ old('time', $selectedTime) ?: 'Selecione' }}</dd>
                                     </div>
                                     <div class="flex items-center justify-between gap-4">
@@ -424,7 +424,7 @@
                         </button>
                         <template x-if="!hasSelectedServices()">
                             <p class="mt-3 text-center text-sm text-[#c7d2e3]">
-                                Escolha pelo menos um servico antes de confirmar.
+                                Escolha pelo menos um serviço antes de confirmar.
                             </p>
                         </template>
                     </form>
@@ -435,7 +435,7 @@
                         <section class="sf-card overflow-hidden">
                             <div class="border-b border-white/10 px-5 py-5">
                                 <h3 class="text-lg font-semibold text-white">Resumo do agendamento</h3>
-                                <p class="mt-1 text-sm text-[#c7d2e3]">Acompanhe servicos, bloco total e valor antes de confirmar.</p>
+                                <p class="mt-1 text-sm text-[#c7d2e3]">Acompanhe serviços, bloco total e valor antes de confirmar.</p>
                             </div>
 
                             <div class="space-y-4 px-5 py-5">
@@ -457,9 +457,9 @@
 
                                 <template x-if="!hasSelectedServices()">
                                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Servico</p>
+                                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Serviço</p>
                                         <p class="mt-2 text-base font-semibold text-white">Escolha depois</p>
-                                        <p class="mt-1 text-sm text-[#c7d2e3]">Veja a agenda primeiro e selecione o servico antes de confirmar.</p>
+                                        <p class="mt-1 text-sm text-[#c7d2e3]">Veja a agenda primeiro e selecione o serviço antes de confirmar.</p>
                                     </div>
                                 </template>
 
@@ -469,21 +469,21 @@
                                 </div>
 
                                 <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Data e horario</p>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Data e horário</p>
                                     <p class="mt-2 text-base font-semibold text-white">{{ \Carbon\CarbonImmutable::parse($selectedDate)->format('d/m/Y') }}</p>
-                                    <p class="mt-1 text-sm text-[#c7d2e3]">{{ old('time', $selectedTime) ?: 'Selecione um horario' }}</p>
+                                    <p class="mt-1 text-sm text-[#c7d2e3]">{{ old('time', $selectedTime) ?: 'Selecione um horário' }}</p>
                                 </div>
 
                                 <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Bloco total</p>
                                     <p class="mt-2 text-2xl font-semibold text-white" x-text="hasSelectedServices() ? totalDuration() + ' min' : '30 min estimado'">{{ $usingEstimatedDuration ? '30 min estimado' : $totalDurationMinutes . ' min' }}</p>
-                                    <p class="mt-1 text-sm text-[#c7d2e3]">Tempo total reservado para os servicos escolhidos.</p>
+                                    <p class="mt-1 text-sm text-[#c7d2e3]">Tempo total reservado para os serviços escolhidos.</p>
                                 </div>
 
                                 <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Valor total</p>
                                     <p class="mt-2 text-2xl font-semibold text-white" x-text="hasSelectedServices() ? 'R$ ' + formattedTotalPrice() : 'A definir'">{{ $usingEstimatedDuration ? 'A definir' : 'R$ ' . number_format($totalPrice, 2, ',', '.') }}</p>
-                                    <p class="mt-1 text-sm text-[#c7d2e3]">Total estimado dos servicos selecionados.</p>
+                                    <p class="mt-1 text-sm text-[#c7d2e3]">Total estimado dos serviços selecionados.</p>
                                 </div>
                             </div>
                         </section>

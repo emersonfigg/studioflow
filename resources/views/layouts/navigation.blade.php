@@ -12,7 +12,7 @@
                     @endif
                     <div>
                         <p class="text-sm font-semibold tracking-tight text-white">{{ auth()->user()->isSuperAdmin() ? 'StudioFlow' : (auth()->user()->company?->name ?? 'StudioFlow') }}</p>
-                        <p class="hidden text-xs leading-5 text-[#c7d2e3] sm:block">{{ auth()->user()->isSuperAdmin() ? 'Agenda inteligente para barbearias, saloes e estetica' : (auth()->user()->company?->description ?: 'Agenda inteligente para barbearias, saloes e estetica') }}</p>
+                        <p class="hidden text-xs leading-5 text-[#c7d2e3] sm:block">{{ auth()->user()->isSuperAdmin() ? 'Agenda inteligente para barbearias, salões e estética' : (auth()->user()->company?->description ?: 'Agenda inteligente para barbearias, salões e estética') }}</p>
                     </div>
                 </a>
 
@@ -32,7 +32,13 @@
                             </div>
                             <div class="text-left leading-tight">
                                 <div class="max-w-36 truncate text-sm text-white">{{ Auth::user()->name }}</div>
-                                <div class="max-w-36 truncate text-xs text-[#c7d2e3]">{{ Auth::user()->company?->name }}</div>
+                                <div class="max-w-36 truncate text-xs text-[#c7d2e3]">
+                                    @if (request()->attributes->get('support_mode_active'))
+                                        Modo suporte
+                                    @else
+                                        {{ Auth::user()->company?->name }}
+                                    @endif
+                                </div>
                             </div>
 
                             <div class="ms-1 text-[#c7d2e3]">
@@ -45,14 +51,14 @@
 
                     <x-slot name="content">
                         <x-dropdown-link :href="route('profile.edit')">
-                            {{ __('Profile') }}
+                            Perfil
                         </x-dropdown-link>
 
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
 
                             <button type="submit" class="block w-full rounded-xl px-4 py-2.5 text-start text-sm leading-5 text-[#c7d2e3] transition duration-150 ease-in-out hover:bg-white/5 hover:text-white focus:outline-none focus:bg-white/5">
-                                {{ __('Log Out') }}
+                                Sair
                             </button>
                         </form>
                     </x-slot>
@@ -80,17 +86,17 @@
                     Empresas
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('super-admin.users.index')" :active="request()->routeIs('super-admin.users.*')">
-                    Usuarios
+                    Usuários
                 </x-responsive-nav-link>
             @else
                 <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                    {{ __('Dashboard') }}
+                    Painel
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('clients.index')" :active="request()->routeIs('clients.*')">
-                    {{ __('Clients') }}
+                    Clientes
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('services.index')" :active="request()->routeIs('services.*')">
-                    {{ __('Services') }}
+                    Serviços
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('products.index')" :active="request()->routeIs('products.*') || request()->routeIs('product-sales.*')">
                     Produtos
@@ -99,7 +105,7 @@
                     Vendas
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('appointments.index')" :active="request()->routeIs('appointments.*')">
-                    {{ __('Appointments') }}
+                    Agendamentos
                 </x-responsive-nav-link>
                 @if (auth()->user()->isAdmin())
                     <x-responsive-nav-link :href="route('company.edit')" :active="request()->routeIs('company.*')">
@@ -123,20 +129,26 @@
         <div class="border-t border-white/10 px-4 py-4">
             <div class="px-4">
                 <div class="text-base font-medium text-white">{{ Auth::user()->name }}</div>
-                <div class="text-sm font-medium text-[#c7d2e3]">{{ Auth::user()->company?->name }}</div>
+                <div class="text-sm font-medium text-[#c7d2e3]">
+                    @if (request()->attributes->get('support_mode_active'))
+                        Modo suporte
+                    @else
+                        {{ Auth::user()->company?->name }}
+                    @endif
+                </div>
                 <div class="text-sm font-medium text-[#c7d2e3]">{{ Auth::user()->email }}</div>
             </div>
 
             <div class="mt-3 space-y-2">
                 <x-responsive-nav-link :href="route('profile.edit')">
-                    {{ __('Profile') }}
+                    Perfil
                 </x-responsive-nav-link>
 
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
 
                     <button type="submit" class="block w-full rounded-xl border border-transparent px-4 py-3 text-start text-base font-medium text-[#c7d2e3] transition duration-150 ease-in-out hover:border-white/10 hover:bg-white/5 hover:text-white focus:outline-none">
-                        {{ __('Log Out') }}
+                        Sair
                     </button>
                 </form>
             </div>

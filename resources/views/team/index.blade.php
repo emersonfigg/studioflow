@@ -6,7 +6,7 @@
                 <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
                     Profissionais da empresa
                 </h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Gerencie acessos, status, fotos e comissoes do seu time.</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Gerencie acessos, status, fotos e comissões do seu time.</p>
             </div>
 
             <a href="{{ route('team.create') }}" class="sf-button-primary">
@@ -25,10 +25,10 @@
                     @case('team-member-updated')
                         Profissional atualizado com sucesso.
                         @break
-                    @case('team-member-activated')
+                    @case('team-member-activatéd')
                         Profissional ativado com sucesso.
                         @break
-                    @case('team-member-deactivated')
+                    @case('team-member-deactivatéd')
                         Profissional inativado com sucesso.
                         @break
                 @endswitch
@@ -42,7 +42,7 @@
                     $commissionLabel = match ($user->commission_type) {
                         'percent' => number_format((float) $user->commission_value, 2, ',', '.') . '%',
                         'fixed' => 'R$ ' . number_format((float) $user->commission_value, 2, ',', '.'),
-                        default => 'Sem comissao',
+                        default => 'Sem comissão',
                     };
                 @endphp
                 <article class="{{ $highlighted ? 'border-[#d4af37]/35 shadow-[0_18px_40px_rgba(212,175,55,0.12)]' : 'border-white/10' }} sf-card overflow-hidden border p-5">
@@ -74,12 +74,12 @@
                             <dd class="text-sm font-semibold text-white">{{ $user->role === 'admin' ? 'Admin' : 'Staff' }}</dd>
                         </div>
                         <div class="flex items-center justify-between gap-4">
-                            <dt class="text-sm text-[#c7d2e3]">Comissao</dt>
+                            <dt class="text-sm text-[#c7d2e3]">Comissão</dt>
                             <dd class="text-sm font-semibold text-white">{{ $commissionLabel }}</dd>
                         </div>
                         <div class="flex items-center justify-between gap-4">
-                            <dt class="text-sm text-[#c7d2e3]">Agenda publica</dt>
-                            <dd class="text-sm font-semibold {{ $user->active ? 'text-[#d4af37]' : 'text-[#c7d2e3]' }}">{{ $user->active ? 'Disponivel' : 'Oculta' }}</dd>
+                            <dt class="text-sm text-[#c7d2e3]">Agenda pública</dt>
+                            <dd class="text-sm font-semibold {{ $user->active ? 'text-[#d4af37]' : 'text-[#c7d2e3]' }}">{{ $user->active ? 'Disponível' : 'Oculta' }}</dd>
                         </div>
                     </dl>
 

@@ -21,6 +21,10 @@ class EnsureCompanyIsActive
             return $next($request);
         }
 
+        if ($request->attributes->get('support_mode_active')) {
+            return $next($request);
+        }
+
         if ($user->company?->active) {
             return $next($request);
         }

@@ -19,7 +19,7 @@
 
     <div>
         <x-input-label for="price" :value="__('Price')" />
-        <x-text-input id="price" name="price" type="number" min="0" step="0.01" class="mt-1 block w-full" :value="old('price', $service?->price)" required />
+        <x-text-input id="price" name="price" type="text" inputmode="decimal" placeholder="R$ 0,00" class="mt-1 block w-full" :value="old('price', \App\Support\BrazilianCurrency::input($service?->price))" required />
         <x-input-error class="mt-2" :messages="$errors->get('price')" />
     </div>
 

@@ -34,14 +34,14 @@
             <article class="sf-card p-5">
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Total gasto</p>
                 <p class="mt-3 text-3xl font-semibold text-white">R$ {{ number_format($totalSpent, 2, ',', '.') }}</p>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Servicos: R$ {{ number_format($serviceSpent, 2, ',', '.') }} · Produtos: R$ {{ number_format($productSpent, 2, ',', '.') }}</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Serviços: R$ {{ number_format($serviceSpent, 2, ',', '.') }} · Produtos: R$ {{ number_format($productSpent, 2, ',', '.') }}</p>
             </article>
             <article class="sf-card p-5">
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Total visitas</p>
                 <p class="mt-3 text-3xl font-semibold text-white">{{ $totalVisits }}</p>
             </article>
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Ultima visita</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Última visita</p>
                 <p class="mt-3 text-2xl font-semibold text-white">{{ $lastVisitAt?->format('d/m/Y H:i') ?? '-' }}</p>
             </article>
             <article class="sf-card p-5">
@@ -54,8 +54,8 @@
             <div class="space-y-6">
                 <article class="sf-card overflow-hidden">
                     <div class="border-b border-white/10 px-5 py-4">
-                        <h3 class="text-lg font-semibold text-white">Historico de atendimentos</h3>
-                        <p class="mt-1 text-sm text-[#c7d2e3]">{{ $appointmentsThisMonth }} agendamento(s) neste mes.</p>
+                        <h3 class="text-lg font-semibold text-white">Histórico de atendimentos</h3>
+                        <p class="mt-1 text-sm text-[#c7d2e3]">{{ $appointmentsThisMonth }} agendamento(s) neste mês.</p>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -63,7 +63,7 @@
                             <thead class="bg-[#132746]">
                                 <tr>
                                     <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Data</th>
-                                    <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Servico</th>
+                                    <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Serviço</th>
                                     <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Profissional</th>
                                     <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Valor</th>
                                     <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Status</th>
@@ -100,8 +100,8 @@
 
                 <article class="sf-card overflow-hidden">
                     <div class="border-b border-white/10 px-5 py-4">
-                        <h3 class="text-lg font-semibold text-white">Historico de compras</h3>
-                        <p class="mt-1 text-sm text-[#c7d2e3]">{{ $productSalesThisMonth }} venda(s) de produto neste mes.</p>
+                        <h3 class="text-lg font-semibold text-white">Histórico de compras</h3>
+                        <p class="mt-1 text-sm text-[#c7d2e3]">{{ $productSalesThisMonth }} venda(s) de produto neste mês.</p>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -156,8 +156,8 @@
 
             <div class="space-y-6">
                 <article class="sf-card p-5">
-                    <h3 class="text-lg font-semibold text-white">Observacoes internas</h3>
-                    <p class="mt-4 whitespace-pre-line text-sm leading-7 text-[#c7d2e3]">{{ $client->notes ?: 'Nenhuma observacao registrada ainda.' }}</p>
+                    <h3 class="text-lg font-semibold text-white">Observações internas</h3>
+                    <p class="mt-4 whitespace-pre-line text-sm leading-7 text-[#c7d2e3]">{{ $client->notes ?: 'Nenhuma observação registrada ainda.' }}</p>
                 </article>
 
                 <article class="sf-card p-5">
@@ -168,11 +168,11 @@
                             <dd class="text-sm font-semibold text-white">{{ $client->phone }}</dd>
                         </div>
                         <div class="flex items-center justify-between gap-4">
-                            <dt class="text-sm text-[#c7d2e3]">Aniversario</dt>
+                            <dt class="text-sm text-[#c7d2e3]">Aniversário</dt>
                             <dd class="text-sm font-semibold text-white">{{ $client->birthday?->format('d/m/Y') ?? '-' }}</dd>
                         </div>
                         <div class="flex items-center justify-between gap-4">
-                            <dt class="text-sm text-[#c7d2e3]">Ultima visita</dt>
+                            <dt class="text-sm text-[#c7d2e3]">Última visita</dt>
                             <dd class="text-sm font-semibold text-white">{{ $lastVisitAt?->format('d/m/Y H:i') ?? '-' }}</dd>
                         </div>
                     </dl>

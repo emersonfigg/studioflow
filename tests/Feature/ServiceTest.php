@@ -113,9 +113,9 @@ class ServiceTest extends TestCase
             ->get("/services/{$service->id}")
             ->assertOk()
             ->assertSee('Visible Service')
-            ->assertSee('Detalhes e performance do servico')
+            ->assertSee('Detalhes e performance do serviço')
             ->assertSee('/storage/services/visible-service.jpg')
-            ->assertSee('Receita gerada no mes');
+            ->assertSee('Receita gerada no mês');
 
         $this
             ->actingAs($staff)

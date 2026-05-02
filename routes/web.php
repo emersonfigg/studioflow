@@ -13,6 +13,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductSaleController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\SupportModeController;
 use App\Http\Controllers\SuperAdminCompanyController;
 use App\Http\Controllers\SuperAdminDashboardController;
 use App\Http\Controllers\SuperAdminUserController;
@@ -31,10 +32,10 @@ Route::get('/agendar/{company}/sucesso/{appointment}', [PublicBookingController:
     ->name('public-bookings.success');
 
 Route::get('/dashboard', DashboardController::class)
-    ->middleware(['auth', 'verified', 'active_company'])
+    ->middleware(['auth', 'verified', 'support_mode', 'active_company'])
     ->name('dashboard');
 
-Route::middleware(['auth', 'active_company'])->group(function () {
+Route::middleware(['auth', 'support_mode', 'active_company'])->group(function () {
     Route::resource('appointments', AppointmentController::class);
     Route::patch('appointments/{appointment}/status', [AppointmentController::class, 'updateStatus'])
         ->name('appointments.status');
@@ -99,6 +100,8 @@ Route::middleware(['auth', 'super_admin'])->prefix('super-admin')->name('super-a
     Route::get('/companies', [SuperAdminCompanyController::class, 'index'])->name('companies.index');
     Route::get('/companies/{company}', [SuperAdminCompanyController::class, 'show'])->name('companies.show');
     Route::patch('/companies/{company}/toggle-active', [SuperAdminCompanyController::class, 'toggleActive'])->name('companies.toggle-active');
+    Route::post('/companies/{company}/support', [SupportModeController::class, 'start'])->name('companies.support.start');
+    Route::post('/support/stop', [SupportModeController::class, 'stop'])->name('support.stop');
     Route::get('/users', [SuperAdminUserController::class, 'index'])->name('users.index');
 });
 

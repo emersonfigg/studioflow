@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\ProductSale;
 use App\Models\User;
 use App\Services\CashRegisterService;
+use App\Support\BrazilianCurrency;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -203,6 +204,10 @@ class FinanceController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
+        $request->merge([
+            'opening_amount' => BrazilianCurrency::normalize($request->input('opening_amount')),
+        ]);
+
         $data = $request->validate([
             'date' => ['required', 'date'],
             'opening_amount' => ['required', 'numeric', 'min:0'],
@@ -229,6 +234,10 @@ class FinanceController extends Controller
     public function closeCash(Request $request, CashRegisterService $cashRegisterService): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
+
+        $request->merge([
+            'closing_amount' => BrazilianCurrency::normalize($request->input('closing_amount')),
+        ]);
 
         $data = $request->validate([
             'cash_register_id' => ['required', 'integer'],

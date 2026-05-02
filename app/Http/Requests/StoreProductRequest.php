@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesBrazilianCurrency;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreProductRequest extends FormRequest
 {
+    use NormalizesBrazilianCurrency;
+
     public function authorize(): bool
     {
         return $this->user()?->isAdmin() ?? false;
@@ -25,5 +28,10 @@ class StoreProductRequest extends FormRequest
             'price' => ['required', 'numeric', 'min:0.01'],
             'active' => ['nullable', 'boolean'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->normalizeCurrencyFields(['price']);
     }
 }

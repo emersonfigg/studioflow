@@ -19,7 +19,7 @@
 
                 <div>
                     <p class="text-sm font-medium text-white">Foto do profissional</p>
-                    <p class="mt-1 text-sm text-[#c7d2e3]">Envie JPG, JPEG, PNG ou WEBP com ate 2MB.</p>
+                    <p class="mt-1 text-sm text-[#c7d2e3]">Envie JPG, JPEG, PNG ou WEBP com até 2MB.</p>
                 </div>
             </div>
 
@@ -61,16 +61,16 @@
     <div>
         <label for="role" class="text-sm font-medium text-white">Perfil</label>
         <select id="role" name="role" class="sf-select mt-2 block w-full" required>
-            <option value="admin" @selected($selectedRole === 'admin')>Admin</option>
-            <option value="staff" @selected($selectedRole === 'staff')>Staff</option>
+            <option value="admin" @selected($selectedRole === 'admin')>Administrador</option>
+            <option value="staff" @selected($selectedRole === 'staff')>Profissional</option>
         </select>
         <x-input-error class="mt-2" :messages="$errors->get('role')" />
     </div>
 
     <div>
-        <label for="commission_type" class="text-sm font-medium text-white">Tipo de comissao</label>
+        <label for="commission_type" class="text-sm font-medium text-white">Tipo de comissão</label>
         <select id="commission_type" name="commission_type" class="sf-select mt-2 block w-full">
-            <option value="none" @selected($selectedCommissionType === 'none' || $selectedCommissionType === null)>Sem comissao</option>
+            <option value="none" @selected($selectedCommissionType === 'none' || $selectedCommissionType === null)>Sem comissão</option>
             <option value="percent" @selected($selectedCommissionType === 'percent')>Percentual</option>
             <option value="fixed" @selected($selectedCommissionType === 'fixed')>Valor fixo</option>
         </select>
@@ -78,17 +78,17 @@
     </div>
 
     <div>
-        <label for="commission_value" class="text-sm font-medium text-white">Valor da comissao</label>
+        <label for="commission_value" class="text-sm font-medium text-white">Valor da comissão</label>
         <input
             id="commission_value"
             name="commission_value"
-            type="number"
-            step="0.01"
-            min="0"
-            value="{{ old('commission_value', $member?->commission_value !== null ? number_format((float) $member->commission_value, 2, '.', '') : null) }}"
+            type="text"
+            inputmode="decimal"
+            placeholder="R$ 0,00"
+            value="{{ old('commission_value', $member?->commission_value !== null ? \App\Support\BrazilianCurrency::input($member->commission_value) : null) }}"
             class="sf-input mt-2 block w-full"
         >
-        <p class="mt-2 text-xs text-[#c7d2e3]">Use percentual sem o simbolo % ou valor fixo em reais.</p>
+        <p class="mt-2 text-xs text-[#c7d2e3]">Use percentual sem o símbolo % ou valor fixo no padrão R$ 0,00.</p>
         <x-input-error class="mt-2" :messages="$errors->get('commission_value')" />
     </div>
 </div>

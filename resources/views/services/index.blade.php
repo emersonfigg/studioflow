@@ -77,7 +77,7 @@
                                 Serviço
                             </div>
                             <h3 class="mt-4 truncate text-xl font-semibold text-white">{{ $service->name }}</h3>
-                            <p class="mt-2 text-sm text-[#c7d2e3]">Duracao operacional e valor comercial sempre visíveis para sua equipe.</p>
+                            <p class="mt-2 text-sm text-[#c7d2e3]">Duração operacional e valor comercial sempre visíveis para sua equipe.</p>
                         </div>
 
                         <span class="{{ $service->active ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-100' : 'border-rose-400/20 bg-rose-500/10 text-rose-100' }} inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold">

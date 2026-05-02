@@ -4,7 +4,7 @@
             <div>
                 <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Produtos</p>
                 <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">Novo produto</h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Cadastre itens que tambem entram no financeiro e no historico do cliente.</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Cadastre itens que também entram no financeiro e no histórico do cliente.</p>
             </div>
 
             <div class="flex flex-wrap gap-3">

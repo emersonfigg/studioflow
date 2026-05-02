@@ -2,12 +2,15 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesBrazilianCurrency;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class StoreServiceRequest extends FormRequest
 {
+    use NormalizesBrazilianCurrency;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -31,6 +34,11 @@ class StoreServiceRequest extends FormRequest
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'library_image' => ['nullable', 'string', Rule::in($this->availableLibraryImages())],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->normalizeCurrencyFields(['price']);
     }
 
     /**

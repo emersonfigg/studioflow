@@ -6,7 +6,7 @@
                 <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
                     Clientes da empresa
                 </h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Gerencie relacionamento e historico da base.</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Gerencie relacionamento e histórico da base.</p>
             </div>
 
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -63,11 +63,11 @@
                 <p class="mt-3 text-3xl font-semibold text-white">{{ $totalClients }}</p>
             </article>
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Novos no mes</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Novos no mês</p>
                 <p class="mt-3 text-3xl font-semibold text-white">{{ $newClientsThisMonth }}</p>
             </article>
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Retornaram no mes</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Retornaram no mês</p>
                 <p class="mt-3 text-3xl font-semibold text-white">{{ $returningClientsThisMonth }}</p>
             </article>
             <article class="sf-card p-5">
@@ -83,7 +83,7 @@
                         <tr>
                             <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Cliente</th>
                             <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Telefone</th>
-                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Ultima visita</th>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Última visita</th>
                             <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Total gasto</th>
                             <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Visitas</th>
                             <th class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Acoes</th>

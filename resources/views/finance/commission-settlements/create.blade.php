@@ -4,15 +4,15 @@
             <div>
                 <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Financeiro</p>
                 <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
-                    Fazer acerto de comissao
+                    Fazer acerto de comissão
                 </h2>
                 <p class="mt-2 text-sm text-[#c7d2e3]">
-                    Confirme os atendimentos incluidos, o total bruto e o valor de comissao a pagar.
+                    Confirme os atendimentos incluídos, o total bruto e o valor de comissão a pagar.
                 </p>
             </div>
 
             <a href="{{ route('finance.commissions', ['from' => $startDate->format('Y-m-d'), 'to' => $endDate->format('Y-m-d'), 'user_id' => $professional->id]) }}" class="sf-button-secondary">
-                Voltar para comissoes
+                Voltar para comissões
             </a>
         </div>
     </x-slot>
@@ -29,11 +29,11 @@
                     <div>
                         <h3 class="text-lg font-semibold text-white">{{ $professional->name }}</h3>
                         <p class="mt-1 text-sm text-[#c7d2e3]">
-                            Periodo de {{ $startDate->format('d/m/Y') }} ate {{ $endDate->format('d/m/Y') }}
+                            Periodo de {{ $startDate->format('d/m/Y') }} até {{ $endDate->format('d/m/Y') }}
                         </p>
                     </div>
                     <div class="rounded-full border border-[#d4af37]/25 bg-[#d4af37]/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#f6e7b3]">
-                        {{ $payments->count() }} atendimentos incluidos
+                        {{ $payments->count() }} atendimentos incluídos
                     </div>
                 </div>
             </div>
@@ -44,9 +44,9 @@
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Data</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Cliente</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Servico</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Serviço</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Bruto</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Comissao</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Comissão</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-white/8 bg-[#223d69]">
@@ -73,7 +73,7 @@
                         <p class="mt-2 text-2xl font-semibold text-white">R$ {{ number_format($grossAmount, 2, ',', '.') }}</p>
                     </div>
                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                        <p class="text-sm text-[#c7d2e3]">Comissao a pagar</p>
+                        <p class="text-sm text-[#c7d2e3]">Comissão a pagar</p>
                         <p class="mt-2 text-2xl font-semibold text-[#d4af37]">R$ {{ number_format($commissionAmount, 2, ',', '.') }}</p>
                     </div>
                 </div>
@@ -91,7 +91,7 @@
                 </div>
 
                 <div>
-                    <x-input-label for="notes" value="Observacoes" />
+                    <x-input-label for="notes" value="Observações" />
                     <textarea id="notes" name="notes" rows="4" class="sf-input mt-2 block w-full">{{ old('notes') }}</textarea>
                     <x-input-error class="mt-2" :messages="$errors->get('notes')" />
                 </div>

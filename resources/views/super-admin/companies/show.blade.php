@@ -8,6 +8,12 @@
             </div>
             <div class="flex flex-wrap gap-3">
                 <a href="{{ route('super-admin.companies.index') }}" class="sf-button-secondary">Voltar</a>
+                <form method="POST" action="{{ route('super-admin.companies.support.start', $company) }}">
+                    @csrf
+                    <button type="submit" class="sf-button-primary">
+                        Acessar em modo suporte
+                    </button>
+                </form>
                 <form method="POST" action="{{ route('super-admin.companies.toggle-active', $company) }}">
                     @csrf
                     @method('PATCH')
@@ -26,15 +32,15 @@
                 <p class="mt-3 text-2xl font-semibold text-white">{{ $company->active ? 'Ativa' : 'Inativa' }}</p>
             </article>
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Usuarios</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Usuários</p>
                 <p class="mt-3 text-2xl font-semibold text-white">{{ $company->users_count }}</p>
             </article>
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Agendamentos do mes</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Agendamentos do mês</p>
                 <p class="mt-3 text-2xl font-semibold text-white">{{ $appointmentsThisMonth }}</p>
             </article>
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Receita do mes</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Receita do mês</p>
                 <p class="mt-3 text-2xl font-semibold text-white">R$ {{ number_format($revenueThisMonth, 2, ',', '.') }}</p>
             </article>
             <article class="sf-card p-5">
@@ -46,7 +52,7 @@
         <section class="grid gap-6 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,1.05fr)]">
             <article class="sf-card overflow-hidden">
                 <div class="border-b border-white/10 px-5 py-4">
-                    <h3 class="text-lg font-semibold text-white">Usuarios recentes</h3>
+                    <h3 class="text-lg font-semibold text-white">Usuários recentes</h3>
                 </div>
                 <div class="divide-y divide-white/10">
                     @forelse ($latestUsers as $user)
@@ -96,7 +102,7 @@
                             <div>
                                 <p class="text-sm font-semibold text-white">{{ $payment->client?->name ?? 'Cliente removido' }}</p>
                                 <p class="mt-1 text-sm text-[#c7d2e3]">
-                                    {{ $payment->service?->name ?? 'Servico removido' }} • {{ $payment->user?->name ?? 'Profissional removido' }}
+                                    {{ $payment->service?->name ?? 'Serviço removido' }} • {{ $payment->user?->name ?? 'Profissional removido' }}
                                 </p>
                             </div>
                             <div class="text-left md:text-right">

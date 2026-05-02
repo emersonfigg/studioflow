@@ -21,20 +21,20 @@
 
     <div class="grid gap-5 lg:grid-cols-2">
         <div>
-            <x-input-label for="birthday" value="Aniversario" />
+            <x-input-label for="birthday" value="Aniversário" />
             <x-text-input id="birthday" name="birthday" type="date" class="mt-2 block w-full" :value="old('birthday', optional($client?->birthday)->format('Y-m-d'))" />
             <x-input-error class="mt-2" :messages="$errors->get('birthday')" />
         </div>
 
         <div>
-            <x-input-label for="last_visit_at" value="Ultima visita" />
+            <x-input-label for="last_visit_at" value="Última visita" />
             <x-text-input id="last_visit_at" name="last_visit_at" type="datetime-local" class="mt-2 block w-full" :value="old('last_visit_at', optional($client?->last_visit_at)->format('Y-m-d\TH:i'))" />
             <x-input-error class="mt-2" :messages="$errors->get('last_visit_at')" />
         </div>
     </div>
 
     <div>
-        <x-input-label for="notes" value="Observacoes internas" />
+        <x-input-label for="notes" value="Observações internas" />
         <textarea id="notes" name="notes" rows="5" class="sf-input mt-2 block w-full">{{ old('notes', $client?->notes) }}</textarea>
         <x-input-error class="mt-2" :messages="$errors->get('notes')" />
     </div>

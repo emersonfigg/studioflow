@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesBrazilianCurrency;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -9,6 +10,8 @@ use Illuminate\Validation\Rules\RequiredIf;
 
 class UpdateTeamMemberRequest extends FormRequest
 {
+    use NormalizesBrazilianCurrency;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -43,5 +46,12 @@ class UpdateTeamMemberRequest extends FormRequest
             ],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('commission_type') === 'fixed') {
+            $this->normalizeCurrencyFields(['commission_value']);
+        }
     }
 }

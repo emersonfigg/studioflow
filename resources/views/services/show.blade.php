@@ -2,15 +2,15 @@
     <x-slot name="header">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">SERVICOS</p>
+                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">SERVIÇOS</p>
                 <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
                     {{ $service->name }}
                 </h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Detalhes e performance do servico</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Detalhes e performance do serviço</p>
             </div>
 
             <a href="{{ route('services.index') }}" class="sf-button-ghost">
-                Voltar para servicos
+                Voltar para serviços
             </a>
         </div>
     </x-slot>
@@ -20,10 +20,10 @@
             <div class="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-100">
                 @switch(session('status'))
                     @case('service-created')
-                        Servico criado com sucesso.
+                        Serviço criado com sucesso.
                         @break
                     @case('service-updated')
-                        Servico atualizado com sucesso.
+                        Serviço atualizado com sucesso.
                         @break
                     @default
                         {{ session('status') }}
@@ -39,24 +39,24 @@
 
         <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <article class="sf-card-soft p-5">
-                <p class="text-sm font-medium text-[#c7d2e3]">Preco</p>
+                <p class="text-sm font-medium text-[#c7d2e3]">Preço</p>
                 <p class="mt-4 text-4xl font-semibold tracking-tight text-white">R$ {{ number_format((float) $service->price, 2, ',', '.') }}</p>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Valor atual cadastrado para este servico.</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Valor atual cadastrado para este serviço.</p>
             </article>
             <article class="sf-card-soft p-5">
-                <p class="text-sm font-medium text-[#c7d2e3]">Duracao</p>
+                <p class="text-sm font-medium text-[#c7d2e3]">Duração</p>
                 <p class="mt-4 text-4xl font-semibold tracking-tight text-white">{{ $service->duration_minutes }} min</p>
                 <p class="mt-2 text-sm text-[#c7d2e3]">Tempo medio reservado na agenda.</p>
             </article>
             <article class="sf-card-soft p-5">
-                <p class="text-sm font-medium text-[#c7d2e3]">Agendamentos no mes</p>
+                <p class="text-sm font-medium text-[#c7d2e3]">Agendamentos no mês</p>
                 <p class="mt-4 text-4xl font-semibold tracking-tight text-white">{{ $monthlyAppointmentsCount }}</p>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Total de agendamentos ligados a este servico neste mes.</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Total de agendamentos ligados a este serviço neste mês.</p>
             </article>
             <article class="sf-card-soft p-5">
-                <p class="text-sm font-medium text-[#c7d2e3]">Receita gerada no mes</p>
+                <p class="text-sm font-medium text-[#c7d2e3]">Receita gerada no mês</p>
                 <p class="mt-4 text-4xl font-semibold tracking-tight text-white">R$ {{ number_format($monthlyRevenue, 2, ',', '.') }}</p>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Recebimentos confirmados deste servico no periodo atual.</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Recebimentos confirmados deste serviço no período atual.</p>
             </article>
         </section>
 
@@ -65,11 +65,11 @@
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <div class="inline-flex items-center rounded-full border border-white/10 bg-[#132746] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">
-                            Servico premium
+                            Serviço completo
                         </div>
                         <h3 class="mt-4 text-2xl font-semibold text-white">{{ $service->name }}</h3>
                         <p class="mt-2 max-w-2xl text-sm leading-7 text-[#c7d2e3]">
-                            Use este painel para acompanhar os numeros do servico, revisar disponibilidade comercial e agir rapidamente sobre o catalogo da empresa.
+                            Use este painel para acompanhar os numeros do serviço, revisar disponibilidade comercial e agir rapidamente sobre o catalogo da empresa.
                         </p>
                     </div>
 
@@ -82,12 +82,12 @@
                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Posicionamento</p>
                         <p class="mt-2 text-sm font-medium text-white">Catalogo da empresa</p>
-                        <p class="mt-2 text-sm text-[#c7d2e3]">Servico configurado para uso em agenda operacional e autoagendamento.</p>
+                        <p class="mt-2 text-sm text-[#c7d2e3]">Serviço configurado para usó em agenda operacional e autoagendamento.</p>
                     </div>
                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Disponibilidade</p>
                         <p class="mt-2 text-sm font-medium text-white">{{ $service->active ? 'Visivel para novos agendamentos' : 'Oculto para novos agendamentos' }}</p>
-                        <p class="mt-2 text-sm text-[#c7d2e3]">A alteracao de status impacta a agenda interna e o fluxo publico imediatamente.</p>
+                        <p class="mt-2 text-sm text-[#c7d2e3]">A alteracao de status impacta a agenda interna e o fluxo público imediatamente.</p>
                     </div>
                 </div>
             </section>
@@ -96,7 +96,7 @@
                 <section class="sf-card overflow-hidden">
                     <div class="border-b border-white/10 px-5 py-5">
                         <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Acoes</p>
-                        <h3 class="mt-2 text-xl font-semibold text-white">Gerenciar servico</h3>
+                        <h3 class="mt-2 text-xl font-semibold text-white">Gerenciar serviço</h3>
                     </div>
 
                     <div class="space-y-3 px-5 py-5">
@@ -131,13 +131,13 @@
                             <form method="POST" action="{{ route('services.destroy', $service) }}">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl border border-rose-300/20 bg-rose-400/12 px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-rose-50 transition duration-150 hover:bg-rose-400/20 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2 focus:ring-offset-[#1b335b]" onclick="return confirm('Excluir este servico?')">
+                                <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl border border-rose-300/20 bg-rose-400/12 px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-rose-50 transition duration-150 hover:bg-rose-400/20 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2 focus:ring-offset-[#1b335b]" onclick="return confirm('Excluir este serviço?')">
                                     Excluir
                                 </button>
                             </form>
                         @else
                             <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4 text-sm text-[#c7d2e3]">
-                                Apenas administradores podem alterar este servico.
+                                Apenas administradores podem alterar este serviço.
                             </div>
                         @endif
                     </div>

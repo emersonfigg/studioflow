@@ -6,7 +6,7 @@
                 <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
                     {{ $isOnboarding ? 'Vamos configurar sua empresa' : 'Dados da empresa' }}
                 </h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">{{ $isOnboarding ? 'Preencha os dados principais para deixar seu StudioFlow com a cara da sua marca.' : 'Personalize nome, logo e informacoes da sua operacao.' }}</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">{{ $isOnboarding ? 'Preencha os dados principais para deixar seu StudioFlow com a cara da sua marca.' : 'Personalize nome, logo e informações da sua operação.' }}</p>
             </div>
 
             <div class="flex flex-wrap items-center gap-3">
@@ -16,7 +16,7 @@
                     </a>
                 @endunless
                 <button type="submit" form="company-edit-form" class="sf-button-primary">
-                    {{ $isOnboarding ? 'Concluir configuracao' : 'Salvar empresa' }}
+                    {{ $isOnboarding ? 'Concluir configuração' : 'Salvar empresa' }}
                 </button>
             </div>
         </div>
@@ -61,7 +61,7 @@
 
                         <div>
                             <p class="text-sm font-medium text-white">Logo da empresa</p>
-                            <p class="mt-1 text-sm text-[#c7d2e3]">Envie JPG, JPEG, PNG ou WEBP com ate 2MB.</p>
+                            <p class="mt-1 text-sm text-[#c7d2e3]">Envie JPG, JPEG, PNG ou WEBP com até 2MB.</p>
                         </div>
                     </div>
 
@@ -112,9 +112,9 @@
                     </div>
 
                     <div class="lg:col-span-2">
-                        <label for="description" class="text-sm font-medium text-white">Descricao curta</label>
+                        <label for="description" class="text-sm font-medium text-white">Descrição curta</label>
                         <textarea id="description" name="description" rows="3" x-model="description" class="sf-input mt-2 block w-full">{{ old('description', $company->description) }}</textarea>
-                        <p class="mt-2 text-xs text-[#c7d2e3]">Essa frase pode aparecer na navegacao e na pagina publica de agendamento.</p>
+                        <p class="mt-2 text-xs text-[#c7d2e3]">Essa frase pode aparecer na navegacao e na pagina pública de agendamento.</p>
                         <x-input-error class="mt-2" :messages="$errors->get('description')" />
                     </div>
                 </div>
@@ -131,28 +131,28 @@
                 <div class="space-y-4 px-5 py-5">
                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Empresa</p>
-                        <p class="mt-2 text-lg font-semibold text-white" x-text="name || 'Sua empresa premium'"></p>
+                        <p class="mt-2 text-lg font-semibold text-white" x-text="name || 'Sua empresa completa'"></p>
                     </div>
 
                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Contato</p>
-                        <p class="mt-2 text-sm font-medium text-white" x-text="phone || 'Telefone nao informado'"></p>
-                        <p class="mt-2 text-sm text-[#c7d2e3]" x-text="address || 'Endereco ainda nao preenchido'"></p>
+                        <p class="mt-2 text-sm font-medium text-white" x-text="phone || 'Telefone não informado'"></p>
+                        <p class="mt-2 text-sm text-[#c7d2e3]" x-text="address || 'Endereço ainda não preenchido'"></p>
                     </div>
 
                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Documento</p>
-                        <p class="mt-2 text-sm font-medium text-white" x-text="cnpj || 'CNPJ nao informado'"></p>
+                        <p class="mt-2 text-sm font-medium text-white" x-text="cnpj || 'CNPJ não informado'"></p>
                     </div>
 
                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Marca</p>
-                        <p class="mt-2 text-sm font-medium text-white" x-text="instagram || 'Instagram nao informado'"></p>
-                        <p class="mt-2 text-sm text-[#c7d2e3]" x-text="description || 'Descricao curta ainda nao preenchida.'"></p>
+                        <p class="mt-2 text-sm font-medium text-white" x-text="instagram || 'Instagram não informado'"></p>
+                        <p class="mt-2 text-sm text-[#c7d2e3]" x-text="description || 'Descrição curta ainda não preenchida.'"></p>
                     </div>
 
                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Link publico</p>
+                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Link público</p>
                         <p class="mt-2 text-sm font-medium text-white break-all">{{ route('public-bookings.create', $company) }}</p>
                     </div>
                 </div>

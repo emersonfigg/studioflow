@@ -30,7 +30,7 @@ class ProfessionalAvailabilityTest extends TestCase
                     ['start_time' => '09:30', 'end_time' => '13:00'],
                     ['start_time' => '14:00', 'end_time' => '20:00'],
                 ],
-                'notes' => 'Agenda cheia apos o almoco.',
+                'notes' => 'Agenda cheia após o almoço.',
             ])
             ->assertRedirect(route('schedule.edit', ['month' => '2026-04', 'date' => '2026-04-28'], false));
 
@@ -41,7 +41,7 @@ class ProfessionalAvailabilityTest extends TestCase
             ->firstOrFail();
 
         $this->assertFalse($override->is_day_off);
-        $this->assertSame('Agenda cheia apos o almoco.', $override->notes);
+        $this->assertSame('Agenda cheia após o almoço.', $override->notes);
         $this->assertDatabaseHas('professional_day_override_intervals', [
             'professional_day_override_id' => $override->id,
             'start_time' => '09:30',
@@ -63,7 +63,7 @@ class ProfessionalAvailabilityTest extends TestCase
             'user_id' => $staff->id,
             'date' => '2026-04-28',
             'is_day_off' => false,
-            'notes' => 'Horario especial.',
+            'notes' => 'Horário especial.',
         ]);
 
         $override->intervals()->createMany([
@@ -81,7 +81,7 @@ class ProfessionalAvailabilityTest extends TestCase
             ->assertSee('value="11:00"', false)
             ->assertSee('value="13:00"', false)
             ->assertSee('value="19:00"', false)
-            ->assertSee('Horario especial.');
+            ->assertSee('Horário especial.');
     }
 
     public function test_marking_a_day_off_returns_no_slots_for_that_date(): void
@@ -124,7 +124,7 @@ class ProfessionalAvailabilityTest extends TestCase
             'filters_submitted' => 1,
         ], false))
             ->assertOk()
-            ->assertSee('Nenhum horario disponivel para essa data. Tente outro dia.');
+            ->assertSee('Nenhum horário disponível para essa data. Tente outro dia.');
     }
 
     public function test_clearing_a_day_configuration_falls_back_to_weekly_schedule(): void

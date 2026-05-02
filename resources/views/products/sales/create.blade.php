@@ -4,7 +4,7 @@
             <div>
                 <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Produtos</p>
                 <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">Registrar venda</h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Toda venda entra no historico do cliente e no caixa do dia.</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Toda venda entra no histórico do cliente e no caixa do dia.</p>
             </div>
 
             <div class="flex flex-wrap gap-3">
@@ -114,7 +114,7 @@
                 </div>
 
                 <div class="md:col-span-3">
-                    <x-input-label for="notes" value="Observacoes" />
+                    <x-input-label for="notes" value="Observações" />
                     <textarea id="notes" name="notes" rows="2" class="sf-input mt-2 block w-full">{{ old('notes') }}</textarea>
                     <x-input-error :messages="$errors->get('notes')" class="mt-2" />
                 </div>
@@ -137,7 +137,7 @@
                             placeholder="Ex: SHP-100 ou nome do produto"
                             class="sf-input mt-2 block w-full"
                         >
-                        <p class="mt-2 text-[11px] text-[#c7d2e3]">Atalho rapido para localizar item sem rolar listas grandes.</p>
+                        <p class="mt-2 text-[11px] text-[#c7d2e3]">Atalho rápido para localizar item sem rolar listas grandes.</p>
 
                         <div x-show="filteredProducts.length > 0" x-cloak class="mt-3 grid gap-2 sm:grid-cols-2">
                             <template x-for="[productId, product] in filteredProducts" :key="productId">
@@ -210,7 +210,7 @@
 
         <aside class="sf-card p-5">
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Venda vinculada</p>
-            <h3 class="mt-3 text-2xl font-semibold text-white">Historico do cliente</h3>
+            <h3 class="mt-3 text-2xl font-semibold text-white">Histórico do cliente</h3>
             <p class="mt-3 text-sm leading-6 text-[#c7d2e3]">
                 Assim que salvar, a compra entra no cadastro do cliente, no financeiro e no caixa do dia.
             </p>

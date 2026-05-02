@@ -6,7 +6,7 @@
                 <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
                     Painel Global
                 </h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Acompanhe empresas, usuarios, agendamentos e receita do StudioFlow inteiro.</p>
+                <p class="mt-2 text-sm text-[#c7d2e3]">Acompanhe empresas, usuários, agendamentos e receita do StudioFlow inteiro.</p>
             </div>
         </div>
     </x-slot>
@@ -22,15 +22,15 @@
                 <p class="mt-3 text-3xl font-semibold text-white">{{ $activeCompanies }}</p>
             </article>
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Total de usuarios</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Total de usuários</p>
                 <p class="mt-3 text-3xl font-semibold text-white">{{ $totalUsers }}</p>
             </article>
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Agendamentos do mes</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Agendamentos do mês</p>
                 <p class="mt-3 text-3xl font-semibold text-white">{{ $appointmentsThisMonth }}</p>
             </article>
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Receita do mes</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Receita do mês</p>
                 <p class="mt-3 text-3xl font-semibold text-white">R$ {{ number_format($revenueThisMonth, 2, ',', '.') }}</p>
             </article>
         </section>
@@ -39,7 +39,7 @@
             <div class="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4">
                 <div>
                     <h3 class="text-lg font-semibold text-white">Empresas recentes</h3>
-                    <p class="mt-1 text-sm text-[#c7d2e3]">Visao rapida de atividade, usuarios e receita por conta.</p>
+                    <p class="mt-1 text-sm text-[#c7d2e3]">Visao rapida de atividade, usuários e receita por conta.</p>
                 </div>
                 <a href="{{ route('super-admin.companies.index') }}" class="sf-button-secondary">Ver todas</a>
             </div>
@@ -52,7 +52,7 @@
                             <p class="mt-1 text-sm text-[#c7d2e3]">{{ $company->active ? 'Conta ativa' : 'Conta inativa' }}</p>
                         </div>
                         <div>
-                            <p class="text-xs uppercase tracking-[0.18em] text-[#c7d2e3]">Usuarios</p>
+                            <p class="text-xs uppercase tracking-[0.18em] text-[#c7d2e3]">Usuários</p>
                             <p class="mt-1 text-sm font-semibold text-white">{{ $company->users_count }}</p>
                         </div>
                         <div>

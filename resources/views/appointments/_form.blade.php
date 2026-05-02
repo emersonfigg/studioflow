@@ -2,7 +2,7 @@
     x-data="{
         creatingClient: false,
         clientErrors: {},
-        clientMessage: '',
+        clientMêssage: '',
         clientForm: {
             name: '',
             phone: '',
@@ -11,7 +11,7 @@
         },
         openClientModal() {
             this.clientErrors = {};
-            this.clientMessage = '';
+            this.clientMêssage = '';
             this.$dispatch('open-modal', 'appointment-client-modal');
             this.$nextTick(() => this.$refs.inlineClientName?.focus());
         },
@@ -54,7 +54,7 @@
 
             this.creatingClient = true;
             this.clientErrors = {};
-            this.clientMessage = '';
+            this.clientMêssage = '';
 
             try {
                 const response = await fetch(@js(route('clients.inline.store')), {
@@ -76,19 +76,19 @@
                     }
 
                     this.clientErrors = {
-                        general: [payload.message || 'Nao foi possivel salvar o cliente agora.'],
+                        general: [payload.message || 'Não foi possível salvar o cliente agora.'],
                     };
 
                     return;
                 }
 
                 this.syncClientOption(payload.client);
-                this.clientMessage = payload.message;
+                this.clientMêssage = payload.message;
                 this.closeClientModal();
                 this.resetClientForm();
             } catch (error) {
                 this.clientErrors = {
-                    general: ['Nao foi possivel salvar o cliente agora.'],
+                    general: ['Não foi possível salvar o cliente agora.'],
                 };
             } finally {
                 this.creatingClient = false;
@@ -117,7 +117,7 @@
                         @endforeach
                     </select>
                     <x-input-error class="mt-2" :messages="$errors->get('client_id')" />
-                    <p x-show="clientMessage" x-text="clientMessage" class="mt-2 text-sm font-medium text-[#d4af37]"></p>
+                    <p x-show="clientMêssage" x-text="clientMêssage" class="mt-2 text-sm font-medium text-[#d4af37]"></p>
                 </div>
 
                 <button
@@ -159,7 +159,7 @@
         <div>
             <x-input-label for="start_time" :value="__('Start')" />
             <x-text-input id="start_time" name="start_time" type="datetime-local" class="mt-1 block w-full" :value="old('start_time', optional($appointment?->start_time)->format('Y-m-d\TH:i'))" required />
-            <p class="mt-2 text-sm text-[#A1A1AA]">{{ __('End time is calculated automatically from the selected service duration.') }}</p>
+            <p class="mt-2 text-sm text-[#A1A1AA]">{{ __('End time is calculatéd automatically from the selected service duration.') }}</p>
             <x-input-error class="mt-2" :messages="$errors->get('start_time')" />
         </div>
 
@@ -246,20 +246,20 @@
                     </div>
 
                     <div>
-                        <x-input-label for="inline_client_birthday" value="Aniversario" />
+                        <x-input-label for="inline_client_birthday" value="Aniversário" />
                         <x-text-input id="inline_client_birthday" x-model="clientForm.birthday" type="date" class="mt-1 block w-full" />
                         <p x-show="clientErrors.birthday" class="mt-2 text-sm text-rose-200" x-text="clientErrors.birthday ? clientErrors.birthday[0] : ''"></p>
                     </div>
 
                     <div class="sm:col-span-2">
-                        <x-input-label for="inline_client_notes" value="Observacoes" />
+                        <x-input-label for="inline_client_notes" value="Observações" />
                         <textarea id="inline_client_notes" x-model="clientForm.notes" rows="4" class="sf-input mt-1 block w-full"></textarea>
                         <p x-show="clientErrors.notes" class="mt-2 text-sm text-rose-200" x-text="clientErrors.notes ? clientErrors.notes[0] : ''"></p>
                     </div>
                 </div>
 
                 <div class="rounded-2xl border border-white/8 bg-[#132746] px-4 py-4 text-sm text-[#c7d2e3]">
-                    Se o telefone ja existir nesta empresa, o StudioFlow reaproveita o cliente automaticamente.
+                    Se o telefone ja existir nestá empresa, o StudioFlow reaproveita o cliente automaticamente.
                 </div>
 
                 <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

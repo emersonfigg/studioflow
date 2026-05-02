@@ -403,7 +403,7 @@ class PaymentTest extends TestCase
             'name' => 'Marcos',
         ]);
         $service = Service::factory()->for($company)->create([
-            'name' => 'Corte Premium',
+            'name' => 'Corte Completo',
         ]);
         $appointment = Appointment::factory()->for($company)->create([
             'client_id' => $client->id,
@@ -443,7 +443,7 @@ class PaymentTest extends TestCase
         $response
             ->assertOk()
             ->assertSee('R$ 0,00')
-            ->assertSee('Ultimos repasses')
+            ->assertSee('Últimos repasses')
             ->assertSee('Carlos')
             ->assertSee('Dinheiro')
             ->assertDontSee('Fazer acerto');

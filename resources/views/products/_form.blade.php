@@ -16,13 +16,13 @@
             </div>
 
             <div>
-                <x-input-label for="price" value="Preco" />
-                <x-text-input id="price" name="price" type="number" min="0.01" step="0.01" class="mt-2 block w-full" :value="old('price', $productData?->price ?? '')" required />
+                <x-input-label for="price" value="Preço" />
+                <x-text-input id="price" name="price" type="text" inputmode="decimal" placeholder="R$ 0,00" class="mt-2 block w-full" :value="old('price', \App\Support\BrazilianCurrency::input($productData?->price))" required />
                 <x-input-error :messages="$errors->get('price')" class="mt-2" />
             </div>
 
             <div class="md:col-span-2">
-                <x-input-label for="description" value="Descricao" />
+                <x-input-label for="description" value="Descrição" />
                 <textarea id="description" name="description" rows="4" class="sf-input mt-2 block w-full">{{ old('description', $productData?->description ?? '') }}</textarea>
                 <x-input-error :messages="$errors->get('description')" class="mt-2" />
             </div>
@@ -30,7 +30,7 @@
             <div class="md:col-span-2">
                 <x-input-label for="image" value="Imagem do produto" />
                 <input id="image" name="image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="sf-input mt-2 block w-full file:mr-4 file:rounded-xl file:border-0 file:bg-[#d4af37] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[#132746] hover:file:bg-[#e3bf4a]">
-                <p class="mt-2 text-xs text-[#c7d2e3]">Selecione uma imagem do seu computador. Ela sera enviada e salva automaticamente no servidor.</p>
+                <p class="mt-2 text-xs text-[#c7d2e3]">Selecione uma imagem do seu computador. Ela será enviada e salva automaticamente no servidor.</p>
                 <x-input-error :messages="$errors->get('image')" class="mt-2" />
             </div>
 
@@ -49,7 +49,7 @@
     </section>
 
     <aside class="sf-card p-6">
-        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Preview</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Pré-visualização</p>
         @if ($productData?->image_url)
             <img src="{{ $productData->image_url }}" alt="Imagem de {{ $productData->name }}" class="mt-4 h-40 w-full rounded-2xl object-cover ring-1 ring-white/10">
         @else
@@ -61,10 +61,10 @@
         @endif
         <h3 class="mt-3 text-2xl font-semibold text-white">{{ old('name', $productData?->name ?? 'Novo produto') }}</h3>
         <p class="mt-4 text-3xl font-semibold text-white">
-            R$ {{ number_format((float) old('price', $productData?->price ?? 0), 2, ',', '.') }}
+            {{ \App\Support\BrazilianCurrency::format(\App\Support\BrazilianCurrency::normalize(old('price', $productData?->price ?? 0))) }}
         </p>
         <p class="mt-4 text-sm leading-7 text-[#c7d2e3]">
-            {{ old('description', $productData?->description ?? 'Esse produto aparecera no controle comercial e nas vendas vinculadas aos clientes.') }}
+            {{ old('description', $productData?->description ?? 'Esse produto aparecerá no controle comercial e nas vendas vinculadas aos clientes.') }}
         </p>
     </aside>
 </div>
