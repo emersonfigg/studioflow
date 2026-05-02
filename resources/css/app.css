@@ -7,6 +7,12 @@
         color-scheme: dark;
     }
 
+    @media (min-width: 1024px) {
+        html {
+            font-size: 90%;
+        }
+    }
+
     body {
         background-color: #1b335b;
         color: #ffffff;
