@@ -9,9 +9,12 @@ use App\Models\ProfessionalDayOverride;
 use App\Models\ProfessionalWorkingHour;
 use App\Models\Service;
 use App\Models\User;
+use App\Services\AvailabilityService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 class PublicBookingTest extends TestCase
@@ -93,7 +96,7 @@ class PublicBookingTest extends TestCase
             ->assertDontSee('Servico Externo');
     }
 
-    public function test_public_booking_without_selected_service_still_shows_estimated_slots_and_summary(): void
+    public function test_public_booking_without_selected_service_does_not_show_slots(): void
     {
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-27 10:00:00', 'America/Bahia'));
 
@@ -124,16 +127,17 @@ class PublicBookingTest extends TestCase
             'filters_submitted' => 1,
         ]))
             ->assertOk()
-            ->assertSee('11:00')
-            ->assertSee('11:30')
-            ->assertSee('20:00')
-            ->assertSee('Horários estimados com duração padrão de 30 minutos. Escolha o serviço para confirmar.')
+            ->assertSee('Escolha pelo menos um serviço e um profissional para carregar os horários disponíveis.')
             ->assertSee('Escolha depois')
             ->assertSee('30 min estimado')
-            ->assertSee('A definir');
+            ->assertSee('A definir')
+            ->assertDontSee('11:00')
+            ->assertDontSee('11:30')
+            ->assertDontSee('20:00')
+            ->assertDontSee('Horários estimados com duração padrão de 30 minutos. Escolha o serviço para confirmar.');
     }
 
-    public function test_public_booking_auto_selects_first_professional_with_photo_and_availability_for_the_date(): void
+    public function test_public_booking_lists_professionals_without_auto_selecting_or_showing_slots(): void
     {
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-27 10:00:00', 'America/Bahia'));
 
@@ -178,10 +182,9 @@ class PublicBookingTest extends TestCase
             ->assertOk()
             ->assertSee('Bianca')
             ->assertSee('/storage/professionals/bianca.jpg')
-            ->assertSee('value="' . $professional->id . '"', false)
-            ->assertSee('checked', false)
-            ->assertSee('11:00')
-            ->assertDontSee('value="' . $admin->id . '" checked', false);
+            ->assertSee('value="'.$professional->id.'"', false)
+            ->assertDontSee('11:00')
+            ->assertDontSee('value="'.$admin->id.'" checked', false);
     }
 
     public function test_public_booking_shows_service_image_base_when_image_is_missing(): void
@@ -289,6 +292,7 @@ class PublicBookingTest extends TestCase
             'time' => '09:00',
             'client_name' => 'Maria Souza',
             'client_phone' => '71999990000',
+            'client_email' => 'maria@example.com',
             'notes' => 'Prefere atendimento pela manha.',
         ]);
 
@@ -326,6 +330,149 @@ class PublicBookingTest extends TestCase
         ]);
     }
 
+    public function test_public_booking_google_creates_new_client_for_company(): void
+    {
+        config([
+            'services.google.client_id' => 'google-client',
+            'services.google.client_secret' => 'google-secret',
+            'services.google.redirect' => 'http://localhost/agendar/google/callback',
+        ]);
+        Http::fake([
+            'https://oauth2.googleapis.com/token' => Http::response(['access_token' => 'token'], 200),
+            'https://openidconnect.googleapis.com/v1/userinfo' => Http::response([
+                'sub' => 'google-123',
+                'name' => 'Cliente Google',
+                'email' => 'cliente.google@example.com',
+                'picture' => 'https://example.com/avatar.jpg',
+            ], 200),
+        ]);
+
+        $company = Company::factory()->create();
+        $state = $this->googleStateFor($company, ['service_ids' => [1], 'user_id' => 2]);
+
+        $this->get(route('public-bookings.google.callback', [
+            'state' => $state,
+            'code' => 'valid-code',
+        ], false))
+            ->assertRedirect(route('public-bookings.create', [
+                'company' => $company,
+                'service_ids' => [1],
+                'user_id' => 2,
+            ], false));
+
+        $client = Client::query()->where('company_id', $company->id)->firstOrFail();
+
+        $this->assertSame('Cliente Google', $client->name);
+        $this->assertSame('cliente.google@example.com', $client->email);
+        $this->assertSame('google-123', $client->google_id);
+        $this->assertSame($client->id, session('public_booking_client_'.$company->id));
+    }
+
+    public function test_public_booking_google_links_existing_client_by_email(): void
+    {
+        config([
+            'services.google.client_id' => 'google-client',
+            'services.google.client_secret' => 'google-secret',
+            'services.google.redirect' => 'http://localhost/agendar/google/callback',
+        ]);
+        Http::fake([
+            'https://oauth2.googleapis.com/token' => Http::response(['access_token' => 'token'], 200),
+            'https://openidconnect.googleapis.com/v1/userinfo' => Http::response([
+                'sub' => 'google-linked',
+                'name' => 'Novo Nome Google',
+                'email' => 'cliente.existente@example.com',
+            ], 200),
+        ]);
+
+        $company = Company::factory()->create();
+        $client = Client::factory()->for($company)->create([
+            'name' => 'Cliente Existente',
+            'email' => 'cliente.existente@example.com',
+            'google_id' => null,
+        ]);
+        $state = $this->googleStateFor($company);
+
+        $this->get(route('public-bookings.google.callback', [
+            'state' => $state,
+            'code' => 'valid-code',
+        ], false))->assertRedirect();
+
+        $client->refresh();
+
+        $this->assertSame('Cliente Existente', $client->name);
+        $this->assertSame('google-linked', $client->google_id);
+        $this->assertSame(1, Client::query()->where('company_id', $company->id)->count());
+    }
+
+    public function test_public_booking_google_does_not_reuse_client_from_another_company(): void
+    {
+        config([
+            'services.google.client_id' => 'google-client',
+            'services.google.client_secret' => 'google-secret',
+            'services.google.redirect' => 'http://localhost/agendar/google/callback',
+        ]);
+        Http::fake([
+            'https://oauth2.googleapis.com/token' => Http::response(['access_token' => 'token'], 200),
+            'https://openidconnect.googleapis.com/v1/userinfo' => Http::response([
+                'sub' => 'google-cross-company',
+                'name' => 'Cliente Outra Empresa',
+                'email' => 'mesmo.email@example.com',
+            ], 200),
+        ]);
+
+        $company = Company::factory()->create();
+        $otherCompany = Company::factory()->create();
+        Client::factory()->for($otherCompany)->create([
+            'email' => 'mesmo.email@example.com',
+            'google_id' => null,
+        ]);
+        $state = $this->googleStateFor($company);
+
+        $this->get(route('public-bookings.google.callback', [
+            'state' => $state,
+            'code' => 'valid-code',
+        ], false))->assertRedirect();
+
+        $this->assertSame(1, Client::query()->where('company_id', $company->id)->count());
+        $this->assertSame(1, Client::query()->where('company_id', $otherCompany->id)->count());
+    }
+
+    public function test_public_booking_revalidates_availability_inside_transaction_before_creating(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-27 10:00:00');
+
+        $company = Company::factory()->create();
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 60,
+            'active' => true,
+        ]);
+        $user = User::factory()->for($company)->create([
+            'active' => true,
+        ]);
+
+        $this->mock(AvailabilityService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('availableSlotsForDuration')
+                ->twice()
+                ->andReturn(['09:00'], []);
+        });
+
+        $this->from(route('public-bookings.create', $company, false))
+            ->post(route('public-bookings.store', $company, false), [
+                'service_ids' => [$service->id],
+                'user_id' => $user->id,
+                'date' => '2026-04-28',
+                'time' => '09:00',
+                'client_name' => 'Paula',
+                'client_phone' => '71977776666',
+                'client_email' => 'paula@example.com',
+            ])
+            ->assertRedirect(route('public-bookings.create', $company, false))
+            ->assertSessionHasErrors(['time']);
+
+        $this->assertDatabaseCount('appointments', 0);
+        $this->assertDatabaseCount('clients', 0);
+    }
+
     public function test_public_booking_confirmation_without_service_is_blocked(): void
     {
         CarbonImmutable::setTestNow('2026-04-27 10:00:00');
@@ -340,6 +487,7 @@ class PublicBookingTest extends TestCase
                 'time' => '14:00',
                 'client_name' => 'Paula',
                 'client_phone' => '71999999999',
+                'client_email' => 'paula@example.com',
             ])
             ->assertRedirect(route('public-bookings.create', $company, false))
             ->assertSessionHasErrors(['service_ids']);
@@ -375,6 +523,7 @@ class PublicBookingTest extends TestCase
             'time' => '11:00',
             'client_name' => 'Carla',
             'client_phone' => '71991112222',
+            'client_email' => 'carla@example.com',
             'notes' => 'Primeira visita.',
         ]);
 
@@ -425,6 +574,7 @@ class PublicBookingTest extends TestCase
             'time' => '10:30',
             'client_name' => 'Cliente Atualizada',
             'client_phone' => '71988887777',
+            'client_email' => 'cliente@example.com',
         ])->assertSessionHasNoErrors();
 
         $client->refresh();
@@ -432,6 +582,42 @@ class PublicBookingTest extends TestCase
 
         $this->assertSame(1, Client::query()->where('company_id', $company->id)->where('phone', '71988887777')->count());
         $this->assertSame('Cliente Atualizada', $client->name);
+        $this->assertSame($client->id, $appointment->client_id);
+    }
+
+    public function test_public_booking_reuses_existing_client_with_same_email_in_company(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-27 10:00:00');
+
+        $company = Company::factory()->create();
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 30,
+            'active' => true,
+        ]);
+        $user = User::factory()->for($company)->create(['active' => true]);
+        $this->createWorkingHour($company, $user, 2, '08:00', '18:00');
+        $client = Client::factory()->for($company)->create([
+            'name' => 'Cliente Antiga',
+            'phone' => '71911112222',
+            'email' => 'cliente.manual@example.com',
+        ]);
+
+        $this->post(route('public-bookings.store', $company, false), [
+            'service_ids' => [$service->id],
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+            'time' => '10:30',
+            'client_name' => 'Cliente Atualizada',
+            'client_phone' => '71933334444',
+            'client_email' => 'cliente.manual@example.com',
+        ])->assertSessionHasNoErrors();
+
+        $client->refresh();
+        $appointment = Appointment::query()->where('company_id', $company->id)->firstOrFail();
+
+        $this->assertSame(1, Client::query()->where('company_id', $company->id)->where('email', 'cliente.manual@example.com')->count());
+        $this->assertSame('Cliente Atualizada', $client->name);
+        $this->assertSame('71933334444', $client->phone);
         $this->assertSame($client->id, $appointment->client_id);
     }
 
@@ -531,7 +717,8 @@ class PublicBookingTest extends TestCase
             'filters_submitted' => 1,
         ]))
             ->assertOk()
-            ->assertSee('14:00');
+            ->assertSee('Escolha pelo menos um serviço e um profissional para carregar os horários disponíveis.')
+            ->assertDontSee('14:00');
 
         $this->get($this->bookingUrl($company, [
             'service_ids' => [$firstService->id, $secondService->id],
@@ -674,13 +861,42 @@ class PublicBookingTest extends TestCase
             'filters_submitted' => 1,
         ]))
             ->assertOk()
-            ->assertSee('08:00')
-            ->assertSee('08:30')
-            ->assertSee('09:00')
-            ->assertSee('Passou')
+            ->assertDontSee('08:00')
+            ->assertDontSee('08:30')
+            ->assertDontSee('09:00')
+            ->assertDontSee('Passou')
+            ->assertSee('09:20')
             ->assertSee('09:30')
             ->assertSee('10:00')
             ->assertSee('18:00');
+    }
+
+    public function test_public_booking_cannot_confirm_slot_inside_public_minimum_lead_time(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-28 09:10:00');
+
+        $company = Company::factory()->create();
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 60,
+            'active' => true,
+        ]);
+        $user = User::factory()->for($company)->create(['active' => true]);
+        $this->createWorkingHour($company, $user, 2, '08:00', '18:00');
+
+        $this->from(route('public-bookings.create', $company, false))
+            ->post(route('public-bookings.store', $company, false), [
+                'service_ids' => [$service->id],
+                'user_id' => $user->id,
+                'date' => '2026-04-28',
+                'time' => '09:15',
+                'client_name' => 'Cliente Teste',
+                'client_phone' => '71999990000',
+                'client_email' => 'cliente.teste@example.com',
+            ])
+            ->assertRedirect(route('public-bookings.create', $company, false))
+            ->assertSessionHasErrors(['time']);
+
+        $this->assertDatabaseCount('appointments', 0);
     }
 
     public function test_public_booking_today_does_not_discount_thirty_minutes_from_professional_shift(): void
@@ -688,6 +904,10 @@ class PublicBookingTest extends TestCase
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-29 13:11:00', 'America/Bahia'));
 
         $company = Company::factory()->create();
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 30,
+            'active' => true,
+        ]);
         $user = User::factory()->for($company)->create(['active' => true]);
 
         $override = ProfessionalDayOverride::create([
@@ -702,13 +922,15 @@ class PublicBookingTest extends TestCase
         ]);
 
         $this->get($this->bookingUrl($company, [
+            'service_ids' => [$service->id],
             'user_id' => $user->id,
             'date' => '2026-04-29',
             'filters_submitted' => 1,
         ]))
             ->assertOk()
-            ->assertSee('13:00')
-            ->assertSee('Passou')
+            ->assertDontSee('13:00')
+            ->assertDontSee('Passou')
+            ->assertSee('13:25')
             ->assertSee('13:30')
             ->assertSee('14:00')
             ->assertSee('19:30')
@@ -838,6 +1060,7 @@ class PublicBookingTest extends TestCase
                 'time' => '09:00',
                 'client_name' => 'Paula',
                 'client_phone' => '71977776666',
+                'client_email' => 'paula@example.com',
             ])
             ->assertRedirect(route('public-bookings.create', $company, false))
             ->assertSessionHasErrors(['service_ids.0', 'user_id']);
@@ -850,6 +1073,7 @@ class PublicBookingTest extends TestCase
                 'time' => '09:30',
                 'client_name' => 'Paula',
                 'client_phone' => '71977776666',
+                'client_email' => 'paula@example.com',
             ])
             ->assertRedirect(route('public-bookings.create', $company, false))
             ->assertSessionHasErrors(['time']);
@@ -865,7 +1089,7 @@ class PublicBookingTest extends TestCase
             return $baseUrl;
         }
 
-        return $baseUrl . '?' . http_build_query($query);
+        return $baseUrl.'?'.http_build_query($query);
     }
 
     private function createWorkingHour(Company $company, User $user, int $weekday, string $startTime, string $endTime): void
@@ -878,5 +1102,16 @@ class PublicBookingTest extends TestCase
             'end_time' => $endTime,
             'active' => true,
         ]);
+    }
+
+    private function googleStateFor(Company $company, array $query = []): string
+    {
+        $state = 'test-state-'.str()->random(8);
+        session()->put('public_google_oauth_'.$state, [
+            'company_id' => $company->id,
+            'query' => $query,
+        ]);
+
+        return $state;
     }
 }

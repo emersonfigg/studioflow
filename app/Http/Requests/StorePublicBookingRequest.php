@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Client;
 use App\Models\Company;
 use App\Models\Service;
 use App\Models\User;
@@ -29,6 +30,7 @@ class StorePublicBookingRequest extends FormRequest
     {
         /** @var Company $company */
         $company = $this->route('company');
+        $hasIdentifiedClient = $this->hasIdentifiedClient($company);
 
         return [
             'service_ids' => ['required', 'array', 'min:1'],
@@ -46,8 +48,9 @@ class StorePublicBookingRequest extends FormRequest
             ],
             'date' => ['required', 'date_format:Y-m-d'],
             'time' => ['required', 'date_format:H:i'],
-            'client_name' => ['required', 'string', 'max:255'],
-            'client_phone' => ['required', 'string', 'max:255'],
+            'client_name' => [$hasIdentifiedClient ? 'nullable' : 'required', 'string', 'max:255'],
+            'client_phone' => [$hasIdentifiedClient ? 'nullable' : 'required', 'string', 'max:255'],
+            'client_email' => [$hasIdentifiedClient ? 'nullable' : 'required', 'email', 'max:255'],
             'notes' => ['nullable', 'string'],
         ];
     }
@@ -85,12 +88,26 @@ class StorePublicBookingRequest extends FormRequest
                 $user,
                 $totalDurationMinutes,
                 (string) $this->input('date'),
-                false,
+                true,
             );
 
             if (! in_array((string) $this->input('time'), $availableSlots, true)) {
-                $validator->errors()->add('time', 'Este horario nao esta mais disponivel.');
+                $validator->errors()->add('time', 'Este horário não está mais disponível.');
             }
         });
+    }
+
+    private function hasIdentifiedClient(Company $company): bool
+    {
+        $clientId = session('public_booking_client_'.$company->id);
+
+        if (! $clientId) {
+            return false;
+        }
+
+        return Client::query()
+            ->where('company_id', $company->id)
+            ->whereKey($clientId)
+            ->exists();
     }
 }

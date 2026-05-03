@@ -16,7 +16,7 @@ class AvailabilityService
 {
     private const SLOT_INTERVAL_MINUTES = 5;
 
-    private const MIN_LEAD_TIME_MINUTES = 30;
+    private const DEFAULT_MIN_LEAD_TIME_MINUTES = 10;
 
     private const DEFAULT_TIMEZONE = 'America/Bahia';
 
@@ -31,6 +31,7 @@ class AvailabilityService
         Service $service,
         CarbonInterface|string $date,
         bool $applyLeadTime = true,
+        ?int $ignoreAppointmentId = null,
     ): array {
         if ($user->company_id !== $company->id || $service->company_id !== $company->id) {
             return [];
@@ -42,6 +43,7 @@ class AvailabilityService
             (int) $service->duration_minutes,
             $date,
             $applyLeadTime,
+            $ignoreAppointmentId,
         );
     }
 
@@ -56,6 +58,7 @@ class AvailabilityService
         int $durationMinutes,
         CarbonInterface|string $date,
         bool $applyLeadTime = true,
+        ?int $ignoreAppointmentId = null,
     ): array {
         return collect($this->slotOptionsForDuration(
             $company,
@@ -63,6 +66,7 @@ class AvailabilityService
             $durationMinutes,
             $date,
             $applyLeadTime,
+            $ignoreAppointmentId,
         ))
             ->where('available', true)
             ->pluck('time')
@@ -81,6 +85,7 @@ class AvailabilityService
         int $durationMinutes,
         CarbonInterface|string $date,
         bool $applyLeadTime = true,
+        ?int $ignoreAppointmentId = null,
     ): array {
         if ($user->company_id !== $company->id || $durationMinutes < 1) {
             return [];
@@ -108,6 +113,7 @@ class AvailabilityService
             ->where('company_id', $company->id)
             ->where('user_id', $user->id)
             ->where('status', '!=', 'cancelled')
+            ->when($ignoreAppointmentId !== null, fn ($query) => $query->whereKeyNot($ignoreAppointmentId))
             ->where('start_time', '<', $conflictWindowEnd)
             ->where('end_time', '>', $overallStart)
             ->get(['start_time', 'end_time']);
@@ -118,7 +124,7 @@ class AvailabilityService
             $safeNow = CarbonImmutable::now($timezone);
 
             if ($applyLeadTime) {
-                $safeNow = $safeNow->addMinutes(self::MIN_LEAD_TIME_MINUTES);
+                $safeNow = $safeNow->addMinutes($this->minimumLeadTimeMinutes());
             }
 
             $safeEarliestTime = $this->roundUpToSlot($safeNow);
@@ -146,9 +152,14 @@ class AvailabilityService
                         && $slotEnd->gt($appointment->start_time)
                 );
 
-                $isBlockedByTime = $safeEarliestTime && $slotStart->lt($safeEarliestTime);
-                $available = ! $isBlockedByTime && ! $hasConflict;
-                $reason = $isBlockedByTime ? 'past' : ($hasConflict ? 'reserved' : null);
+                if ($safeEarliestTime && $slotStart->lt($safeEarliestTime)) {
+                    $slotStart = $slotStart->addMinutes(self::SLOT_INTERVAL_MINUTES);
+
+                    continue;
+                }
+
+                $available = ! $hasConflict;
+                $reason = $hasConflict ? 'reserved' : null;
 
                 $existing = $slotOptions[$slotTime] ?? null;
 
@@ -277,5 +288,10 @@ class AvailabilityService
     private function timezone(): string
     {
         return (string) config('app.timezone', self::DEFAULT_TIMEZONE);
+    }
+
+    private function minimumLeadTimeMinutes(): int
+    {
+        return max(0, (int) config('studioflow.booking_min_lead_time_minutes', self::DEFAULT_MIN_LEAD_TIME_MINUTES));
     }
 }

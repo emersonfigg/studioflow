@@ -8,11 +8,15 @@ use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Service;
 use App\Models\User;
+use App\Services\AvailabilityService;
+use App\Services\ServiceOrderService;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class AppointmentController extends Controller
 {
@@ -72,12 +76,20 @@ class AppointmentController extends Controller
     /**
      * Store a newly created appointment.
      */
-    public function store(StoreAppointmentRequest $request): RedirectResponse
+    public function store(StoreAppointmentRequest $request, AvailabilityService $availabilityService, ServiceOrderService $serviceOrders): RedirectResponse
     {
-        $appointment = Appointment::create([
-            ...$this->appointmentData($request),
-            'company_id' => $request->user()->company_id,
-        ]);
+        $data = $this->appointmentData($request);
+
+        $appointment = DB::transaction(function () use ($request, $availabilityService, $data): Appointment {
+            $this->ensureSlotStillAvailable($request, $availabilityService, $data);
+
+            return Appointment::create([
+                ...$data,
+                'company_id' => $request->user()->company_id,
+            ]);
+        });
+
+        $serviceOrders->ensureForAppointment($appointment);
 
         return redirect()->route('appointments.show', $appointment)->with('status', 'appointment-created');
     }
@@ -90,7 +102,7 @@ class AppointmentController extends Controller
         $this->ensureAppointmentBelongsToUserCompany($request, $appointment);
 
         return view('appointments.show', [
-            'appointment' => $appointment->load(['client', 'service', 'user', 'payment']),
+            'appointment' => $appointment->load(['client', 'service', 'services', 'user', 'payment', 'serviceOrder.items']),
         ]);
     }
 
@@ -111,11 +123,17 @@ class AppointmentController extends Controller
     /**
      * Update the specified appointment.
      */
-    public function update(UpdateAppointmentRequest $request, Appointment $appointment): RedirectResponse
+    public function update(UpdateAppointmentRequest $request, Appointment $appointment, AvailabilityService $availabilityService): RedirectResponse
     {
         $this->ensureAppointmentBelongsToUserCompany($request, $appointment);
 
-        $appointment->update($this->appointmentData($request));
+        $data = $this->appointmentData($request);
+
+        DB::transaction(function () use ($request, $appointment, $availabilityService, $data): void {
+            $this->ensureSlotStillAvailable($request, $availabilityService, $data, $appointment);
+
+            $appointment->update($data);
+        });
 
         return redirect()->route('appointments.show', $appointment)->with('status', 'appointment-updated');
     }
@@ -205,5 +223,45 @@ class AppointmentController extends Controller
         $data['end_time'] = $startTime->copy()->addMinutes($service->duration_minutes);
 
         return $data;
+    }
+
+    /**
+     * Re-check availability inside the write transaction while locking the professional row.
+     *
+     * @param  array<string, mixed>  $data
+     *
+     * @throws ValidationException
+     */
+    private function ensureSlotStillAvailable(
+        Request $request,
+        AvailabilityService $availabilityService,
+        array $data,
+        ?Appointment $ignoreAppointment = null,
+    ): void {
+        $professional = User::query()
+            ->where('company_id', $request->user()->company_id)
+            ->whereKey($data['user_id'])
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        $service = Service::query()
+            ->where('company_id', $request->user()->company_id)
+            ->findOrFail($data['service_id']);
+        $startTime = CarbonImmutable::parse((string) $data['start_time']);
+
+        $availableSlots = $availabilityService->availableSlots(
+            $request->user()->company,
+            $professional,
+            $service,
+            $startTime,
+            false,
+            $ignoreAppointment?->id,
+        );
+
+        if (! in_array($startTime->format('H:i'), $availableSlots, true)) {
+            throw ValidationException::withMessages([
+                'start_time' => 'Este horário não está disponível para a agenda real deste profissional.',
+            ]);
+        }
     }
 }

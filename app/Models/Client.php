@@ -22,6 +22,10 @@ class Client extends Model
         'company_id',
         'name',
         'phone',
+        'email',
+        'google_id',
+        'avatar',
+        'email_verified_at',
         'birthday',
         'notes',
         'last_visit_at',
@@ -36,6 +40,7 @@ class Client extends Model
     {
         return [
             'birthday' => 'date',
+            'email_verified_at' => 'datetime',
             'last_visit_at' => 'datetime',
         ];
     }

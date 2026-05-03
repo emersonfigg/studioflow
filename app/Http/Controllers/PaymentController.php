@@ -6,6 +6,7 @@ use App\Http\Requests\StorePaymentRequest;
 use App\Models\Appointment;
 use App\Models\Product;
 use App\Services\PaymentService;
+use App\Services\ServiceOrderService;
 use App\Support\BrazilianCurrency;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -16,15 +17,18 @@ class PaymentController extends Controller
     /**
      * Show the payment form for the appointment conclusion flow.
      */
-    public function create(Request $request, Appointment $appointment): View
+    public function create(Request $request, Appointment $appointment, ServiceOrderService $serviceOrders): View
     {
         $this->ensurePaymentAccess($request, $appointment);
 
         abort_if($appointment->payment()->exists(), 422, 'Este atendimento ja possui pagamento registrado.');
         abort_if($appointment->status === 'cancelled', 422, 'Nao e possivel registrar pagamento para atendimento cancelado.');
 
+        $order = $serviceOrders->ensureForAppointment($appointment);
+
         return view('payments.create', [
             'appointment' => $appointment->load(['client', 'service', 'services', 'user']),
+            'order' => $order,
             'products' => Product::query()
                 ->where('company_id', $request->user()->company_id)
                 ->where('active', true)
@@ -35,7 +39,7 @@ class PaymentController extends Controller
                 'pix' => 'Pix',
                 'card' => 'Cartão',
             ],
-            'defaultGrossAmount' => BrazilianCurrency::input($appointment->totalPriceAmount()),
+            'defaultGrossAmount' => BrazilianCurrency::input((float) $order->subtotal_services),
         ]);
     }
 

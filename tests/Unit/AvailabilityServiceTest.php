@@ -117,7 +117,9 @@ class AvailabilityServiceTest extends TestCase
         $this->assertNotContains('08:00', $slots);
         $this->assertNotContains('08:30', $slots);
         $this->assertNotContains('09:00', $slots);
-        $this->assertNotContains('09:30', $slots);
+        $this->assertNotContains('09:10', $slots);
+        $this->assertContains('09:15', $slots);
+        $this->assertContains('09:30', $slots);
         $this->assertContains('10:00', $slots);
     }
 
@@ -132,8 +134,24 @@ class AvailabilityServiceTest extends TestCase
         $slots = app(AvailabilityService::class)->availableSlotsForDuration($company, $user, 60, '2026-04-16');
 
         $this->assertNotContains('15:00', $slots);
-        $this->assertNotContains('15:30', $slots);
-        $this->assertContains('16:00', $slots);
+        $this->assertNotContains('15:15', $slots);
+        $this->assertContains('15:20', $slots);
+        $this->assertContains('15:30', $slots);
+    }
+
+    public function test_today_minimum_lead_time_can_be_configured(): void
+    {
+        config(['studioflow.booking_min_lead_time_minutes' => 20]);
+        CarbonImmutable::setTestNow('2026-04-16 15:10:00');
+
+        $company = Company::factory()->create();
+        $user = User::factory()->for($company)->create();
+        $this->createWorkingHour($company, $user, 4, '08:00', '18:00');
+
+        $slots = app(AvailabilityService::class)->availableSlotsForDuration($company, $user, 60, '2026-04-16');
+
+        $this->assertNotContains('15:25', $slots);
+        $this->assertContains('15:30', $slots);
     }
 
     public function test_today_with_public_margin_returns_only_safe_future_slots_inside_the_shift(): void
@@ -156,9 +174,9 @@ class AvailabilityServiceTest extends TestCase
         $slots = app(AvailabilityService::class)->availableSlotsForDuration($company, $user, 75, '2026-04-28');
 
         $this->assertNotContains('14:00', $slots);
-        $this->assertNotContains('14:25', $slots);
-        $this->assertContains('14:30', $slots);
-        $this->assertContains('14:35', $slots);
+        $this->assertNotContains('14:05', $slots);
+        $this->assertContains('14:10', $slots);
+        $this->assertContains('14:15', $slots);
         $this->assertContains('19:55', $slots);
         $this->assertContains('20:00', $slots);
     }

@@ -1,12 +1,23 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">SERVIÇOS</p>
-                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
-                    {{ $service->name }}
-                </h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Detalhes e performance do serviço</p>
+            <div class="flex items-center gap-4">
+                @if ($service->image_url)
+                    <img src="{{ $service->image_url }}" alt="Imagem de {{ $service->name }}" class="h-20 w-20 shrink-0 rounded-xl object-cover ring-1 ring-white/10">
+                @else
+                    <div class="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-dashed border-white/15 bg-[#132746] text-[#d4af37]">
+                        <svg class="h-9 w-9" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M7.5 6A2.5 2.5 0 005 8.5v7A2.5 2.5 0 007.5 18h9a2.5 2.5 0 002.5-2.5v-7A2.5 2.5 0 0016.5 6h-9zm0 1.5h9A1 1 0 0117.5 8.5v4.085l-2.23-2.23a1.75 1.75 0 00-2.475 0l-2.92 2.92-1.17-1.17a1.75 1.75 0 00-2.475 0L6.5 13.835V8.5a1 1 0 011-1zm8.75 2.25a1.25 1.25 0 11-2.5 0 1.25 1.25 0 012.5 0zM7.29 13.166a.25.25 0 01.354 0l1.7 1.7a.75.75 0 001.06 0l3.451-3.45a.25.25 0 01.354 0l2.291 2.29v1.794a1 1 0 01-1 1h-9a1 1 0 01-1-1v-.544l1.79-1.79z" />
+                        </svg>
+                    </div>
+                @endif
+                <div class="min-w-0">
+                    <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">SERVIÇOS</p>
+                    <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
+                        {{ $service->name }}
+                    </h2>
+                    <p class="mt-2 text-sm text-[#c7d2e3]">Detalhes e performance do serviço</p>
+                </div>
             </div>
 
             <a href="{{ route('services.index') }}" class="sf-button-ghost">
@@ -29,12 +40,6 @@
                         {{ session('status') }}
                 @endswitch
             </div>
-        @endif
-
-        @if ($service->image_url)
-            <section class="sf-card overflow-hidden">
-                <img src="{{ $service->image_url }}" alt="Imagem de {{ $service->name }}" class="h-56 w-full object-cover sm:h-72">
-            </section>
         @endif
 
         <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

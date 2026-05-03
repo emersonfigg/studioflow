@@ -28,6 +28,7 @@ class Payment extends Model
     protected $fillable = [
         'company_id',
         'appointment_id',
+        'service_order_id',
         'user_id',
         'client_id',
         'service_id',
@@ -75,6 +76,11 @@ class Payment extends Model
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class);
+    }
+
+    public function serviceOrder(): BelongsTo
+    {
+        return $this->belongsTo(ServiceOrder::class);
     }
 
     /**

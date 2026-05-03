@@ -63,6 +63,11 @@ class Product extends Model
         return $this->hasMany(ProductSaleItem::class);
     }
 
+    public function serviceOrderItems(): HasMany
+    {
+        return $this->hasMany(ServiceOrderItem::class);
+    }
+
     /**
      * Get the public URL for the product image.
      */

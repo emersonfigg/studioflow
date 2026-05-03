@@ -19,6 +19,7 @@
                     selectedServiceIds: @js($selectedServiceIds->map(fn ($id) => (string) $id)->all()),
                     catalog: @js($servicesCatalog),
                     selectedDate: @js($selectedDate),
+                    hasProfessional: @js((bool) $selectedUser),
                     selectedServices() {
                         return this.catalog.filter((service) => this.selectedServiceIds.includes(String(service.id)));
                     },
@@ -75,7 +76,7 @@
                                 <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">1</span>
                                 <div>
                                     <h2 class="text-lg font-semibold text-white">1. Escolha os serviços</h2>
-                                    <p class="text-sm text-[#c7d2e3]">Marque um ou mais serviços para montar o atendimento. Você também pode ver os horários antes e decidir o serviço depois.</p>
+                                    <p class="text-sm text-[#c7d2e3]">Marque um ou mais serviços para calcular duração, valor e horários reais.</p>
                                 </div>
                             </div>
 
@@ -135,7 +136,7 @@
                                 <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">2</span>
                                 <div>
                                     <h2 class="text-lg font-semibold text-white">2. Escolha o profissional</h2>
-                                    <p class="text-sm text-[#c7d2e3]">Selecione quem vai conduzir o atendimento.</p>
+                                    <p class="text-sm text-[#c7d2e3]">Selecione quem vai conduzir o atendimento. Hoje todos os profissionais ativos aparecem; a relação serviço/profissional ainda não existe.</p>
                                 </div>
                             </div>
 
@@ -234,80 +235,72 @@
 
                         <section class="sf-card p-5 sm:p-6">
                             <div class="flex items-center gap-3">
-                                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">4</span>
+                                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">3</span>
                                 <div>
-                                    <h2 class="text-lg font-semibold text-white">4. Horários disponiveis</h2>
+                                    <h2 class="text-lg font-semibold text-white">3. Horários disponíveis</h2>
                                     <p class="text-sm text-[#c7d2e3]">Mostrando apenas horários com o bloco total livre.</p>
                                 </div>
                             </div>
 
                             <div class="mt-5">
-                                @if ($usingEstimatedDuration)
-                                    <div class="mb-4 rounded-2xl border border-[#d4af37]/15 bg-[#d4af37]/10 px-4 py-4 text-sm text-[#f4e2a7]">
-                                        Horários estimados com duração padrão de 30 minutos. Escolha o serviço para confirmar.
-                                    </div>
-                                @endif
-
-                                @if (($slotOptions ?? []) !== [])
-                                    <div class="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-[#132746] px-4 py-3 text-xs text-[#c7d2e3]">
-                                        <span class="font-semibold uppercase tracking-[0.16em] text-white">Legenda</span>
-                                        <span class="inline-flex items-center gap-2">
-                                            <span class="h-2.5 w-2.5 rounded-full bg-[#d4af37]"></span>
-                                            Livre
-                                        </span>
-                                        <span class="inline-flex items-center gap-2">
-                                            <span class="h-2.5 w-2.5 rounded-full bg-[#8fa0ba]"></span>
-                                            Passou
-                                        </span>
-                                        <span class="inline-flex items-center gap-2">
-                                            <span class="h-2.5 w-2.5 rounded-full bg-[#d96b6b]"></span>
-                                            Reservado
-                                        </span>
-                                    </div>
-                                @endif
-
-                                @if (($slotOptions ?? []) !== [])
-                                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                                        @foreach ($slotOptions as $slotOption)
-                                            @php
-                                                $slot = $slotOption['time'];
-                                                $disabled = ! $slotOption['available'];
-                                                $reasonLabel = match ($slotOption['reason']) {
-                                                    'past' => 'Passou',
-                                                    'reserved' => 'Reservado',
-                                                    default => null,
-                                                };
-                                                $slotClasses = match ($slotOption['reason']) {
-                                                    'past' => 'border-[#8fa0ba]/25 bg-[#162845] text-[#d5deec]',
-                                                    'reserved' => 'border-[#d96b6b]/35 bg-[#3a1f2b] text-[#ffd9d9]',
-                                                    default => 'border-white/10 bg-[#132746] text-white hover:border-[#d4af37]/35 hover:bg-[#183157] peer-checked:border-[#d4af37]/50 peer-checked:bg-[#d4af37] peer-checked:text-[#132746]',
-                                                };
-                                            @endphp
-                                            <label class="cursor-pointer">
-                                                <input
-                                                    type="radio"
-                                                    name="time"
-                                                    value="{{ $slot }}"
-                                                    class="peer sr-only"
-                                                    @checked(old('time', $selectedTime) === $slot)
-                                                    @disabled($disabled)
-                                                    required
-                                                >
-                                                <span class="{{ $slotClasses }} flex min-h-[72px] flex-col items-center justify-center rounded-2xl border px-4 py-4 text-center transition {{ $disabled ? 'cursor-not-allowed opacity-85' : '' }}">
-                                                    <span class="text-base font-semibold">{{ $slot }}</span>
-                                                    @if ($reasonLabel)
-                                                        <span class="mt-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] {{ $slotOption['reason'] === 'reserved' ? 'bg-[#d96b6b]/18 text-[#ffd9d9]' : 'bg-white/10 text-[#d5deec]' }}">
-                                                            {{ $reasonLabel }}
-                                                        </span>
-                                                    @endif
-                                                </span>
-                                            </label>
-                                        @endforeach
+                                @if ($selectedServiceIds->isEmpty() || ! $selectedUser)
+                                    <div class="rounded-2xl border border-dashed border-white/10 bg-[#132746] px-4 py-5 text-sm text-[#c7d2e3]">
+                                        Escolha pelo menos um serviço e um profissional para carregar os horários disponíveis.
                                     </div>
                                 @else
-                                    <div class="rounded-2xl border border-dashed border-white/10 bg-[#132746] px-4 py-5 text-sm text-[#c7d2e3]">
-                                        Nenhum horário disponível para essa data. Tente outro dia.
-                                    </div>
+                                    @if (($slotOptions ?? []) !== [])
+                                        <div class="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-[#132746] px-4 py-3 text-xs text-[#c7d2e3]">
+                                            <span class="font-semibold uppercase tracking-[0.16em] text-white">Legenda</span>
+                                            <span class="inline-flex items-center gap-2">
+                                                <span class="h-2.5 w-2.5 rounded-full bg-[#d4af37]"></span>
+                                                Livre
+                                            </span>
+                                            <span class="inline-flex items-center gap-2">
+                                                <span class="h-2.5 w-2.5 rounded-full bg-[#d96b6b]"></span>
+                                                Reservado
+                                            </span>
+                                        </div>
+
+                                        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                            @foreach ($slotOptions as $slotOption)
+                                                @php
+                                                    $slot = $slotOption['time'];
+                                                    $disabled = ! $slotOption['available'];
+                                                    $reasonLabel = match ($slotOption['reason']) {
+                                                        'reserved' => 'Reservado',
+                                                        default => null,
+                                                    };
+                                                    $slotClasses = match ($slotOption['reason']) {
+                                                        'reserved' => 'border-[#d96b6b]/35 bg-[#3a1f2b] text-[#ffd9d9]',
+                                                        default => 'border-white/10 bg-[#132746] text-white hover:border-[#d4af37]/35 hover:bg-[#183157] peer-checked:border-[#d4af37]/50 peer-checked:bg-[#d4af37] peer-checked:text-[#132746]',
+                                                    };
+                                                @endphp
+                                                <label class="cursor-pointer">
+                                                    <input
+                                                        type="radio"
+                                                        name="time"
+                                                        value="{{ $slot }}"
+                                                        class="peer sr-only"
+                                                        @checked(old('time', $selectedTime) === $slot)
+                                                        @disabled($disabled)
+                                                        required
+                                                    >
+                                                    <span class="{{ $slotClasses }} flex min-h-[72px] flex-col items-center justify-center rounded-2xl border px-4 py-4 text-center transition {{ $disabled ? 'cursor-not-allowed opacity-85' : '' }}">
+                                                        <span class="text-base font-semibold">{{ $slot }}</span>
+                                                        @if ($reasonLabel)
+                                                            <span class="mt-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] {{ $slotOption['reason'] === 'reserved' ? 'bg-[#d96b6b]/18 text-[#ffd9d9]' : 'bg-white/10 text-[#d5deec]' }}">
+                                                                {{ $reasonLabel }}
+                                                            </span>
+                                                        @endif
+                                                    </span>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <div class="rounded-2xl border border-dashed border-white/10 bg-[#132746] px-4 py-5 text-sm text-[#c7d2e3]">
+                                            Nenhum horário disponível para essa data. Tente outro dia.
+                                        </div>
+                                    @endif
                                 @endif
                             </div>
 
@@ -316,14 +309,31 @@
 
                         <section class="sf-card p-5 sm:p-6">
                             <div class="flex items-center gap-3">
-                                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">5</span>
+                                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">4</span>
                                 <div>
-                                    <h2 class="text-lg font-semibold text-white">5. Seus dados</h2>
-                                    <p class="text-sm text-[#c7d2e3]">Informe seus dados para confirmar o agendamento completo.</p>
+                                    <h2 class="text-lg font-semibold text-white">4. Identificação do cliente</h2>
+                                    <p class="text-sm text-[#c7d2e3]">Entre com Google ou preencha seus dados manualmente para confirmar.</p>
                                 </div>
                             </div>
 
                             <div class="mt-5 space-y-4">
+                                @if ($identifiedClient)
+                                    <div class="rounded-2xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-4">
+                                        <p class="text-sm font-semibold text-white">Cliente identificado</p>
+                                        <p class="mt-1 text-sm text-[#c7d2e3]">{{ $identifiedClient->name }}{{ $identifiedClient->email ? ' · '.$identifiedClient->email : '' }}</p>
+                                    </div>
+                                @else
+                                    <a href="{{ route('public-bookings.google.redirect', ['company' => $company, ...request()->query()]) }}" class="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white px-4 py-4 text-sm font-semibold text-[#132746] transition hover:bg-[#f3f6fb]">
+                                        <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#4285f4] text-xs font-bold text-white">G</span>
+                                        Continuar com Google
+                                    </a>
+                                    <div class="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-[#c7d2e3]">
+                                        <span class="h-px flex-1 bg-white/10"></span>
+                                        ou preencher manualmente
+                                        <span class="h-px flex-1 bg-white/10"></span>
+                                    </div>
+                                @endif
+                                @unless ($identifiedClient)
                                 <div>
                                     <label for="client_name" class="text-sm font-medium text-white">Nome</label>
                                     <input
@@ -349,6 +359,20 @@
                                     >
                                     <x-input-error class="mt-2" :messages="$errors->get('client_phone')" />
                                 </div>
+
+                                <div>
+                                    <label for="client_email" class="text-sm font-medium text-white">E-mail</label>
+                                    <input
+                                        id="client_email"
+                                        name="client_email"
+                                        type="email"
+                                        value="{{ old('client_email') }}"
+                                        class="sf-input mt-2 block w-full"
+                                        required
+                                    >
+                                    <x-input-error class="mt-2" :messages="$errors->get('client_email')" />
+                                </div>
+                                @endunless
 
                                 <div>
                                     <label for="notes" class="text-sm font-medium text-white">Observações</label>
@@ -418,13 +442,13 @@
                         <button
                             type="submit"
                             class="sf-button-primary w-full min-h-[60px] text-base disabled:cursor-not-allowed disabled:opacity-60"
-                            x-bind:disabled="!hasSelectedServices()"
+                            x-bind:disabled="!hasSelectedServices() || !hasProfessional"
                         >
-                            Confirmar agendamento
+                            5. Confirmar agendamento
                         </button>
-                        <template x-if="!hasSelectedServices()">
+                        <template x-if="!hasSelectedServices() || !hasProfessional">
                             <p class="mt-3 text-center text-sm text-[#c7d2e3]">
-                                Escolha pelo menos um serviço antes de confirmar.
+                                Escolha pelo menos um serviço e um profissional antes de confirmar.
                             </p>
                         </template>
                     </form>

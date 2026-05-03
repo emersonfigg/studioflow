@@ -115,7 +115,7 @@ class TeamMemberTest extends TestCase
                     ['start_time' => '13:00', 'end_time' => '18:00'],
                 ],
                 'commission_type' => 'percent',
-                'commission_value' => '45.50',
+                'commission_value' => '45,50',
             ])
             ->assertRedirect(route('team.index', absolute: false));
 

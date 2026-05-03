@@ -6,14 +6,31 @@ use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\Payment;
+use App\Models\ProfessionalDayOverride;
+use App\Models\ProfessionalWorkingHour;
 use App\Models\Service;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class AppointmentTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        CarbonImmutable::setTestNow('2026-04-15 10:00:00');
+    }
+
+    protected function tearDown(): void
+    {
+        CarbonImmutable::setTestNow();
+
+        parent::tearDown();
+    }
 
     public function test_appointment_end_time_is_calculated_from_service_duration_when_created(): void
     {
@@ -23,6 +40,7 @@ class AppointmentTest extends TestCase
         $service = Service::factory()->for($company)->create([
             'duration_minutes' => 75,
         ]);
+        $this->createWorkingHour($company, $admin, 4, '08:00', '18:00');
 
         $response = $this
             ->actingAs($admin)
@@ -51,6 +69,8 @@ class AppointmentTest extends TestCase
         $service = Service::factory()->for($company)->create([
             'duration_minutes' => 45,
         ]);
+        $this->createWorkingHour($company, $admin, 4, '08:00', '18:00');
+        $this->createWorkingHour($company, $admin, 4, '08:00', '18:00');
         $appointment = Appointment::factory()->for($company)->create([
             'client_id' => $client->id,
             'user_id' => $admin->id,
@@ -85,6 +105,7 @@ class AppointmentTest extends TestCase
         $service = Service::factory()->for($company)->create([
             'duration_minutes' => 60,
         ]);
+        $this->createWorkingHour($company, $admin, 4, '08:00', '18:00');
 
         Appointment::factory()->for($company)->create([
             'client_id' => $client->id,
@@ -108,8 +129,95 @@ class AppointmentTest extends TestCase
             ])
             ->assertRedirect('/appointments/create')
             ->assertSessionHasErrors([
-                'start_time' => 'Este profissional já possui um agendamento nesse horário.',
+                'start_time' => 'Este horário não está disponível para a agenda real deste profissional.',
             ]);
+    }
+
+    public function test_internal_appointment_must_respect_professional_fixed_schedule(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 60,
+        ]);
+        $this->createWorkingHour($company, $admin, 4, '08:00', '11:00');
+
+        $this
+            ->actingAs($admin)
+            ->post('/appointments', [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'service_id' => $service->id,
+                'start_time' => '2026-04-16 09:00:00',
+                'status' => 'scheduled',
+                'source' => 'internal',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this
+            ->actingAs($admin)
+            ->from('/appointments/create')
+            ->post('/appointments', [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'service_id' => $service->id,
+                'start_time' => '2026-04-16 14:00:00',
+                'status' => 'scheduled',
+                'source' => 'internal',
+            ])
+            ->assertRedirect('/appointments/create')
+            ->assertSessionHasErrors(['start_time']);
+    }
+
+    public function test_internal_appointment_respects_dynamic_schedule_day_overrides(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create([
+            'schedule_type' => 'dynamic',
+        ]);
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 45,
+        ]);
+        $this->createWorkingHour($company, $admin, 4, '08:00', '18:00');
+
+        $this
+            ->actingAs($admin)
+            ->from('/appointments/create')
+            ->post('/appointments', [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'service_id' => $service->id,
+                'start_time' => '2026-04-16 09:00:00',
+                'status' => 'scheduled',
+                'source' => 'internal',
+            ])
+            ->assertRedirect('/appointments/create')
+            ->assertSessionHasErrors(['start_time']);
+
+        $override = ProfessionalDayOverride::create([
+            'company_id' => $company->id,
+            'user_id' => $admin->id,
+            'date' => '2026-04-16',
+            'is_day_off' => false,
+        ]);
+        $override->intervals()->create([
+            'start_time' => '09:00',
+            'end_time' => '12:00',
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->post('/appointments', [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'service_id' => $service->id,
+                'start_time' => '2026-04-16 09:00:00',
+                'status' => 'scheduled',
+                'source' => 'internal',
+            ])
+            ->assertSessionHasNoErrors();
     }
 
     public function test_adjacent_cancelled_other_user_and_other_company_appointments_do_not_conflict(): void
@@ -127,6 +235,7 @@ class AppointmentTest extends TestCase
             'duration_minutes' => 60,
         ]);
         $otherCompanyUser = User::factory()->for($otherCompany)->create();
+        $this->createWorkingHour($company, $admin, 4, '08:00', '18:00');
 
         Appointment::factory()->for($company)->create([
             'client_id' => $client->id,
@@ -191,6 +300,7 @@ class AppointmentTest extends TestCase
         $service = Service::factory()->for($company)->create([
             'duration_minutes' => 60,
         ]);
+        $this->createWorkingHour($company, $admin, 4, '08:00', '18:00');
         $appointment = Appointment::factory()->for($company)->create([
             'client_id' => $client->id,
             'user_id' => $admin->id,
@@ -233,7 +343,7 @@ class AppointmentTest extends TestCase
             ])
             ->assertRedirect("/appointments/{$appointment->id}/edit")
             ->assertSessionHasErrors([
-                'start_time' => 'Este profissional já possui um agendamento nesse horário.',
+                'start_time' => 'Este horário não está disponível para a agenda real deste profissional.',
             ]);
     }
 
@@ -323,5 +433,17 @@ class AppointmentTest extends TestCase
             ->assertSee('Pagamento registrado')
             ->assertDontSee('Registrar pagamento')
             ->assertDontSee('Concluir atendimento');
+    }
+
+    private function createWorkingHour(Company $company, User $user, int $weekday, string $startTime, string $endTime): void
+    {
+        ProfessionalWorkingHour::create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'weekday' => $weekday,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'active' => true,
+        ]);
     }
 }

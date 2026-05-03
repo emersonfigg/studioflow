@@ -26,6 +26,7 @@ class ProductSale extends Model
         'company_id',
         'client_id',
         'appointment_id',
+        'service_order_id',
         'user_id',
         'gross_amount',
         'payment_method',
@@ -68,6 +69,11 @@ class ProductSale extends Model
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class);
+    }
+
+    public function serviceOrder(): BelongsTo
+    {
+        return $this->belongsTo(ServiceOrder::class);
     }
 
     /**

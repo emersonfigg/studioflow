@@ -5,11 +5,11 @@ namespace App\Models;
 use Database\Factories\AppointmentFactory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Appointment extends Model
 {
@@ -122,6 +122,11 @@ class Appointment extends Model
         return $this->hasOne(Payment::class);
     }
 
+    public function serviceOrder(): HasOne
+    {
+        return $this->hasOne(ServiceOrder::class);
+    }
+
     /**
      * Get product sales registered during this appointment conclusion.
      *
@@ -181,7 +186,7 @@ class Appointment extends Model
             ? $this->service
             : $this->service()->first();
 
-        return $primaryService ? new Collection([$primaryService]) : new Collection();
+        return $primaryService ? new Collection([$primaryService]) : new Collection;
     }
 
     /**

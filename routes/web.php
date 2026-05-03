@@ -2,21 +2,22 @@
 
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\ClientController;
-use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CommissionSettlementController;
+use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\PaymentController;
-use App\Http\Controllers\ProfessionalAvailabilityController;
-use App\Http\Controllers\PublicBookingController;
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductSaleController;
+use App\Http\Controllers\ProfessionalAvailabilityController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublicBookingController;
 use App\Http\Controllers\ServiceController;
-use App\Http\Controllers\SupportModeController;
+use App\Http\Controllers\ServiceOrderController;
 use App\Http\Controllers\SuperAdminCompanyController;
 use App\Http\Controllers\SuperAdminDashboardController;
 use App\Http\Controllers\SuperAdminUserController;
+use App\Http\Controllers\SupportModeController;
 use App\Http\Controllers\TeamMemberController;
 use Illuminate\Support\Facades\Route;
 
@@ -26,6 +27,10 @@ Route::get('/', function () {
 
 Route::get('/agendar/{company}', [PublicBookingController::class, 'create'])
     ->name('public-bookings.create');
+Route::get('/agendar/{company}/google', [PublicBookingController::class, 'redirectToGoogle'])
+    ->name('public-bookings.google.redirect');
+Route::get('/agendar/google/callback', [PublicBookingController::class, 'handleGoogleCallback'])
+    ->name('public-bookings.google.callback');
 Route::post('/agendar/{company}', [PublicBookingController::class, 'store'])
     ->name('public-bookings.store');
 Route::get('/agendar/{company}/sucesso/{appointment}', [PublicBookingController::class, 'success'])
@@ -39,6 +44,16 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
     Route::resource('appointments', AppointmentController::class);
     Route::patch('appointments/{appointment}/status', [AppointmentController::class, 'updateStatus'])
         ->name('appointments.status');
+    Route::get('appointments/{appointment}/order', [ServiceOrderController::class, 'show'])
+        ->name('appointments.orders.show');
+    Route::post('service-orders/{order}/services', [ServiceOrderController::class, 'addService'])
+        ->name('service-orders.services.store');
+    Route::post('service-orders/{order}/products', [ServiceOrderController::class, 'addProduct'])
+        ->name('service-orders.products.store');
+    Route::delete('service-orders/{order}/items/{item}', [ServiceOrderController::class, 'removeItem'])
+        ->name('service-orders.items.destroy');
+    Route::post('service-orders/{order}/close', [ServiceOrderController::class, 'close'])
+        ->name('service-orders.close');
     Route::get('appointments/{appointment}/complete', [PaymentController::class, 'create'])
         ->name('appointments.payments.create');
     Route::post('appointments/{appointment}/complete', [PaymentController::class, 'store'])

@@ -36,6 +36,12 @@
                     Novo agendamento
                 </a>
 
+                @if (! $appointment->payment && $appointment->status !== 'cancelled' && (auth()->user()->isAdmin() || auth()->id() === $appointment->user_id))
+                    <a href="{{ route('appointments.orders.show', $appointment) }}" class="sf-button-secondary">
+                        Abrir comanda
+                    </a>
+                @endif
+
                 @if ($appointment->status === 'completed' && ! $appointment->payment && (auth()->user()->isAdmin() || auth()->id() === $appointment->user_id))
                     <a href="{{ route('appointments.payments.create', $appointment) }}" class="sf-button-secondary">
                         Registrar pagamento
@@ -110,7 +116,14 @@
         </div>
 
         <aside class="sf-card p-6">
-            <h3 class="text-base font-semibold text-white">Pagamento</h3>
+            <h3 class="text-base font-semibold text-white">Comanda e pagamento</h3>
+            @if ($appointment->serviceOrder)
+                <div class="mt-4 rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Total da comanda</p>
+                    <p class="mt-2 text-2xl font-semibold text-white">R$ {{ number_format((float) $appointment->serviceOrder->total, 2, ',', '.') }}</p>
+                    <p class="mt-1 text-sm text-[#c7d2e3]">{{ $appointment->serviceOrder->status === 'paid' ? 'Comanda paga' : 'Comanda aberta' }}</p>
+                </div>
+            @endif
             @if ($appointment->payment)
                 <dl class="mt-5 space-y-4">
                     <div>

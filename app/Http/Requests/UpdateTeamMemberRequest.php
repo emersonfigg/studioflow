@@ -56,7 +56,7 @@ class UpdateTeamMemberRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->input('commission_type') === 'fixed') {
+        if (in_array($this->input('commission_type'), ['percent', 'fixed'], true)) {
             $this->normalizeCurrencyFields(['commission_value']);
         }
     }

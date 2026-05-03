@@ -4,10 +4,12 @@ namespace App\Http\Requests;
 
 use App\Models\Appointment;
 use App\Models\Service;
-use Carbon\Carbon;
+use App\Models\User;
+use App\Services\AvailabilityService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreAppointmentRequest extends FormRequest
 {
@@ -61,26 +63,27 @@ class StoreAppointmentRequest extends FormRequest
             $service = Service::query()
                 ->where('company_id', $this->user()->company_id)
                 ->find($this->integer('service_id'));
+            $professional = User::query()
+                ->where('company_id', $this->user()->company_id)
+                ->find($this->integer('user_id'));
 
-            if (! $service) {
+            if (! $service || ! $professional) {
                 return;
             }
 
-            $startTime = Carbon::parse($this->input('start_time'));
-            $endTime = $startTime->copy()->addMinutes($service->duration_minutes);
+            $startTime = CarbonImmutable::parse((string) $this->input('start_time'));
+            $availableSlots = app(AvailabilityService::class)->availableSlots(
+                $this->user()->company,
+                $professional,
+                $service,
+                $startTime,
+                false,
+            );
 
-            $hasConflict = Appointment::query()
-                ->where('company_id', $this->user()->company_id)
-                ->where('user_id', $this->integer('user_id'))
-                ->where('status', '!=', 'cancelled')
-                ->where('start_time', '<', $endTime)
-                ->where('end_time', '>', $startTime)
-                ->exists();
-
-            if ($hasConflict) {
+            if (! in_array($startTime->format('H:i'), $availableSlots, true)) {
                 $validator->errors()->add(
                     'start_time',
-                    'Este profissional já possui um agendamento nesse horário.'
+                    'Este horário não está disponível para a agenda real deste profissional.'
                 );
             }
         });

@@ -4,10 +4,12 @@ namespace App\Http\Requests;
 
 use App\Models\Appointment;
 use App\Models\Service;
-use Carbon\Carbon;
+use App\Models\User;
+use App\Services\AvailabilityService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateAppointmentRequest extends FormRequest
 {
@@ -58,31 +60,33 @@ class UpdateAppointmentRequest extends FormRequest
                 return;
             }
 
+            /** @var Appointment|null $appointment */
+            $appointment = $this->route('appointment');
             $service = Service::query()
                 ->where('company_id', $this->user()->company_id)
                 ->find($this->integer('service_id'));
+            $professional = User::query()
+                ->where('company_id', $this->user()->company_id)
+                ->find($this->integer('user_id'));
 
-            if (! $service) {
+            if (! $appointment || ! $service || ! $professional) {
                 return;
             }
 
-            $appointment = $this->route('appointment');
-            $startTime = Carbon::parse($this->input('start_time'));
-            $endTime = $startTime->copy()->addMinutes($service->duration_minutes);
+            $startTime = CarbonImmutable::parse((string) $this->input('start_time'));
+            $availableSlots = app(AvailabilityService::class)->availableSlots(
+                $this->user()->company,
+                $professional,
+                $service,
+                $startTime,
+                false,
+                $appointment->id,
+            );
 
-            $hasConflict = Appointment::query()
-                ->where('company_id', $this->user()->company_id)
-                ->where('user_id', $this->integer('user_id'))
-                ->where('status', '!=', 'cancelled')
-                ->whereKeyNot($appointment->id)
-                ->where('start_time', '<', $endTime)
-                ->where('end_time', '>', $startTime)
-                ->exists();
-
-            if ($hasConflict) {
+            if (! in_array($startTime->format('H:i'), $availableSlots, true)) {
                 $validator->errors()->add(
                     'start_time',
-                    'Este profissional já possui um agendamento nesse horário.'
+                    'Este horário não está disponível para a agenda real deste profissional.'
                 );
             }
         });
