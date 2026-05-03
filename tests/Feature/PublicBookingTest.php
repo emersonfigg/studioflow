@@ -91,6 +91,9 @@ class PublicBookingTest extends TestCase
             ->assertSee('Ana')
             ->assertSee('Profissional')
             ->assertSee('/storage/professionals/ana-photo.jpg')
+            ->assertSee('Pr&oacute;ximo hor&aacute;rio dispon&iacute;vel', false)
+            ->assertSee('Hor&aacute;rio do atendimento', false)
+            ->assertSee('Selecione um hor&aacute;rio', false)
             ->assertSee('09:00')
             ->assertSee('Confirmar agendamento')
             ->assertDontSee('Servico Externo');
@@ -857,8 +860,8 @@ class PublicBookingTest extends TestCase
             'filters_submitted' => 1,
         ]))
             ->assertOk()
-            ->assertSee('14:00')
-            ->assertSee('Reservado')
+            ->assertDontSee('14:00')
+            ->assertDontSee('Reservado')
             ->assertSee('15:30');
     }
 
@@ -1067,7 +1070,7 @@ class PublicBookingTest extends TestCase
             ->assertSee('20:00');
     }
 
-    public function test_public_booking_shows_reserved_slots_visually_disabled(): void
+    public function test_public_booking_hides_reserved_slots_from_compact_selector(): void
     {
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-29 10:00:00', 'America/Bahia'));
 
@@ -1106,8 +1109,8 @@ class PublicBookingTest extends TestCase
             'filters_submitted' => 1,
         ]))
             ->assertOk()
-            ->assertSee('15:00')
-            ->assertSee('Reservado')
+            ->assertDontSee('15:00')
+            ->assertDontSee('Reservado')
             ->assertSee('14:30')
             ->assertSee('20:00');
     }
@@ -1149,9 +1152,10 @@ class PublicBookingTest extends TestCase
             'filters_submitted' => 1,
         ]))
             ->assertOk()
-            ->assertSee('08:00')
-            ->assertSee('Reservado')
-            ->assertSee('18:00');
+            ->assertSee('Nenhum horário disponível para esta data.')
+            ->assertDontSee('08:00')
+            ->assertDontSee('Reservado')
+            ->assertDontSee('18:00');
     }
 
     public function test_public_booking_cannot_use_foreign_company_service_or_unavailable_slot(): void

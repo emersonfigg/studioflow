@@ -1,15 +1,16 @@
 @php
     $selectedServiceIdStrings = $selectedServiceIds->map(fn ($id) => (string) $id)->all();
     $today = \Carbon\CarbonImmutable::today()->toDateString();
-    $slotPeriods = collect($slotOptions ?? [])->groupBy(function (array $slot): string {
+    $slotPeriods = collect($slotOptions ?? [])->where('available', true)->groupBy(function (array $slot): string {
         $hour = (int) substr($slot['time'], 0, 2);
 
         return match (true) {
-            $hour < 12 => 'Manhã',
+            $hour < 12 => 'Manha',
             $hour < 18 => 'Tarde',
             default => 'Noite',
         };
     });
+    $nextAvailableSlot = collect($slotOptions ?? [])->firstWhere('available', true)['time'] ?? null;
     $bookingQuery = [
         'service_ids' => $selectedServiceIds->all(),
         'user_id' => $selectedUserId,
@@ -47,6 +48,10 @@
                     catalog: @js($servicesCatalog),
                     categories: ['Todos', 'Serviços'],
                     selectedCategory: 'Todos',
+                    visibleSlotLimits: {'ManhÃ£': 8, Tarde: 8, Noite: 8},
+                    showMoreSlots(period) {
+                        this.visibleSlotLimits[period] = (this.visibleSlotLimits[period] || 8) + 8;
+                    },
                     selectedServices() {
                         return this.catalog.filter((service) => this.selectedServiceIds.includes(String(service.id)));
                     },
@@ -335,43 +340,51 @@
                                         Nenhum horário disponível para esta data.
                                     </div>
                                 @else
-                                    <div class="space-y-5">
-                                        @foreach (['Manhã', 'Tarde', 'Noite'] as $period)
-                                            @continue(! $slotPeriods->has($period))
-                                            <div>
-                                                <div class="mb-3 flex items-center justify-between gap-3">
-                                                    <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-[#d4af37]">{{ $period }}</h3>
-                                                    <span class="text-xs text-[#c7d2e3]">{{ $slotPeriods->get($period)->where('available', true)->count() }} livres</span>
+                                    <div class="space-y-4">
+                                        @if ($nextAvailableSlot)
+                                            <div class="flex flex-col gap-3 rounded-[20px] border border-[#d4af37]/35 bg-[#d4af37]/12 p-4 sm:flex-row sm:items-center sm:justify-between">
+                                                <div>
+                                                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Pr&oacute;ximo hor&aacute;rio dispon&iacute;vel</p>
+                                                    <p class="mt-1 text-2xl font-semibold text-white">{{ $nextAvailableSlot }}</p>
                                                 </div>
-                                                <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
-                                                    @foreach ($slotPeriods->get($period) as $slotOption)
-                                                        @php
-                                                            $slot = $slotOption['time'];
-                                                            $disabled = ! $slotOption['available'];
-                                                            $reasonLabel = $slotOption['reason'] === 'reserved' ? 'Reservado' : null;
-                                                        @endphp
-                                                        <label class="cursor-pointer">
-                                                            <input
-                                                                type="radio"
-                                                                name="time"
-                                                                value="{{ $slot }}"
-                                                                class="peer sr-only"
-                                                                x-model="selectedTime"
-                                                                @checked(old('time', $selectedTime) === $slot)
-                                                                @disabled($disabled)
-                                                                required
-                                                            >
-                                                            <span class="{{ $disabled ? 'border-[#d96b6b]/35 bg-[#3a1f2b] text-[#ffd9d9] opacity-85' : 'border-white/10 bg-[#132746] text-white hover:border-[#d4af37]/35 hover:bg-[#183157] peer-checked:border-[#d4af37]/60 peer-checked:bg-[#d4af37] peer-checked:text-[#132746]' }} flex min-h-[58px] flex-col items-center justify-center rounded-2xl border px-2 py-3 text-center transition">
-                                                                <span class="text-sm font-semibold">{{ $slot }}</span>
-                                                                @if ($reasonLabel)
-                                                                    <span class="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em]">{{ $reasonLabel }}</span>
-                                                                @endif
-                                                            </span>
-                                                        </label>
-                                                    @endforeach
-                                                </div>
+                                                <button
+                                                    type="button"
+                                                    class="rounded-2xl bg-[#d4af37] px-4 py-3 text-sm font-semibold text-[#132746]"
+                                                    @click="selectedTime = @js($nextAvailableSlot)"
+                                                >
+                                                    Usar este hor&aacute;rio
+                                                </button>
                                             </div>
-                                        @endforeach
+                                        @endif
+
+                                        <div class="rounded-[20px] border border-white/10 bg-[#132746]/70 p-4">
+                                            <label for="booking-time" class="text-sm font-medium text-white">Hor&aacute;rio do atendimento</label>
+                                            <select id="booking-time" name="time" x-model="selectedTime" class="sf-select mt-2 block w-full" required>
+                                                <option value="">Selecione um hor&aacute;rio</option>
+                                                @foreach (['Manha', 'Tarde', 'Noite'] as $period)
+                                                    @continue(! $slotPeriods->has($period))
+                                                    <optgroup label="{!! $period === 'Manha' ? 'Manh&atilde;' : e($period) !!}">
+                                                        @foreach ($slotPeriods->get($period) as $slotOption)
+                                                            <option value="{{ $slotOption['time'] }}" @selected(old('time', $selectedTime) === $slotOption['time'])>
+                                                                {{ $slotOption['time'] }}
+                                                            </option>
+                                                        @endforeach
+                                                    </optgroup>
+                                                @endforeach
+                                            </select>
+
+                                            <div class="mt-3 flex flex-wrap gap-2">
+                                                @foreach (collect($slotOptions ?? [])->where('available', true)->take(6) as $slotOption)
+                                                    <button
+                                                        type="button"
+                                                        class="rounded-full border border-white/10 bg-[#102744] px-3 py-2 text-xs font-semibold text-white transition hover:border-[#d4af37]/35 hover:bg-[#183157]"
+                                                        @click="selectedTime = @js($slotOption['time'])"
+                                                    >
+                                                        {{ $slotOption['time'] }}
+                                                    </button>
+                                                @endforeach
+                                            </div>
+                                        </div>
                                     </div>
                                 @endif
                             </div>
