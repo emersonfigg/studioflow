@@ -331,7 +331,9 @@ class PublicBookingController extends Controller
             return [null, []];
         }
 
-        $requestedUser = $users->firstWhere('id', (int) $request->input('user_id'));
+        $requestedUser = $request->filled('user_id')
+            ? $users->firstWhere('id', (int) $request->input('user_id'))
+            : ($users->count() === 1 ? $users->first() : null);
 
         if (! $requestedUser || collect($request->input('service_ids', []))->filter()->isEmpty()) {
             return [$requestedUser, []];

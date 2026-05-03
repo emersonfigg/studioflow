@@ -41,6 +41,8 @@ Route::get('/dashboard', DashboardController::class)
     ->name('dashboard');
 
 Route::middleware(['auth', 'support_mode', 'active_company'])->group(function () {
+    Route::get('appointments/client-history/{client}', [AppointmentController::class, 'clientHistory'])
+        ->name('appointments.client-history');
     Route::resource('appointments', AppointmentController::class);
     Route::patch('appointments/{appointment}/status', [AppointmentController::class, 'updateStatus'])
         ->name('appointments.status');

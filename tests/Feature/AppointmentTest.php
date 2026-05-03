@@ -6,9 +6,11 @@ use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\Payment;
+use App\Models\Product;
 use App\Models\ProfessionalDayOverride;
 use App\Models\ProfessionalWorkingHour;
 use App\Models\Service;
+use App\Models\ServiceOrderItem;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -95,6 +97,124 @@ class AppointmentTest extends TestCase
 
         $this->assertSame('2026-04-16 14:00:00', $appointment->start_time->format('Y-m-d H:i:s'));
         $this->assertSame('2026-04-16 14:45:00', $appointment->end_time->format('Y-m-d H:i:s'));
+    }
+
+    public function test_internal_appointment_can_create_initial_order_with_multiple_services_and_products(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+        $serviceA = Service::factory()->for($company)->create([
+            'name' => 'Corte',
+            'duration_minutes' => 45,
+            'price' => 50,
+        ]);
+        $serviceB = Service::factory()->for($company)->create([
+            'name' => 'Barba',
+            'duration_minutes' => 30,
+            'price' => 35,
+        ]);
+        $product = Product::factory()->for($company)->create([
+            'name' => 'Pomada',
+            'price' => 25,
+            'stock_quantity' => 3,
+        ]);
+        $this->createWorkingHour($company, $admin, 4, '08:00', '18:00');
+
+        $response = $this
+            ->actingAs($admin)
+            ->post('/appointments', [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'service_ids' => [$serviceA->id, $serviceB->id],
+                'product_items' => [
+                    ['product_id' => $product->id, 'quantity' => 2],
+                ],
+                'start_time' => '2026-04-16 10:00:00',
+                'status' => 'scheduled',
+                'source' => 'internal',
+            ]);
+
+        $appointment = Appointment::where('client_id', $client->id)->firstOrFail();
+        $order = $appointment->serviceOrder()->with('items')->firstOrFail();
+
+        $response->assertRedirect(route('appointments.show', $appointment, absolute: false));
+        $this->assertSame('2026-04-16 11:15:00', $appointment->end_time->format('Y-m-d H:i:s'));
+        $this->assertSame($serviceA->id, $appointment->service_id);
+        $this->assertSame(2, $appointment->services()->count());
+        $this->assertSame('85.00', $order->subtotal_services);
+        $this->assertSame('50.00', $order->subtotal_products);
+        $this->assertSame('135.00', $order->total);
+        $this->assertSame(2, $order->items->where('type', ServiceOrderItem::TYPE_SERVICE)->count());
+        $this->assertSame(1, $order->items->where('type', ServiceOrderItem::TYPE_PRODUCT)->count());
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'stock_quantity' => 3,
+        ]);
+    }
+
+    public function test_internal_appointment_products_do_not_change_schedule_duration(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 30,
+        ]);
+        $product = Product::factory()->for($company)->create([
+            'stock_quantity' => 10,
+        ]);
+        $this->createWorkingHour($company, $admin, 4, '08:00', '18:00');
+
+        $this
+            ->actingAs($admin)
+            ->post('/appointments', [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'service_id' => $service->id,
+                'product_items' => [
+                    ['product_id' => $product->id, 'quantity' => 5],
+                ],
+                'start_time' => '2026-04-16 10:00:00',
+                'status' => 'scheduled',
+                'source' => 'internal',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $appointment = Appointment::where('client_id', $client->id)->firstOrFail();
+
+        $this->assertSame('2026-04-16 10:30:00', $appointment->end_time->format('Y-m-d H:i:s'));
+    }
+
+    public function test_internal_appointment_blocks_product_without_stock(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 30,
+        ]);
+        $product = Product::factory()->for($company)->create([
+            'stock_quantity' => 1,
+        ]);
+        $this->createWorkingHour($company, $admin, 4, '08:00', '18:00');
+
+        $this
+            ->actingAs($admin)
+            ->from('/appointments/create')
+            ->post('/appointments', [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'service_id' => $service->id,
+                'product_items' => [
+                    ['product_id' => $product->id, 'quantity' => 2],
+                ],
+                'start_time' => '2026-04-16 10:00:00',
+                'status' => 'scheduled',
+                'source' => 'internal',
+            ])
+            ->assertRedirect('/appointments/create')
+            ->assertSessionHasErrors(['product_items']);
     }
 
     public function test_appointment_cannot_overlap_same_user_in_same_company(): void
@@ -386,6 +506,96 @@ class AppointmentTest extends TestCase
             ->assertOk()
             ->assertSee('Novo cliente')
             ->assertSee('Cadastre o cliente sem sair do novo agendamento.');
+    }
+
+    public function test_new_appointment_page_shows_operational_order_controls(): void
+    {
+        $company = Company::factory()->create();
+        $staff = User::factory()->for($company)->create();
+        Client::factory()->for($company)->create();
+        Service::factory()->for($company)->create();
+        Product::factory()->for($company)->create();
+
+        $this
+            ->actingAs($staff)
+            ->get('/appointments/create')
+            ->assertOk()
+            ->assertSee('Serviços do atendimento')
+            ->assertSee('Adicionar serviço')
+            ->assertSee('Extras opcionais da comanda')
+            ->assertSee('Resumo da comanda')
+            ->assertSee('Histórico do cliente');
+    }
+
+    public function test_client_history_endpoint_respects_company_scope(): void
+    {
+        $company = Company::factory()->create();
+        $otherCompany = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create([
+            'notes' => 'Prefere corte baixo.',
+        ]);
+        $otherClient = Client::factory()->for($otherCompany)->create();
+        $service = Service::factory()->for($company)->create([
+            'name' => 'Corte social',
+        ]);
+        $otherService = Service::factory()->for($otherCompany)->create([
+            'name' => 'Servico externo',
+        ]);
+
+        $appointment = Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $admin->id,
+            'service_id' => $service->id,
+            'status' => 'completed',
+            'start_time' => '2026-04-10 09:00:00',
+            'end_time' => '2026-04-10 09:30:00',
+        ]);
+        $appointment->services()->attach($service->id, [
+            'price_snapshot' => 40,
+            'duration_snapshot' => 30,
+            'order' => 1,
+        ]);
+        Payment::factory()->create([
+            'company_id' => $company->id,
+            'appointment_id' => $appointment->id,
+            'client_id' => $client->id,
+            'user_id' => $admin->id,
+            'service_id' => $service->id,
+            'gross_amount' => 40,
+        ]);
+        Appointment::factory()->for($otherCompany)->create([
+            'client_id' => $otherClient->id,
+            'service_id' => $otherService->id,
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->getJson(route('appointments.client-history', $client, absolute: false))
+            ->assertOk()
+            ->assertJsonPath('has_history', true)
+            ->assertJsonPath('notes', 'Prefere corte baixo.')
+            ->assertJsonFragment(['Corte social'])
+            ->assertJsonMissing(['Servico externo']);
+
+        $this
+            ->actingAs($admin)
+            ->getJson(route('appointments.client-history', $otherClient, absolute: false))
+            ->assertNotFound();
+    }
+
+    public function test_client_history_endpoint_returns_empty_state_for_new_client(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+
+        $this
+            ->actingAs($admin)
+            ->getJson(route('appointments.client-history', $client, absolute: false))
+            ->assertOk()
+            ->assertJsonPath('has_history', false)
+            ->assertJsonPath('empty_message', 'Este cliente ainda não possui histórico de atendimento.');
     }
 
     public function test_completed_appointment_show_page_displays_payment_actions_correctly(): void

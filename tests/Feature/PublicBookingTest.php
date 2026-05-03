@@ -127,7 +127,7 @@ class PublicBookingTest extends TestCase
             'filters_submitted' => 1,
         ]))
             ->assertOk()
-            ->assertSee('Escolha pelo menos um serviço e um profissional para carregar os horários disponíveis.')
+            ->assertSee('Para carregar os horários da agenda real, selecione pelo menos um serviço e um profissional.')
             ->assertSee('Escolha depois')
             ->assertSee('30 min estimado')
             ->assertSee('A definir')
@@ -185,6 +185,32 @@ class PublicBookingTest extends TestCase
             ->assertSee('value="'.$professional->id.'"', false)
             ->assertDontSee('11:00')
             ->assertDontSee('value="'.$admin->id.'" checked', false);
+    }
+
+    public function test_public_booking_auto_selects_single_active_professional_but_waits_for_service(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-27 10:00:00', 'America/Bahia'));
+
+        $company = Company::factory()->create();
+        Service::factory()->for($company)->create([
+            'duration_minutes' => 45,
+            'active' => true,
+        ]);
+        $professional = User::factory()->for($company)->create([
+            'name' => 'Joao teste',
+            'active' => true,
+        ]);
+        $this->createWorkingHour($company, $professional, 2, '08:00', '18:00');
+
+        $this->get($this->bookingUrl($company, [
+            'date' => '2026-04-28',
+            'filters_submitted' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('value="'.$professional->id.'"', false)
+            ->assertSee('checked', false)
+            ->assertSee('O profissional Joao teste já está selecionado; falta escolher o serviço.')
+            ->assertDontSee('08:00');
     }
 
     public function test_public_booking_shows_service_image_base_when_image_is_missing(): void
@@ -717,7 +743,7 @@ class PublicBookingTest extends TestCase
             'filters_submitted' => 1,
         ]))
             ->assertOk()
-            ->assertSee('Escolha pelo menos um serviço e um profissional para carregar os horários disponíveis.')
+            ->assertSee('Para carregar os horários da agenda real, selecione pelo menos um serviço e um profissional.')
             ->assertDontSee('14:00');
 
         $this->get($this->bookingUrl($company, [

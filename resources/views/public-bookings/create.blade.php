@@ -245,7 +245,10 @@
                             <div class="mt-5">
                                 @if ($selectedServiceIds->isEmpty() || ! $selectedUser)
                                     <div class="rounded-2xl border border-dashed border-white/10 bg-[#132746] px-4 py-5 text-sm text-[#c7d2e3]">
-                                        Escolha pelo menos um serviço e um profissional para carregar os horários disponíveis.
+                                        Para carregar os horários da agenda real, selecione pelo menos um serviço e um profissional.
+                                        @if ($selectedUser && $selectedServiceIds->isEmpty())
+                                            O profissional {{ $selectedUser->name }} já está selecionado; falta escolher o serviço.
+                                        @endif
                                     </div>
                                 @else
                                     @if (($slotOptions ?? []) !== [])

@@ -6,6 +6,7 @@ use App\Http\Requests\StoreAppointmentRequest;
 use App\Http\Requests\UpdateAppointmentRequest;
 use App\Models\Appointment;
 use App\Models\Client;
+use App\Models\Product;
 use App\Models\Service;
 use App\Models\User;
 use App\Services\AvailabilityService;
@@ -13,6 +14,7 @@ use App\Services\ServiceOrderService;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -79,17 +81,33 @@ class AppointmentController extends Controller
     public function store(StoreAppointmentRequest $request, AvailabilityService $availabilityService, ServiceOrderService $serviceOrders): RedirectResponse
     {
         $data = $this->appointmentData($request);
+        $serviceIds = $data['service_ids'];
+        $productItems = $data['product_items'];
+        unset($data['service_ids'], $data['product_items']);
 
-        $appointment = DB::transaction(function () use ($request, $availabilityService, $data): Appointment {
+        $appointment = DB::transaction(function () use ($request, $availabilityService, $serviceOrders, $data, $serviceIds, $productItems): Appointment {
             $this->ensureSlotStillAvailable($request, $availabilityService, $data);
 
-            return Appointment::create([
+            $appointment = Appointment::create([
                 ...$data,
                 'company_id' => $request->user()->company_id,
             ]);
-        });
 
-        $serviceOrders->ensureForAppointment($appointment);
+            $this->syncAppointmentServices($appointment, $serviceIds);
+
+            $order = $serviceOrders->ensureForAppointment($appointment->load(['service', 'services']));
+
+            foreach ($productItems as $item) {
+                $product = Product::query()
+                    ->where('company_id', $request->user()->company_id)
+                    ->whereKey($item['product_id'])
+                    ->firstOrFail();
+
+                $serviceOrders->addProduct($order, $product, (int) $item['quantity']);
+            }
+
+            return $appointment;
+        });
 
         return redirect()->route('appointments.show', $appointment)->with('status', 'appointment-created');
     }
@@ -172,6 +190,53 @@ class AppointmentController extends Controller
         return back()->with('status', 'appointment-status-updated');
     }
 
+    public function clientHistory(Request $request, Client $client): JsonResponse
+    {
+        abort_unless($client->company_id === $request->user()->company_id, 404);
+
+        $appointments = $client->appointments()
+            ->with(['services', 'service', 'user'])
+            ->where('company_id', $request->user()->company_id)
+            ->latest('start_time')
+            ->limit(5)
+            ->get();
+        $productSales = $client->productSales()
+            ->with('items.product')
+            ->where('company_id', $request->user()->company_id)
+            ->latest('sold_at')
+            ->limit(5)
+            ->get();
+        $serviceSpent = (float) $client->payments()
+            ->where('company_id', $request->user()->company_id)
+            ->sum('gross_amount');
+        $productSpent = (float) $client->productSales()
+            ->where('company_id', $request->user()->company_id)
+            ->sum('gross_amount');
+        $totalSpent = $serviceSpent + $productSpent;
+        $interactionCount = max(1, $appointments->where('status', 'completed')->count() + $productSales->count());
+        $lastAppointment = $appointments->first();
+
+        return response()->json([
+            'has_history' => $appointments->isNotEmpty() || $productSales->isNotEmpty(),
+            'last_visit' => $lastAppointment?->start_time?->format('d/m/Y H:i'),
+            'last_services' => $appointments
+                ->flatMap(fn (Appointment $appointment) => $appointment->bookedServices()->pluck('name'))
+                ->unique()
+                ->take(5)
+                ->values(),
+            'last_products' => $productSales
+                ->flatMap(fn ($sale) => $sale->items->pluck('product.name')->filter())
+                ->unique()
+                ->take(5)
+                ->values(),
+            'total_spent' => round($totalSpent, 2),
+            'average_ticket' => round($totalSpent / $interactionCount, 2),
+            'notes' => $client->notes,
+            'repeat_service_ids' => $lastAppointment?->bookedServices()->pluck('id')->values() ?? [],
+            'empty_message' => 'Este cliente ainda não possui histórico de atendimento.',
+        ]);
+    }
+
     /**
      * Get select options for appointment forms.
      *
@@ -188,10 +253,17 @@ class AppointmentController extends Controller
                 ->get(),
             'services' => Service::query()
                 ->where('company_id', $companyId)
+                ->where('active', true)
+                ->orderBy('name')
+                ->get(),
+            'products' => Product::query()
+                ->where('company_id', $companyId)
+                ->where('active', true)
                 ->orderBy('name')
                 ->get(),
             'users' => User::query()
                 ->where('company_id', $companyId)
+                ->where('active', true)
                 ->orderBy('name')
                 ->get(),
             'statuses' => Appointment::STATUSES,
@@ -215,12 +287,23 @@ class AppointmentController extends Controller
     private function appointmentData(StoreAppointmentRequest|UpdateAppointmentRequest $request): array
     {
         $data = $request->validated();
-        $service = Service::query()
+        $serviceIds = collect($data['service_ids'] ?? [$data['service_id']])
+            ->filter()
+            ->map(fn (mixed $serviceId): int => (int) $serviceId)
+            ->unique()
+            ->values();
+        $services = Service::query()
             ->where('company_id', $request->user()->company_id)
-            ->findOrFail($data['service_id']);
+            ->whereIn('id', $serviceIds)
+            ->get()
+            ->keyBy('id');
+        $orderedServices = $serviceIds->map(fn (int $serviceId) => $services->get($serviceId))->filter()->values();
 
         $startTime = Carbon::parse($data['start_time']);
-        $data['end_time'] = $startTime->copy()->addMinutes($service->duration_minutes);
+        $data['service_id'] = $orderedServices->first()?->id ?? $data['service_id'];
+        $data['service_ids'] = $orderedServices->pluck('id')->all();
+        $data['product_items'] = $data['product_items'] ?? [];
+        $data['end_time'] = $startTime->copy()->addMinutes((int) $orderedServices->sum('duration_minutes'));
 
         return $data;
     }
@@ -244,15 +327,16 @@ class AppointmentController extends Controller
             ->lockForUpdate()
             ->firstOrFail();
 
-        $service = Service::query()
+        $durationMinutes = (int) Service::query()
             ->where('company_id', $request->user()->company_id)
-            ->findOrFail($data['service_id']);
+            ->whereIn('id', $data['service_ids'] ?? [$data['service_id']])
+            ->sum('duration_minutes');
         $startTime = CarbonImmutable::parse((string) $data['start_time']);
 
-        $availableSlots = $availabilityService->availableSlots(
+        $availableSlots = $availabilityService->availableSlotsForDuration(
             $request->user()->company,
             $professional,
-            $service,
+            $durationMinutes,
             $startTime,
             false,
             $ignoreAppointment?->id,
@@ -263,5 +347,35 @@ class AppointmentController extends Controller
                 'start_time' => 'Este horário não está disponível para a agenda real deste profissional.',
             ]);
         }
+    }
+
+    /**
+     * @param  array<int, int>  $serviceIds
+     */
+    private function syncAppointmentServices(Appointment $appointment, array $serviceIds): void
+    {
+        $services = Service::query()
+            ->where('company_id', $appointment->company_id)
+            ->whereIn('id', $serviceIds)
+            ->get()
+            ->keyBy('id');
+
+        $syncData = [];
+
+        foreach (array_values($serviceIds) as $index => $serviceId) {
+            $service = $services->get($serviceId);
+
+            if (! $service) {
+                continue;
+            }
+
+            $syncData[$service->id] = [
+                'price_snapshot' => $service->price,
+                'duration_snapshot' => $service->duration_minutes,
+                'order' => $index + 1,
+            ];
+        }
+
+        $appointment->services()->sync($syncData);
     }
 }
