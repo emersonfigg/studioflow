@@ -32,6 +32,7 @@ class AvailabilityService
         CarbonInterface|string $date,
         bool $applyLeadTime = true,
         ?int $ignoreAppointmentId = null,
+        ?int $clientId = null,
     ): array {
         if ($user->company_id !== $company->id || $service->company_id !== $company->id) {
             return [];
@@ -44,6 +45,7 @@ class AvailabilityService
             $date,
             $applyLeadTime,
             $ignoreAppointmentId,
+            $clientId,
         );
     }
 
@@ -59,6 +61,7 @@ class AvailabilityService
         CarbonInterface|string $date,
         bool $applyLeadTime = true,
         ?int $ignoreAppointmentId = null,
+        ?int $clientId = null,
     ): array {
         return collect($this->slotOptionsForDuration(
             $company,
@@ -67,6 +70,7 @@ class AvailabilityService
             $date,
             $applyLeadTime,
             $ignoreAppointmentId,
+            $clientId,
         ))
             ->where('available', true)
             ->pluck('time')
@@ -86,6 +90,7 @@ class AvailabilityService
         CarbonInterface|string $date,
         bool $applyLeadTime = true,
         ?int $ignoreAppointmentId = null,
+        ?int $clientId = null,
     ): array {
         if ($user->company_id !== $company->id || $durationMinutes < 1) {
             return [];
@@ -117,6 +122,16 @@ class AvailabilityService
             ->where('start_time', '<', $conflictWindowEnd)
             ->where('end_time', '>', $overallStart)
             ->get(['start_time', 'end_time']);
+
+        $clientAppointments = $clientId
+            ? Appointment::clientScheduleConflictQuery(
+                $company->id,
+                $clientId,
+                $overallStart,
+                $conflictWindowEnd,
+                $ignoreAppointmentId
+            )->get(['id', 'start_time', 'end_time'])
+            : collect();
 
         $safeEarliestTime = null;
 
@@ -152,7 +167,18 @@ class AvailabilityService
                         && $slotEnd->gt($appointment->start_time)
                 );
 
+                $hasClientConflict = $clientAppointments->contains(
+                    fn (Appointment $appointment): bool => $slotStart->lt($appointment->end_time)
+                        && $slotEnd->gt($appointment->start_time)
+                );
+
                 if ($safeEarliestTime && $slotStart->lt($safeEarliestTime)) {
+                    $slotStart = $slotStart->addMinutes(self::SLOT_INTERVAL_MINUTES);
+
+                    continue;
+                }
+
+                if ($hasClientConflict) {
                     $slotStart = $slotStart->addMinutes(self::SLOT_INTERVAL_MINUTES);
 
                     continue;

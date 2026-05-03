@@ -274,6 +274,109 @@ class AvailabilityServiceTest extends TestCase
         $this->assertContains('15:00', $slots);
     }
 
+    public function test_client_busy_slots_are_hidden_when_client_id_is_known(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-15 10:00:00');
+
+        $company = Company::factory()->create();
+        $user = User::factory()->for($company)->create();
+        $otherUser = User::factory()->for($company)->create();
+        $this->createWorkingHour($company, $user, 4, '08:00', '18:00');
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 30,
+        ]);
+
+        Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $otherUser->id,
+            'service_id' => $service->id,
+            'start_time' => '2026-04-16 09:00:00',
+            'end_time' => '2026-04-16 10:00:00',
+            'status' => 'scheduled',
+        ]);
+
+        $slots = app(AvailabilityService::class)->availableSlotsForDuration(
+            $company,
+            $user,
+            30,
+            '2026-04-16',
+            true,
+            null,
+            $client->id
+        );
+
+        $this->assertContains('08:30', $slots);
+        $this->assertNotContains('09:00', $slots);
+        $this->assertNotContains('09:30', $slots);
+        $this->assertContains('10:00', $slots);
+    }
+
+    public function test_different_client_busy_slots_do_not_hide_availability(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-15 10:00:00');
+
+        $company = Company::factory()->create();
+        $user = User::factory()->for($company)->create();
+        $otherUser = User::factory()->for($company)->create();
+        $this->createWorkingHour($company, $user, 4, '08:00', '18:00');
+        $client = Client::factory()->for($company)->create();
+        $otherClient = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 30,
+        ]);
+
+        Appointment::factory()->for($company)->create([
+            'client_id' => $otherClient->id,
+            'user_id' => $otherUser->id,
+            'service_id' => $service->id,
+            'start_time' => '2026-04-16 09:00:00',
+            'end_time' => '2026-04-16 10:00:00',
+            'status' => 'scheduled',
+        ]);
+
+        $slots = app(AvailabilityService::class)->availableSlotsForDuration(
+            $company,
+            $user,
+            30,
+            '2026-04-16',
+            true,
+            null,
+            $client->id
+        );
+
+        $this->assertContains('09:00', $slots);
+        $this->assertContains('09:30', $slots);
+    }
+
+    public function test_without_client_id_client_busy_slots_keep_previous_availability_behavior(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-15 10:00:00');
+
+        $company = Company::factory()->create();
+        $user = User::factory()->for($company)->create();
+        $otherUser = User::factory()->for($company)->create();
+        $this->createWorkingHour($company, $user, 4, '08:00', '18:00');
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create([
+            'duration_minutes' => 30,
+        ]);
+
+        Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $otherUser->id,
+            'service_id' => $service->id,
+            'start_time' => '2026-04-16 09:00:00',
+            'end_time' => '2026-04-16 10:00:00',
+            'status' => 'scheduled',
+        ]);
+
+        $slots = app(AvailabilityService::class)->availableSlotsForDuration($company, $user, 30, '2026-04-16');
+
+        $this->assertContains('09:00', $slots);
+        $this->assertContains('09:30', $slots);
+    }
+
     public function test_mismatched_company_user_or_service_returns_no_slots(): void
     {
         $company = Company::factory()->create();

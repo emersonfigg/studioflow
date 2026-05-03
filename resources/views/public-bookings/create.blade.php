@@ -1,3 +1,23 @@
+@php
+    $selectedServiceIdStrings = $selectedServiceIds->map(fn ($id) => (string) $id)->all();
+    $today = \Carbon\CarbonImmutable::today()->toDateString();
+    $slotPeriods = collect($slotOptions ?? [])->groupBy(function (array $slot): string {
+        $hour = (int) substr($slot['time'], 0, 2);
+
+        return match (true) {
+            $hour < 12 => 'Manhã',
+            $hour < 18 => 'Tarde',
+            default => 'Noite',
+        };
+    });
+    $bookingQuery = [
+        'service_ids' => $selectedServiceIds->all(),
+        'user_id' => $selectedUserId,
+        'date' => $selectedDate,
+        'filters_submitted' => 1,
+    ];
+@endphp
+
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
@@ -13,15 +33,32 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="min-h-screen bg-[#1b335b] font-sans text-white antialiased">
-        <main class="mx-auto min-h-screen max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+        <main class="mx-auto min-h-screen max-w-7xl px-3 pb-28 pt-4 sm:px-6 lg:px-8 lg:pb-10">
             <div
                 x-data="{
-                    selectedServiceIds: @js($selectedServiceIds->map(fn ($id) => (string) $id)->all()),
-                    catalog: @js($servicesCatalog),
+                    selectedServiceIds: @js($selectedServiceIdStrings),
+                    serviceSearch: '',
                     selectedDate: @js($selectedDate),
+                    selectedTime: @js(old('time', $selectedTime)),
                     hasProfessional: @js((bool) $selectedUser),
+                    clientName: @js(old('client_name', $identifiedClient?->name)),
+                    clientPhone: @js(old('client_phone', $identifiedClient?->phone)),
+                    clientEmail: @js(old('client_email', $identifiedClient?->email)),
+                    catalog: @js($servicesCatalog),
+                    categories: ['Todos', 'Serviços'],
+                    selectedCategory: 'Todos',
                     selectedServices() {
                         return this.catalog.filter((service) => this.selectedServiceIds.includes(String(service.id)));
+                    },
+                    filteredServices() {
+                        const term = this.serviceSearch.trim().toLowerCase();
+
+                        return this.catalog.filter((service) => {
+                            const matchesCategory = this.selectedCategory === 'Todos' || service.category === this.selectedCategory;
+                            const searchable = `${service.name} ${service.description || ''}`.toLowerCase();
+
+                            return matchesCategory && (!term || searchable.includes(term));
+                        });
                     },
                     totalDuration() {
                         return this.selectedServices().reduce((total, service) => total + Number(service.duration), 0);
@@ -32,60 +69,104 @@
                     hasSelectedServices() {
                         return this.selectedServiceIds.length > 0;
                     },
+                    readyForSlots() {
+                        return this.hasSelectedServices() && this.hasProfessional && this.selectedDate;
+                    },
+                    readyToConfirm() {
+                        return this.readyForSlots() && this.selectedTime && (this.clientName || @js((bool) $identifiedClient));
+                    },
                     formattedTotalPrice() {
                         return this.totalPrice().toFixed(2).replace('.', ',');
                     }
                 }"
-                class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]"
+                class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]"
             >
-                <section class="space-y-6">
-                    <header class="sf-card overflow-hidden px-5 py-6 sm:px-6">
-                        <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-                            <div class="flex items-start gap-4">
-                                @if ($company->logo_url)
-                                    <img src="{{ $company->logo_url }}" alt="Logo de {{ $company->name }}" class="h-16 w-16 rounded-3xl object-cover ring-1 ring-white/10">
-                                @else
-                                    <div class="flex h-16 w-16 items-center justify-center rounded-3xl bg-[#d4af37]/12 text-[#d4af37] ring-1 ring-white/10">
-                                        <x-application-logo class="h-8 w-8" />
-                                    </div>
-                                @endif
-                                <div>
-                                <div class="inline-flex items-center rounded-full border border-[#d4af37]/20 bg-[#d4af37]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#d4af37]">
+                <section class="space-y-5">
+                    <header class="overflow-hidden rounded-[24px] border border-white/10 bg-[#203d6b] px-4 py-5 shadow-[0_18px_48px_rgba(8,20,42,0.24)] sm:px-6">
+                        <div class="flex items-start gap-4">
+                            @if ($company->logo_url)
+                                <img src="{{ $company->logo_url }}" alt="Logo de {{ $company->name }}" class="h-14 w-14 rounded-2xl object-cover ring-1 ring-white/10">
+                            @else
+                                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-[#d4af37] ring-1 ring-white/10">
+                                    <x-application-logo class="h-7 w-7" />
+                                </div>
+                            @endif
+                            <div class="min-w-0 flex-1">
+                                <div class="inline-flex items-center rounded-full border border-[#d4af37]/20 bg-[#d4af37]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#d4af37]">
                                     Agendamento StudioFlow
                                 </div>
-                                <h1 class="mt-4 text-3xl font-semibold tracking-tight text-white">
-                                    Monte seu agendamento completo
+                                <h1 class="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                                    {{ $company->name }}
                                 </h1>
-                                <p class="mt-2 max-w-2xl text-sm leading-7 text-[#c7d2e3]">
-                                    {{ $company->description ?: 'Escolha um ou mais serviços, selecione o profissional e reserve um bloco de horário livre de uma vez só.' }}
+                                <p class="mt-2 max-w-2xl text-sm leading-6 text-[#c7d2e3]">
+                                    {{ $company->description ?: 'Escolha serviços, profissional, data e horário em poucos passos.' }}
                                 </p>
+                                @if ($company->instagram)
+                                    <p class="mt-2 text-sm font-semibold text-[#d4af37]">{{ $company->instagram }}</p>
+                                @endif
                             </div>
-                            </div>
-                            <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">{{ $company->name }}</p>
-                                <p class="mt-2 text-sm text-[#c7d2e3]">{{ $company->instagram ?: 'Agendamento online completo' }}</p>
-                            </div>
+                        </div>
+
+                        <div class="mt-5 grid grid-cols-3 gap-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-[#c7d2e3] sm:grid-cols-6">
+                            @foreach (['Serviços', 'Profissional', 'Data', 'Horário', 'Dados', 'Confirmar'] as $index => $step)
+                                <div class="rounded-2xl border {{ $index === 0 ? 'border-[#d4af37]/50 bg-[#d4af37]/12 text-white' : 'border-white/10 bg-[#132746]' }} px-2 py-3">
+                                    <span class="block text-[#d4af37]">{{ $index + 1 }}</span>
+                                    <span class="mt-1 block">{{ $step }}</span>
+                                </div>
+                            @endforeach
                         </div>
                     </header>
 
-                    <form id="booking-filters" method="GET" action="{{ route('public-bookings.create', $company) }}" class="space-y-6">
+                    <form id="booking-filters" method="GET" action="{{ route('public-bookings.create', $company) }}" class="space-y-5">
                         <input type="hidden" name="filters_submitted" value="1">
 
-                        <section class="sf-card p-5 sm:p-6">
-                            <div class="flex items-center gap-3">
-                                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">1</span>
+                        <section class="sf-card p-4 sm:p-5">
+                            <div class="flex items-start justify-between gap-4">
                                 <div>
-                                    <h2 class="text-lg font-semibold text-white">1. Escolha os serviços</h2>
-                                    <p class="text-sm text-[#c7d2e3]">Marque um ou mais serviços para calcular duração, valor e horários reais.</p>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">1. Serviços</p>
+                                    <h2 class="mt-1 text-xl font-semibold text-white">Escolha um ou mais serviços</h2>
+                                    <p class="mt-1 text-sm text-[#c7d2e3]">A busca filtra sem recarregar a página.</p>
+                                </div>
+                                <span class="hidden rounded-full bg-[#132746] px-3 py-1 text-xs font-semibold text-[#c7d2e3] sm:inline-flex" x-text="`${selectedServiceIds.length} selecionado(s)`"></span>
+                            </div>
+
+                            <div x-show="hasSelectedServices()" class="mt-4 rounded-2xl border border-[#d4af37]/25 bg-[#d4af37]/10 p-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Selecionados</p>
+                                <div class="mt-3 flex gap-2 overflow-x-auto pb-1">
+                                    <template x-for="service in selectedServices()" :key="service.id">
+                                        <div class="flex min-w-[190px] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#132746] px-3 py-3">
+                                            <div class="min-w-0">
+                                                <p class="truncate text-sm font-semibold text-white" x-text="service.name"></p>
+                                                <p class="mt-1 text-xs text-[#c7d2e3]" x-text="`${service.duration} min · R$ ${service.price}`"></p>
+                                            </div>
+                                            <button type="button" class="text-xs font-semibold text-[#d4af37]" @click="selectedServiceIds = selectedServiceIds.filter((id) => id !== String(service.id)); $nextTick(() => document.getElementById('booking-filters').submit())">Remover</button>
+                                        </div>
+                                    </template>
                                 </div>
                             </div>
 
-                            <div class="mt-5 grid gap-3">
+                            <div class="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
+                                <div>
+                                    <label for="service-search" class="sr-only">Buscar serviço</label>
+                                    <input id="service-search" x-model="serviceSearch" type="search" class="sf-input block w-full" placeholder="Buscar por nome do serviço">
+                                </div>
+                                <select x-model="selectedCategory" class="sf-select block w-full" aria-label="Categoria">
+                                    <template x-for="category in categories" :key="category">
+                                        <option x-text="category"></option>
+                                    </template>
+                                </select>
+                            </div>
+
+                            <div class="mt-4 max-h-[520px] space-y-3 overflow-y-auto pr-1">
                                 @foreach ($services as $service)
                                     @php
                                         $checked = $selectedServiceIds->contains($service->id);
                                     @endphp
-                                    <label class="block cursor-pointer">
+                                    <label
+                                        class="block cursor-pointer"
+                                        x-show="filteredServices().some((item) => Number(item.id) === {{ $service->id }})"
+                                        x-cloak
+                                    >
                                         <input
                                             type="checkbox"
                                             name="service_ids[]"
@@ -95,52 +176,55 @@
                                             onchange="this.form.submit()"
                                             @checked($checked)
                                         >
-                                        <span class="{{ $checked ? 'border-[#d4af37]/50 bg-[#d4af37]/12 shadow-[0_12px_28px_rgba(212,175,55,0.12)]' : 'border-white/10 bg-[#132746] hover:border-[#d4af37]/35 hover:bg-[#183157]' }} flex w-full items-start gap-4 rounded-[22px] border p-4 text-left transition peer-checked:border-[#d4af37]/50 peer-checked:bg-[#d4af37]/12">
-                                            <span class="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[#1b335b]">
+                                        <span class="{{ $checked ? 'border-[#d4af37]/50 bg-[#d4af37]/12' : 'border-white/10 bg-[#132746] hover:border-[#d4af37]/35 hover:bg-[#183157]' }} flex w-full items-center gap-3 rounded-[20px] border p-3 transition peer-checked:border-[#d4af37]/50 peer-checked:bg-[#d4af37]/12">
+                                            <span class="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[#1b335b]">
                                                 @if ($service->image_url)
                                                     <img src="{{ $service->image_url }}" alt="Imagem de {{ $service->name }}" class="h-full w-full object-cover">
                                                 @else
-                                                    <span class="flex h-full w-full items-center justify-center bg-[#132746]">
-                                                        <span class="flex h-10 w-10 items-center justify-center rounded-full bg-[#d4af37]/12 text-[#d4af37]">
-                                                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2 1.586-1.586a2 2 0 012.828 0L20 14m-9-5h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                            </svg>
-                                                        </span>
+                                                    <span class="flex h-full w-full items-center justify-center text-[#d4af37]">
+                                                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2 1.586-1.586a2 2 0 012.828 0L20 14m-9-5h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                        </svg>
                                                     </span>
                                                 @endif
                                             </span>
-
                                             <span class="min-w-0 flex-1">
-                                                <span class="flex items-start justify-between gap-4">
-                                                    <span>
-                                                        <span class="block text-base font-semibold text-white">{{ $service->name }}</span>
-                                                        <span class="mt-2 block text-sm text-[#c7d2e3]">{{ $service->duration_minutes }} min</span>
-                                                        <span class="mt-1 block text-sm font-semibold text-[#d4af37]">R$ {{ number_format((float) $service->price, 2, ',', '.') }}</span>
-                                                    </span>
-                                                    <span class="{{ $checked ? 'border-[#d4af37] bg-[#d4af37] text-[#132746]' : 'border-white/15 bg-[#1b335b] text-[#c7d2e3]' }} mt-1 inline-flex min-h-[32px] items-center justify-center rounded-full border px-3 text-xs font-semibold transition">
-                                                        {{ $checked ? 'Selecionado' : 'Selecionar' }}
-                                                    </span>
+                                                <span class="block truncate text-sm font-semibold text-white">{{ $service->name }}</span>
+                                                <span class="mt-1 flex flex-wrap gap-2 text-xs text-[#c7d2e3]">
+                                                    <span>{{ $service->duration_minutes }} min</span>
+                                                    <span class="font-semibold text-[#d4af37]">R$ {{ number_format((float) $service->price, 2, ',', '.') }}</span>
                                                 </span>
+                                            </span>
+                                            <span class="{{ $checked ? 'bg-[#d4af37] text-[#132746]' : 'bg-[#1b335b] text-[#c7d2e3]' }} rounded-full px-3 py-2 text-xs font-semibold">
+                                                {{ $checked ? 'Remover' : 'Selecionar' }}
                                             </span>
                                         </span>
                                     </label>
                                 @endforeach
+
+                                <div x-show="filteredServices().length === 0" x-cloak class="rounded-2xl border border-dashed border-white/10 bg-[#132746] px-4 py-6 text-center text-sm text-[#c7d2e3]">
+                                    Nenhum serviço encontrado.
+                                </div>
                             </div>
 
                             <x-input-error class="mt-3" :messages="$errors->get('service_ids')" />
                             <x-input-error class="mt-2" :messages="$errors->get('service_ids.*')" />
                         </section>
 
-                        <section class="sf-card p-5 sm:p-6">
-                            <div class="flex items-center gap-3">
-                                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">2</span>
+                        <section class="sf-card p-4 sm:p-5" :class="!hasSelectedServices() ? 'opacity-70' : ''">
+                            <div class="flex items-start gap-3">
+                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">2</span>
                                 <div>
-                                    <h2 class="text-lg font-semibold text-white">2. Escolha o profissional</h2>
-                                    <p class="text-sm text-[#c7d2e3]">Selecione quem vai conduzir o atendimento. Hoje todos os profissionais ativos aparecem; a relação serviço/profissional ainda não existe.</p>
+                                    <h2 class="text-xl font-semibold text-white">Escolha o profissional</h2>
+                                    <p class="mt-1 text-sm text-[#c7d2e3]">A relação serviço/profissional ainda não existe; por enquanto todos os profissionais ativos aparecem.</p>
                                 </div>
                             </div>
 
-                            <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                            <div x-show="!hasSelectedServices()" class="mt-4 rounded-2xl border border-dashed border-white/10 bg-[#132746] px-4 py-4 text-sm text-[#c7d2e3]">
+                                Selecione pelo menos um serviço para seguir.
+                            </div>
+
+                            <div x-show="hasSelectedServices()" class="mt-4 grid gap-3 sm:grid-cols-2" x-cloak>
                                 @foreach ($users as $user)
                                     @php
                                         $selected = $selectedUserId === $user->id;
@@ -154,27 +238,22 @@
                                             onchange="this.form.submit()"
                                             @checked($selected)
                                         >
-                                        <span class="{{ $selected ? 'border-[#d4af37] bg-gradient-to-br from-[#d4af37]/20 via-[#1f3a63] to-[#132746] ring-2 ring-[#d4af37]/45 shadow-[0_18px_40px_rgba(212,175,55,0.22)]' : 'border-white/10 bg-[#132746] hover:border-[#d4af37]/35 hover:bg-[#183157] hover:shadow-[0_14px_30px_rgba(8,20,42,0.28)]' }} flex items-center justify-between gap-4 rounded-[22px] border p-4 text-left transition">
+                                        <span class="{{ $selected ? 'border-[#d4af37] bg-[#d4af37]/12 ring-2 ring-[#d4af37]/35' : 'border-white/10 bg-[#132746] hover:border-[#d4af37]/35' }} flex items-center justify-between gap-3 rounded-[20px] border p-3 transition">
                                             <span class="flex min-w-0 items-center gap-3">
                                                 @if ($user->photo_url)
-                                                    <img src="{{ $user->photo_url }}" alt="Foto de {{ $user->name }}" class="{{ $selected ? 'ring-[#d4af37]/60' : 'ring-white/10' }} h-14 w-14 shrink-0 rounded-full object-cover ring-2">
+                                                    <img src="{{ $user->photo_url }}" alt="Foto de {{ $user->name }}" class="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-white/10">
                                                 @else
-                                                    <span class="{{ $selected ? 'bg-[#d4af37] text-[#132746]' : 'bg-[#d4af37]/12 text-[#d4af37]' }} flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-semibold">
+                                                    <span class="{{ $selected ? 'bg-[#d4af37] text-[#132746]' : 'bg-[#d4af37]/12 text-[#d4af37]' }} flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold">
                                                         {{ $user->avatar_initial }}
                                                     </span>
                                                 @endif
                                                 <span class="min-w-0">
-                                                    <span class="block text-base font-semibold text-white">{{ $user->name }}</span>
-                                                    <span class="mt-2 block text-sm text-[#c7d2e3]">Profissional</span>
+                                                    <span class="block truncate text-sm font-semibold text-white">{{ $user->name }}</span>
+                                                    <span class="mt-1 block text-xs text-[#c7d2e3]">Disponível para seleção</span>
                                                 </span>
                                             </span>
                                             @if ($selected)
-                                                <span class="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-semibold text-[#132746]">
-                                                    <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                        <path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.415 0l-3.25-3.25a1 1 0 111.414-1.42l2.543 2.544 6.543-6.544a1 1 0 011.415 0z" clip-rule="evenodd" />
-                                                    </svg>
-                                                    Selecionado
-                                                </span>
+                                                <span class="rounded-full bg-[#d4af37] px-3 py-1 text-xs font-semibold text-[#132746]">Selecionado</span>
                                             @endif
                                         </span>
                                     </label>
@@ -184,16 +263,16 @@
                             <x-input-error class="mt-3" :messages="$errors->get('user_id')" />
                         </section>
 
-                        <section class="sf-card p-5 sm:p-6">
-                            <div class="flex items-center gap-3">
-                                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">3</span>
+                        <section class="sf-card p-4 sm:p-5" :class="!hasSelectedServices() || !hasProfessional ? 'opacity-70' : ''">
+                            <div class="flex items-start gap-3">
+                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">3</span>
                                 <div>
-                                    <h2 class="text-lg font-semibold text-white">3. Escolha a data</h2>
-                                    <p class="text-sm text-[#c7d2e3]">Veja apenas horários com o bloco completo livre.</p>
+                                    <h2 class="text-xl font-semibold text-white">Escolha a data</h2>
+                                    <p class="mt-1 text-sm text-[#c7d2e3]">Datas passadas ficam bloqueadas pelo calendário.</p>
                                 </div>
                             </div>
 
-                            <div class="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-6">
+                            <div class="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-7">
                                 @foreach ($quickDates as $quickDate)
                                     @php
                                         $selected = $selectedDate === $quickDate['value'];
@@ -201,7 +280,7 @@
                                     <button
                                         type="button"
                                         @click="selectedDate = '{{ $quickDate['value'] }}'; $nextTick(() => $el.form.submit())"
-                                        class="{{ $selected ? 'border-[#d4af37]/50 bg-[#d4af37]/12 text-white' : 'border-white/10 bg-[#132746] text-[#c7d2e3] hover:border-[#d4af37]/35 hover:bg-[#183157] hover:text-white' }} rounded-2xl border px-3 py-4 text-center transition"
+                                        class="{{ $selected ? 'border-[#d4af37]/50 bg-[#d4af37]/12 text-white' : 'border-white/10 bg-[#132746] text-[#c7d2e3] hover:border-[#d4af37]/35 hover:bg-[#183157]' }} rounded-2xl border px-2 py-3 text-center transition"
                                     >
                                         <span class="block text-sm font-semibold">{{ $quickDate['label'] }}</span>
                                         <span class="mt-1 block text-xs">{{ $quickDate['subtitle'] }}</span>
@@ -215,6 +294,7 @@
                                     id="public-date"
                                     name="date"
                                     type="date"
+                                    min="{{ $today }}"
                                     x-model="selectedDate"
                                     class="sf-input mt-2 block w-full"
                                     onchange="this.form.submit()"
@@ -225,7 +305,7 @@
                         </section>
                     </form>
 
-                    <form method="POST" action="{{ route('public-bookings.store', $company) }}" class="space-y-6">
+                    <form method="POST" action="{{ route('public-bookings.store', $company) }}" class="space-y-5">
                         @csrf
                         @foreach ($selectedServiceIds as $serviceId)
                             <input type="hidden" name="service_ids[]" value="{{ $serviceId }}">
@@ -233,16 +313,16 @@
                         <input type="hidden" name="user_id" value="{{ $selectedUserId }}">
                         <input type="hidden" name="date" value="{{ $selectedDate }}">
 
-                        <section class="sf-card p-5 sm:p-6">
-                            <div class="flex items-center gap-3">
-                                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">3</span>
+                        <section class="sf-card p-4 sm:p-5" :class="!readyForSlots() ? 'opacity-70' : ''">
+                            <div class="flex items-start gap-3">
+                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">4</span>
                                 <div>
-                                    <h2 class="text-lg font-semibold text-white">3. Horários disponíveis</h2>
-                                    <p class="text-sm text-[#c7d2e3]">Mostrando apenas horários com o bloco total livre.</p>
+                                    <h2 class="text-xl font-semibold text-white">Escolha o horário</h2>
+                                    <p class="mt-1 text-sm text-[#c7d2e3]">Horários são calculados pela duração total dos serviços.</p>
                                 </div>
                             </div>
 
-                            <div class="mt-5">
+                            <div class="mt-4">
                                 @if ($selectedServiceIds->isEmpty() || ! $selectedUser)
                                     <div class="rounded-2xl border border-dashed border-white/10 bg-[#132746] px-4 py-5 text-sm text-[#c7d2e3]">
                                         Para carregar os horários da agenda real, selecione pelo menos um serviço e um profissional.
@@ -250,83 +330,72 @@
                                             O profissional {{ $selectedUser->name }} já está selecionado; falta escolher o serviço.
                                         @endif
                                     </div>
+                                @elseif ($slotPeriods->isEmpty())
+                                    <div class="rounded-2xl border border-dashed border-white/10 bg-[#132746] px-4 py-5 text-sm text-[#c7d2e3]">
+                                        Nenhum horário disponível para esta data.
+                                    </div>
                                 @else
-                                    @if (($slotOptions ?? []) !== [])
-                                        <div class="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-[#132746] px-4 py-3 text-xs text-[#c7d2e3]">
-                                            <span class="font-semibold uppercase tracking-[0.16em] text-white">Legenda</span>
-                                            <span class="inline-flex items-center gap-2">
-                                                <span class="h-2.5 w-2.5 rounded-full bg-[#d4af37]"></span>
-                                                Livre
-                                            </span>
-                                            <span class="inline-flex items-center gap-2">
-                                                <span class="h-2.5 w-2.5 rounded-full bg-[#d96b6b]"></span>
-                                                Reservado
-                                            </span>
-                                        </div>
-
-                                        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                                            @foreach ($slotOptions as $slotOption)
-                                                @php
-                                                    $slot = $slotOption['time'];
-                                                    $disabled = ! $slotOption['available'];
-                                                    $reasonLabel = match ($slotOption['reason']) {
-                                                        'reserved' => 'Reservado',
-                                                        default => null,
-                                                    };
-                                                    $slotClasses = match ($slotOption['reason']) {
-                                                        'reserved' => 'border-[#d96b6b]/35 bg-[#3a1f2b] text-[#ffd9d9]',
-                                                        default => 'border-white/10 bg-[#132746] text-white hover:border-[#d4af37]/35 hover:bg-[#183157] peer-checked:border-[#d4af37]/50 peer-checked:bg-[#d4af37] peer-checked:text-[#132746]',
-                                                    };
-                                                @endphp
-                                                <label class="cursor-pointer">
-                                                    <input
-                                                        type="radio"
-                                                        name="time"
-                                                        value="{{ $slot }}"
-                                                        class="peer sr-only"
-                                                        @checked(old('time', $selectedTime) === $slot)
-                                                        @disabled($disabled)
-                                                        required
-                                                    >
-                                                    <span class="{{ $slotClasses }} flex min-h-[72px] flex-col items-center justify-center rounded-2xl border px-4 py-4 text-center transition {{ $disabled ? 'cursor-not-allowed opacity-85' : '' }}">
-                                                        <span class="text-base font-semibold">{{ $slot }}</span>
-                                                        @if ($reasonLabel)
-                                                            <span class="mt-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] {{ $slotOption['reason'] === 'reserved' ? 'bg-[#d96b6b]/18 text-[#ffd9d9]' : 'bg-white/10 text-[#d5deec]' }}">
-                                                                {{ $reasonLabel }}
+                                    <div class="space-y-5">
+                                        @foreach (['Manhã', 'Tarde', 'Noite'] as $period)
+                                            @continue(! $slotPeriods->has($period))
+                                            <div>
+                                                <div class="mb-3 flex items-center justify-between gap-3">
+                                                    <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-[#d4af37]">{{ $period }}</h3>
+                                                    <span class="text-xs text-[#c7d2e3]">{{ $slotPeriods->get($period)->where('available', true)->count() }} livres</span>
+                                                </div>
+                                                <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                                                    @foreach ($slotPeriods->get($period) as $slotOption)
+                                                        @php
+                                                            $slot = $slotOption['time'];
+                                                            $disabled = ! $slotOption['available'];
+                                                            $reasonLabel = $slotOption['reason'] === 'reserved' ? 'Reservado' : null;
+                                                        @endphp
+                                                        <label class="cursor-pointer">
+                                                            <input
+                                                                type="radio"
+                                                                name="time"
+                                                                value="{{ $slot }}"
+                                                                class="peer sr-only"
+                                                                x-model="selectedTime"
+                                                                @checked(old('time', $selectedTime) === $slot)
+                                                                @disabled($disabled)
+                                                                required
+                                                            >
+                                                            <span class="{{ $disabled ? 'border-[#d96b6b]/35 bg-[#3a1f2b] text-[#ffd9d9] opacity-85' : 'border-white/10 bg-[#132746] text-white hover:border-[#d4af37]/35 hover:bg-[#183157] peer-checked:border-[#d4af37]/60 peer-checked:bg-[#d4af37] peer-checked:text-[#132746]' }} flex min-h-[58px] flex-col items-center justify-center rounded-2xl border px-2 py-3 text-center transition">
+                                                                <span class="text-sm font-semibold">{{ $slot }}</span>
+                                                                @if ($reasonLabel)
+                                                                    <span class="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em]">{{ $reasonLabel }}</span>
+                                                                @endif
                                                             </span>
-                                                        @endif
-                                                    </span>
-                                                </label>
-                                            @endforeach
-                                        </div>
-                                    @else
-                                        <div class="rounded-2xl border border-dashed border-white/10 bg-[#132746] px-4 py-5 text-sm text-[#c7d2e3]">
-                                            Nenhum horário disponível para essa data. Tente outro dia.
-                                        </div>
-                                    @endif
+                                                        </label>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
                                 @endif
                             </div>
 
                             <x-input-error class="mt-3" :messages="$errors->get('time')" />
                         </section>
 
-                        <section class="sf-card p-5 sm:p-6">
-                            <div class="flex items-center gap-3">
-                                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">4</span>
+                        <section class="sf-card p-4 sm:p-5" :class="!selectedTime ? 'opacity-70' : ''">
+                            <div class="flex items-start gap-3">
+                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">5</span>
                                 <div>
-                                    <h2 class="text-lg font-semibold text-white">4. Identificação do cliente</h2>
-                                    <p class="text-sm text-[#c7d2e3]">Entre com Google ou preencha seus dados manualmente para confirmar.</p>
+                                    <h2 class="text-xl font-semibold text-white">Dados do cliente</h2>
+                                    <p class="mt-1 text-sm text-[#c7d2e3]">Use Google se estiver disponível ou preencha manualmente.</p>
                                 </div>
                             </div>
 
-                            <div class="mt-5 space-y-4">
+                            <div class="mt-4 space-y-4">
                                 @if ($identifiedClient)
                                     <div class="rounded-2xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-4">
                                         <p class="text-sm font-semibold text-white">Cliente identificado</p>
                                         <p class="mt-1 text-sm text-[#c7d2e3]">{{ $identifiedClient->name }}{{ $identifiedClient->email ? ' · '.$identifiedClient->email : '' }}</p>
                                     </div>
-                                @else
-                                    <a href="{{ route('public-bookings.google.redirect', ['company' => $company, ...request()->query()]) }}" class="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white px-4 py-4 text-sm font-semibold text-[#132746] transition hover:bg-[#f3f6fb]">
+                                @elseif ($googleConfigured)
+                                    <a href="{{ route('public-bookings.google.redirect', ['company' => $company, ...$bookingQuery]) }}" class="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white px-4 py-4 text-sm font-semibold text-[#132746] transition hover:bg-[#f3f6fb]">
                                         <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#4285f4] text-xs font-bold text-white">G</span>
                                         Continuar com Google
                                     </a>
@@ -336,144 +405,78 @@
                                         <span class="h-px flex-1 bg-white/10"></span>
                                     </div>
                                 @endif
+
                                 @unless ($identifiedClient)
-                                <div>
-                                    <label for="client_name" class="text-sm font-medium text-white">Nome</label>
-                                    <input
-                                        id="client_name"
-                                        name="client_name"
-                                        type="text"
-                                        value="{{ old('client_name') }}"
-                                        class="sf-input mt-2 block w-full"
-                                        required
-                                    >
-                                    <x-input-error class="mt-2" :messages="$errors->get('client_name')" />
-                                </div>
+                                    <div>
+                                        <label for="client_name" class="text-sm font-medium text-white">Nome</label>
+                                        <input id="client_name" name="client_name" type="text" x-model="clientName" value="{{ old('client_name') }}" class="sf-input mt-2 block w-full" required>
+                                        <x-input-error class="mt-2" :messages="$errors->get('client_name')" />
+                                    </div>
 
-                                <div>
-                                    <label for="client_phone" class="text-sm font-medium text-white">Telefone/WhatsApp</label>
-                                    <input
-                                        id="client_phone"
-                                        name="client_phone"
-                                        type="text"
-                                        value="{{ old('client_phone') }}"
-                                        class="sf-input mt-2 block w-full"
-                                        required
-                                    >
-                                    <x-input-error class="mt-2" :messages="$errors->get('client_phone')" />
-                                </div>
-
-                                <div>
-                                    <label for="client_email" class="text-sm font-medium text-white">E-mail</label>
-                                    <input
-                                        id="client_email"
-                                        name="client_email"
-                                        type="email"
-                                        value="{{ old('client_email') }}"
-                                        class="sf-input mt-2 block w-full"
-                                        required
-                                    >
-                                    <x-input-error class="mt-2" :messages="$errors->get('client_email')" />
-                                </div>
+                                    <div class="grid gap-4 sm:grid-cols-2">
+                                        <div>
+                                            <label for="client_phone" class="text-sm font-medium text-white">Telefone/WhatsApp</label>
+                                            <input id="client_phone" name="client_phone" type="text" x-model="clientPhone" value="{{ old('client_phone') }}" class="sf-input mt-2 block w-full" required>
+                                            <x-input-error class="mt-2" :messages="$errors->get('client_phone')" />
+                                        </div>
+                                        <div>
+                                            <label for="client_email" class="text-sm font-medium text-white">E-mail</label>
+                                            <input id="client_email" name="client_email" type="email" x-model="clientEmail" value="{{ old('client_email') }}" class="sf-input mt-2 block w-full" required>
+                                            <x-input-error class="mt-2" :messages="$errors->get('client_email')" />
+                                        </div>
+                                    </div>
                                 @endunless
 
                                 <div>
                                     <label for="notes" class="text-sm font-medium text-white">Observações</label>
-                                    <textarea
-                                        id="notes"
-                                        name="notes"
-                                        rows="3"
-                                        class="sf-input mt-2 block w-full"
-                                    >{{ old('notes') }}</textarea>
+                                    <textarea id="notes" name="notes" rows="3" class="sf-input mt-2 block w-full">{{ old('notes') }}</textarea>
                                     <x-input-error class="mt-2" :messages="$errors->get('notes')" />
                                 </div>
                             </div>
                         </section>
 
-                        <div class="xl:hidden">
-                            <div class="sf-card p-5">
-                                <h3 class="text-base font-semibold text-white">Resumo do agendamento</h3>
-                                <div class="mt-4 space-y-3">
-                                    <template x-if="hasSelectedServices()">
-                                        <div class="space-y-3">
-                                            <template x-for="service in selectedServices()" :key="service.id">
-                                                <div class="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#132746] px-4 py-3">
-                                                    <div class="min-w-0">
-                                                        <p class="truncate text-sm font-semibold text-white" x-text="service.name"></p>
-                                                        <p class="mt-1 text-xs text-[#c7d2e3]" x-text="service.duration + ' min'"></p>
-                                                    </div>
-                                                    <p class="text-sm font-semibold text-[#d4af37]" x-text="'R$ ' + service.price"></p>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </template>
-
-                                    <template x-if="!hasSelectedServices()">
-                                        <div class="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#132746] px-4 py-3">
-                                            <div class="min-w-0">
-                                                <p class="truncate text-sm font-semibold text-white">Escolha depois</p>
-                                                <p class="mt-1 text-xs text-[#c7d2e3]">Você pode selecionar o serviço antes de confirmar.</p>
-                                            </div>
-                                            <p class="text-sm font-semibold text-[#d4af37]">A definir</p>
-                                        </div>
-                                    </template>
-
-                                    <div class="flex items-center justify-between gap-4">
-                                        <dt class="text-sm text-[#c7d2e3]">Profissional</dt>
-                                        <dd class="text-sm font-semibold text-white">{{ $selectedUser?->name ?? '-' }}</dd>
-                                    </div>
-                                    <div class="flex items-center justify-between gap-4">
-                                        <dt class="text-sm text-[#c7d2e3]">Data</dt>
-                                        <dd class="text-sm font-semibold text-white">{{ \Carbon\CarbonImmutable::parse($selectedDate)->format('d/m/Y') }}</dd>
-                                    </div>
-                                    <div class="flex items-center justify-between gap-4">
-                                        <dt class="text-sm text-[#c7d2e3]">Horário</dt>
-                                        <dd class="text-sm font-semibold text-white">{{ old('time', $selectedTime) ?: 'Selecione' }}</dd>
-                                    </div>
-                                    <div class="flex items-center justify-between gap-4">
-                                        <dt class="text-sm text-[#c7d2e3]">Bloco total</dt>
-                                        <dd class="text-sm font-semibold text-white" x-text="hasSelectedServices() ? totalDuration() + ' min' : '30 min estimado'">{{ $usingEstimatedDuration ? '30 min estimado' : $totalDurationMinutes . ' min' }}</dd>
-                                    </div>
-                                    <div class="flex items-center justify-between gap-4">
-                                        <dt class="text-sm text-[#c7d2e3]">Valor total</dt>
-                                        <dd class="text-sm font-semibold text-[#d4af37]" x-text="hasSelectedServices() ? 'R$ ' + formattedTotalPrice() : 'A definir'">{{ $usingEstimatedDuration ? 'A definir' : 'R$ ' . number_format($totalPrice, 2, ',', '.') }}</dd>
-                                    </div>
+                        <section class="sf-card p-4 sm:p-5">
+                            <div class="flex items-start gap-3">
+                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">6</span>
+                                <div>
+                                    <h2 class="text-xl font-semibold text-white">Confirmação</h2>
+                                    <p class="mt-1 text-sm text-[#c7d2e3]">O horário será confirmado após o envio. A disponibilidade será validada novamente.</p>
                                 </div>
                             </div>
-                        </div>
 
-                        <button
-                            type="submit"
-                            class="sf-button-primary w-full min-h-[60px] text-base disabled:cursor-not-allowed disabled:opacity-60"
-                            x-bind:disabled="!hasSelectedServices() || !hasProfessional"
-                        >
-                            5. Confirmar agendamento
-                        </button>
-                        <template x-if="!hasSelectedServices() || !hasProfessional">
-                            <p class="mt-3 text-center text-sm text-[#c7d2e3]">
-                                Escolha pelo menos um serviço e um profissional antes de confirmar.
-                            </p>
-                        </template>
+                            <button
+                                type="submit"
+                                class="sf-button-primary mt-5 w-full min-h-[60px] text-base disabled:cursor-not-allowed disabled:opacity-60"
+                                x-bind:disabled="!readyToConfirm()"
+                            >
+                                Confirmar agendamento
+                            </button>
+                            <template x-if="!readyToConfirm()">
+                                <p class="mt-3 text-center text-sm text-[#c7d2e3]">
+                                    Complete as etapas anteriores para confirmar.
+                                </p>
+                            </template>
+                        </section>
                     </form>
                 </section>
 
                 <aside class="hidden xl:block">
-                    <div class="sticky top-6 space-y-6">
+                    <div class="sticky top-5 space-y-4">
                         <section class="sf-card overflow-hidden">
                             <div class="border-b border-white/10 px-5 py-5">
                                 <h3 class="text-lg font-semibold text-white">Resumo do agendamento</h3>
-                                <p class="mt-1 text-sm text-[#c7d2e3]">Acompanhe serviços, bloco total e valor antes de confirmar.</p>
+                                <p class="mt-1 text-sm text-[#c7d2e3]">Acompanhe tudo antes de confirmar.</p>
                             </div>
 
                             <div class="space-y-4 px-5 py-5">
                                 <template x-if="hasSelectedServices()">
-                                    <div class="space-y-4">
+                                    <div class="space-y-3">
                                         <template x-for="service in selectedServices()" :key="service.id">
-                                            <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
+                                            <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-3">
                                                 <div class="flex items-center justify-between gap-4">
                                                     <div class="min-w-0">
-                                                        <p class="truncate text-base font-semibold text-white" x-text="service.name"></p>
-                                                        <p class="mt-1 text-sm text-[#c7d2e3]" x-text="service.duration + ' min'"></p>
+                                                        <p class="truncate text-sm font-semibold text-white" x-text="service.name"></p>
+                                                        <p class="mt-1 text-xs text-[#c7d2e3]" x-text="service.duration + ' min'"></p>
                                                     </div>
                                                     <p class="text-sm font-semibold text-[#d4af37]" x-text="'R$ ' + service.price"></p>
                                                 </div>
@@ -484,9 +487,8 @@
 
                                 <template x-if="!hasSelectedServices()">
                                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Serviço</p>
-                                        <p class="mt-2 text-base font-semibold text-white">Escolha depois</p>
-                                        <p class="mt-1 text-sm text-[#c7d2e3]">Veja a agenda primeiro e selecione o serviço antes de confirmar.</p>
+                                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Serviços</p>
+                                        <p class="mt-2 text-base font-semibold text-white">Escolha os serviços</p>
                                     </div>
                                 </template>
 
@@ -498,19 +500,24 @@
                                 <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Data e horário</p>
                                     <p class="mt-2 text-base font-semibold text-white">{{ \Carbon\CarbonImmutable::parse($selectedDate)->format('d/m/Y') }}</p>
-                                    <p class="mt-1 text-sm text-[#c7d2e3]">{{ old('time', $selectedTime) ?: 'Selecione um horário' }}</p>
+                                    <p class="mt-1 text-sm text-[#c7d2e3]" x-text="selectedTime || 'Selecione um horário'">{{ old('time', $selectedTime) ?: 'Selecione um horário' }}</p>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
+                                        <p class="text-xs text-[#c7d2e3]">Duração</p>
+                                        <p class="mt-1 text-lg font-semibold text-white" x-text="hasSelectedServices() ? totalDuration() + ' min' : '0 min'">{{ $usingEstimatedDuration ? '0 min' : $totalDurationMinutes . ' min' }}</p>
+                                    </div>
+                                    <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
+                                        <p class="text-xs text-[#c7d2e3]">Total</p>
+                                        <p class="mt-1 text-lg font-semibold text-[#d4af37]" x-text="hasSelectedServices() ? 'R$ ' + formattedTotalPrice() : 'A definir'">{{ $usingEstimatedDuration ? 'A definir' : 'R$ ' . number_format($totalPrice, 2, ',', '.') }}</p>
+                                    </div>
                                 </div>
 
                                 <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Bloco total</p>
-                                    <p class="mt-2 text-2xl font-semibold text-white" x-text="hasSelectedServices() ? totalDuration() + ' min' : '30 min estimado'">{{ $usingEstimatedDuration ? '30 min estimado' : $totalDurationMinutes . ' min' }}</p>
-                                    <p class="mt-1 text-sm text-[#c7d2e3]">Tempo total reservado para os serviços escolhidos.</p>
-                                </div>
-
-                                <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Valor total</p>
-                                    <p class="mt-2 text-2xl font-semibold text-white" x-text="hasSelectedServices() ? 'R$ ' + formattedTotalPrice() : 'A definir'">{{ $usingEstimatedDuration ? 'A definir' : 'R$ ' . number_format($totalPrice, 2, ',', '.') }}</p>
-                                    <p class="mt-1 text-sm text-[#c7d2e3]">Total estimado dos serviços selecionados.</p>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Cliente</p>
+                                    <p class="mt-2 text-base font-semibold text-white" x-text="clientName || 'Preencha seus dados'">{{ $identifiedClient?->name ?? 'Preencha seus dados' }}</p>
+                                    <p class="mt-1 text-sm text-[#c7d2e3]" x-text="clientPhone || clientEmail || '-'">{{ $identifiedClient?->email ?? '-' }}</p>
                                 </div>
                             </div>
                         </section>
@@ -518,5 +525,21 @@
                 </aside>
             </div>
         </main>
+
+        <div class="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-[#132746]/95 px-3 py-3 shadow-[0_-18px_40px_rgba(8,20,42,0.35)] backdrop-blur xl:hidden">
+            <div class="mx-auto flex max-w-7xl items-center justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold text-white">
+                        {{ $selectedServiceIds->isNotEmpty() ? $selectedServiceIds->count().' serviço(s) · '.$totalDurationMinutes.' min' : 'Escolha os serviços' }}
+                    </p>
+                    <p class="mt-1 text-xs text-[#c7d2e3]">
+                        {{ $selectedServiceIds->isNotEmpty() ? 'R$ '.number_format($totalPrice, 2, ',', '.') : 'Total a definir' }}
+                    </p>
+                </div>
+                <a href="#booking-filters" class="shrink-0 rounded-2xl bg-[#d4af37] px-4 py-3 text-sm font-semibold text-[#132746]">
+                    Continuar
+                </a>
+            </div>
+        </div>
     </body>
 </html>

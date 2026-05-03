@@ -58,6 +58,7 @@ class PublicBookingController extends Controller
             ? (int) $selectedServices->sum('duration_minutes')
             : self::DEFAULT_BOOKING_DURATION_MINUTES;
         $totalPrice = (float) $selectedServices->sum(fn (Service $service): float => (float) $service->price);
+        $identifiedClient = $this->identifiedClient($company);
 
         [$selectedUser, $slotOptions] = $this->resolveSelectedUserAndSlots(
             $request,
@@ -66,6 +67,7 @@ class PublicBookingController extends Controller
             $availabilityService,
             $totalDurationMinutes,
             $selectedDate,
+            $identifiedClient?->id,
         );
         $availableSlots = collect($slotOptions)
             ->where('available', true)
@@ -73,7 +75,7 @@ class PublicBookingController extends Controller
             ->values()
             ->all();
 
-        $quickDates = collect(range(0, 5))
+        $quickDates = collect(range(0, 6))
             ->map(function (int $offset): array {
                 $date = CarbonImmutable::today()->addDays($offset);
 
@@ -104,10 +106,13 @@ class PublicBookingController extends Controller
             'totalDurationMinutes' => $totalDurationMinutes,
             'totalPrice' => $totalPrice,
             'usingEstimatedDuration' => ! $hasSelectedServices,
-            'identifiedClient' => $this->identifiedClient($company),
+            'identifiedClient' => $identifiedClient,
+            'googleConfigured' => (bool) (config('services.google.client_id') && config('services.google.client_secret')),
             'servicesCatalog' => $services->map(fn (Service $service): array => [
                 'id' => $service->id,
                 'name' => $service->name,
+                'description' => null,
+                'category' => 'Serviços',
                 'duration' => (int) $service->duration_minutes,
                 'price' => number_format((float) $service->price, 2, ',', '.'),
                 'price_value' => (float) $service->price,
@@ -226,6 +231,8 @@ class PublicBookingController extends Controller
                 $totalDurationMinutes,
                 $startTime,
                 true,
+                null,
+                $this->identifiedClient($company)?->id,
             );
 
             if (! in_array($startTime->format('H:i'), $availableSlots, true)) {
@@ -235,6 +242,19 @@ class PublicBookingController extends Controller
             }
 
             $client = $this->resolveBookingClient($request, $company, $data);
+            $endTime = $startTime->copy()->addMinutes($totalDurationMinutes);
+
+            Client::query()
+                ->where('company_id', $company->id)
+                ->whereKey($client->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (Appointment::findClientScheduleConflict($company->id, $client->id, $startTime, $endTime)) {
+                throw ValidationException::withMessages([
+                    'time' => 'Você já possui um agendamento neste horário. Cancele ou escolha outro horário.',
+                ]);
+            }
 
             $appointment = Appointment::create([
                 'company_id' => $company->id,
@@ -242,7 +262,7 @@ class PublicBookingController extends Controller
                 'user_id' => $user->id,
                 'service_id' => $orderedServices->firstOrFail()->id,
                 'start_time' => $startTime,
-                'end_time' => $startTime->copy()->addMinutes($totalDurationMinutes),
+                'end_time' => $endTime,
                 'status' => 'scheduled',
                 'source' => 'public_booking',
                 'notes' => $data['notes'] ?? null,
@@ -326,6 +346,7 @@ class PublicBookingController extends Controller
         AvailabilityService $availabilityService,
         int $totalDurationMinutes,
         string $selectedDate,
+        ?int $clientId = null,
     ): array {
         if ($users->isEmpty() || $totalDurationMinutes <= 0) {
             return [null, []];
@@ -347,6 +368,8 @@ class PublicBookingController extends Controller
                 $totalDurationMinutes,
                 $selectedDate,
                 true,
+                null,
+                $clientId,
             ),
         ];
     }

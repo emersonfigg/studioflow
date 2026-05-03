@@ -217,11 +217,237 @@ class AppointmentTest extends TestCase
             ->assertSessionHasErrors(['product_items']);
     }
 
+    public function test_client_cannot_create_two_active_appointments_at_same_time(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $otherProfessional = User::factory()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create(['duration_minutes' => 60]);
+        $this->createWorkingHour($company, $admin, 4, '08:00', '18:00');
+        $this->createWorkingHour($company, $otherProfessional, 4, '08:00', '18:00');
+
+        Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $otherProfessional->id,
+            'service_id' => $service->id,
+            'start_time' => '2026-04-16 10:00:00',
+            'end_time' => '2026-04-16 11:00:00',
+            'status' => 'scheduled',
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->from('/appointments/create')
+            ->post('/appointments', [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'service_id' => $service->id,
+                'start_time' => '2026-04-16 10:00:00',
+                'status' => 'scheduled',
+                'source' => 'internal',
+            ])
+            ->assertRedirect('/appointments/create')
+            ->assertSessionHasErrors([
+                'start_time' => 'Este cliente já possui um agendamento ativo nesse horário.',
+            ]);
+    }
+
+    public function test_client_cannot_create_overlapping_active_appointment(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $otherProfessional = User::factory()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create(['duration_minutes' => 45]);
+        $this->createWorkingHour($company, $admin, 4, '08:00', '18:00');
+        $this->createWorkingHour($company, $otherProfessional, 4, '08:00', '18:00');
+
+        Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $otherProfessional->id,
+            'service_id' => $service->id,
+            'start_time' => '2026-04-16 10:00:00',
+            'end_time' => '2026-04-16 11:00:00',
+            'status' => 'confirmed',
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->from('/appointments/create')
+            ->post('/appointments', [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'service_id' => $service->id,
+                'start_time' => '2026-04-16 10:30:00',
+                'status' => 'scheduled',
+                'source' => 'internal',
+            ])
+            ->assertRedirect('/appointments/create')
+            ->assertSessionHasErrors(['start_time']);
+    }
+
+    public function test_client_can_create_appointment_at_different_time(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $otherProfessional = User::factory()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create(['duration_minutes' => 45]);
+        $this->createWorkingHour($company, $admin, 4, '08:00', '18:00');
+        $this->createWorkingHour($company, $otherProfessional, 4, '08:00', '18:00');
+
+        Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $otherProfessional->id,
+            'service_id' => $service->id,
+            'start_time' => '2026-04-16 10:00:00',
+            'end_time' => '2026-04-16 10:45:00',
+            'status' => 'scheduled',
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->post('/appointments', [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'service_id' => $service->id,
+                'start_time' => '2026-04-16 11:00:00',
+                'status' => 'scheduled',
+                'source' => 'internal',
+            ])
+            ->assertSessionHasNoErrors();
+    }
+
+    public function test_cancelled_or_completed_appointments_do_not_block_same_client(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $otherProfessional = User::factory()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create(['duration_minutes' => 30]);
+        $this->createWorkingHour($company, $admin, 4, '08:00', '18:00');
+        $this->createWorkingHour($company, $otherProfessional, 4, '08:00', '18:00');
+
+        foreach (['cancelled', 'completed'] as $status) {
+            Appointment::factory()->for($company)->create([
+                'client_id' => $client->id,
+                'user_id' => $otherProfessional->id,
+                'service_id' => $service->id,
+                'start_time' => '2026-04-16 10:00:00',
+                'end_time' => '2026-04-16 10:30:00',
+                'status' => $status,
+            ]);
+        }
+
+        $this
+            ->actingAs($admin)
+            ->post('/appointments', [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'service_id' => $service->id,
+                'start_time' => '2026-04-16 10:00:00',
+                'status' => 'scheduled',
+                'source' => 'internal',
+            ])
+            ->assertSessionHasNoErrors();
+    }
+
+    public function test_different_clients_can_schedule_similar_times_with_different_professionals(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $otherProfessional = User::factory()->for($company)->create();
+        $firstClient = Client::factory()->for($company)->create();
+        $secondClient = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create(['duration_minutes' => 45]);
+        $this->createWorkingHour($company, $admin, 4, '08:00', '18:00');
+        $this->createWorkingHour($company, $otherProfessional, 4, '08:00', '18:00');
+
+        Appointment::factory()->for($company)->create([
+            'client_id' => $firstClient->id,
+            'user_id' => $otherProfessional->id,
+            'service_id' => $service->id,
+            'start_time' => '2026-04-16 10:00:00',
+            'end_time' => '2026-04-16 10:45:00',
+            'status' => 'scheduled',
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->post('/appointments', [
+                'client_id' => $secondClient->id,
+                'user_id' => $admin->id,
+                'service_id' => $service->id,
+                'start_time' => '2026-04-16 10:00:00',
+                'status' => 'scheduled',
+                'source' => 'internal',
+            ])
+            ->assertSessionHasNoErrors();
+    }
+
+    public function test_edit_ignores_own_appointment_and_blocks_client_conflict_with_another(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $otherProfessional = User::factory()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create(['duration_minutes' => 45]);
+        $this->createWorkingHour($company, $admin, 4, '08:00', '18:00');
+        $this->createWorkingHour($company, $otherProfessional, 4, '08:00', '18:00');
+
+        $appointment = Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $admin->id,
+            'service_id' => $service->id,
+            'start_time' => '2026-04-16 09:00:00',
+            'end_time' => '2026-04-16 09:45:00',
+            'status' => 'scheduled',
+        ]);
+        Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $otherProfessional->id,
+            'service_id' => $service->id,
+            'start_time' => '2026-04-16 12:00:00',
+            'end_time' => '2026-04-16 12:45:00',
+            'status' => 'scheduled',
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->patch("/appointments/{$appointment->id}", [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'service_id' => $service->id,
+                'start_time' => '2026-04-16 09:00:00',
+                'status' => 'scheduled',
+                'source' => 'internal',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this
+            ->actingAs($admin)
+            ->from("/appointments/{$appointment->id}/edit")
+            ->patch("/appointments/{$appointment->id}", [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'service_id' => $service->id,
+                'start_time' => '2026-04-16 12:15:00',
+                'status' => 'scheduled',
+                'source' => 'internal',
+            ])
+            ->assertRedirect("/appointments/{$appointment->id}/edit")
+            ->assertSessionHasErrors([
+                'start_time' => 'Este cliente já possui um agendamento ativo nesse horário.',
+            ]);
+    }
+
     public function test_appointment_cannot_overlap_same_user_in_same_company(): void
     {
         $company = Company::factory()->create();
         $admin = User::factory()->admin()->for($company)->create();
         $client = Client::factory()->for($company)->create();
+        $secondClient = Client::factory()->for($company)->create();
         $service = Service::factory()->for($company)->create([
             'duration_minutes' => 60,
         ]);
@@ -240,7 +466,7 @@ class AppointmentTest extends TestCase
             ->actingAs($admin)
             ->from('/appointments/create')
             ->post('/appointments', [
-                'client_id' => $client->id,
+                'client_id' => $secondClient->id,
                 'user_id' => $admin->id,
                 'service_id' => $service->id,
                 'start_time' => '2026-04-16 10:30:00',
@@ -396,10 +622,12 @@ class AppointmentTest extends TestCase
             '2026-04-16 14:30:00',
             '2026-04-16 16:30:00',
         ] as $startTime) {
+            $loopClient = Client::factory()->for($company)->create();
+
             $this
                 ->actingAs($admin)
                 ->post('/appointments', [
-                    'client_id' => $client->id,
+                    'client_id' => $loopClient->id,
                     'user_id' => $admin->id,
                     'service_id' => $service->id,
                     'start_time' => $startTime,
@@ -417,6 +645,7 @@ class AppointmentTest extends TestCase
         $company = Company::factory()->create();
         $admin = User::factory()->admin()->for($company)->create();
         $client = Client::factory()->for($company)->create();
+        $secondClient = Client::factory()->for($company)->create();
         $service = Service::factory()->for($company)->create([
             'duration_minutes' => 60,
         ]);
@@ -430,7 +659,7 @@ class AppointmentTest extends TestCase
             'status' => 'scheduled',
         ]);
         Appointment::factory()->for($company)->create([
-            'client_id' => $client->id,
+            'client_id' => $secondClient->id,
             'user_id' => $admin->id,
             'service_id' => $service->id,
             'start_time' => '2026-04-16 12:00:00',

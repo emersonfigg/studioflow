@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\ProfessionalDayOverride;
-use App\Models\ProfessionalDayOverrideInterval;
 use App\Models\ProfessionalWorkingHour;
 use App\Models\Service;
 use App\Models\User;
@@ -124,7 +123,7 @@ class ProfessionalAvailabilityTest extends TestCase
             'filters_submitted' => 1,
         ], false))
             ->assertOk()
-            ->assertSee('Nenhum horário disponível para essa data. Tente outro dia.');
+            ->assertSee('Nenhum horário disponível para esta data.');
     }
 
     public function test_clearing_a_day_configuration_falls_back_to_weekly_schedule(): void

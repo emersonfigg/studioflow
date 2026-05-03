@@ -87,6 +87,7 @@ class AppointmentController extends Controller
 
         $appointment = DB::transaction(function () use ($request, $availabilityService, $serviceOrders, $data, $serviceIds, $productItems): Appointment {
             $this->ensureSlotStillAvailable($request, $availabilityService, $data);
+            $this->ensureClientStillAvailable($request, $data);
 
             $appointment = Appointment::create([
                 ...$data,
@@ -149,6 +150,7 @@ class AppointmentController extends Controller
 
         DB::transaction(function () use ($request, $appointment, $availabilityService, $data): void {
             $this->ensureSlotStillAvailable($request, $availabilityService, $data, $appointment);
+            $this->ensureClientStillAvailable($request, $data, $appointment);
 
             $appointment->update($data);
         });
@@ -345,6 +347,39 @@ class AppointmentController extends Controller
         if (! in_array($startTime->format('H:i'), $availableSlots, true)) {
             throw ValidationException::withMessages([
                 'start_time' => 'Este horário não está disponível para a agenda real deste profissional.',
+            ]);
+        }
+    }
+
+    /**
+     * Re-check client schedule conflicts inside the write transaction.
+     *
+     * @param  array<string, mixed>  $data
+     *
+     * @throws ValidationException
+     */
+    private function ensureClientStillAvailable(
+        Request $request,
+        array $data,
+        ?Appointment $ignoreAppointment = null,
+    ): void {
+        Client::query()
+            ->where('company_id', $request->user()->company_id)
+            ->whereKey($data['client_id'])
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        $conflict = Appointment::findClientScheduleConflict(
+            (int) $request->user()->company_id,
+            (int) $data['client_id'],
+            $data['start_time'],
+            $data['end_time'],
+            $ignoreAppointment?->id,
+        );
+
+        if ($conflict) {
+            throw ValidationException::withMessages([
+                'start_time' => 'Este cliente já possui um agendamento ativo nesse horário.',
             ]);
         }
     }

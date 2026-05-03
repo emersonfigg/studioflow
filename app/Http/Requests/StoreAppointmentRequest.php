@@ -109,6 +109,23 @@ class StoreAppointmentRequest extends FormRequest
             }
 
             $startTime = CarbonImmutable::parse((string) $this->input('start_time'));
+            $endTime = $startTime->addMinutes((int) $services->sum('duration_minutes'));
+            $clientConflict = Appointment::findClientScheduleConflict(
+                (int) $this->user()->company_id,
+                $this->integer('client_id'),
+                $startTime,
+                $endTime,
+            );
+
+            if ($clientConflict) {
+                $validator->errors()->add(
+                    'start_time',
+                    'Este cliente já possui um agendamento ativo nesse horário.'
+                );
+
+                return;
+            }
+
             $availableSlots = app(AvailabilityService::class)->availableSlotsForDuration(
                 $this->user()->company,
                 $professional,

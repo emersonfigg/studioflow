@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Database\Factories\AppointmentFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -28,6 +30,16 @@ class Appointment extends Model
         'internal',
         'public_booking',
         'whatsapp',
+    ];
+
+    public const CLIENT_CONFLICT_ACTIVE_STATUSES = [
+        'scheduled',
+        'confirmed',
+        'in_progress',
+        'pending',
+        'agendado',
+        'confirmado',
+        'em_atendimento',
     ];
 
     /**
@@ -165,6 +177,40 @@ class Appointment extends Model
             'cancelled' => 'bg-rose-100 text-rose-700 ring-rose-600/20',
             default => 'bg-gray-100 text-gray-700 ring-gray-600/20',
         };
+    }
+
+    /**
+     * Query active appointments for the same client that overlap a candidate interval.
+     *
+     * @return Builder<Appointment>
+     */
+    public static function clientScheduleConflictQuery(
+        int $companyId,
+        int $clientId,
+        CarbonInterface|string $startTime,
+        CarbonInterface|string $endTime,
+        ?int $ignoreAppointmentId = null,
+    ): Builder {
+        return self::query()
+            ->with(['service', 'services'])
+            ->where('company_id', $companyId)
+            ->where('client_id', $clientId)
+            ->whereIn('status', self::CLIENT_CONFLICT_ACTIVE_STATUSES)
+            ->when($ignoreAppointmentId !== null, fn (Builder $query) => $query->whereKeyNot($ignoreAppointmentId))
+            ->where('start_time', '<', $endTime)
+            ->where('end_time', '>', $startTime);
+    }
+
+    public static function findClientScheduleConflict(
+        int $companyId,
+        int $clientId,
+        CarbonInterface|string $startTime,
+        CarbonInterface|string $endTime,
+        ?int $ignoreAppointmentId = null,
+    ): ?self {
+        return self::clientScheduleConflictQuery($companyId, $clientId, $startTime, $endTime, $ignoreAppointmentId)
+            ->orderBy('start_time')
+            ->first();
     }
 
     /**

@@ -89,6 +89,8 @@ class StorePublicBookingRequest extends FormRequest
                 $totalDurationMinutes,
                 (string) $this->input('date'),
                 true,
+                null,
+                $this->identifiedClientId($company),
             );
 
             if (! in_array((string) $this->input('time'), $availableSlots, true)) {
@@ -99,15 +101,22 @@ class StorePublicBookingRequest extends FormRequest
 
     private function hasIdentifiedClient(Company $company): bool
     {
+        return $this->identifiedClientId($company) !== null;
+    }
+
+    private function identifiedClientId(Company $company): ?int
+    {
         $clientId = session('public_booking_client_'.$company->id);
 
         if (! $clientId) {
-            return false;
+            return null;
         }
 
-        return Client::query()
+        $exists = Client::query()
             ->where('company_id', $company->id)
             ->whereKey($clientId)
             ->exists();
+
+        return $exists ? (int) $clientId : null;
     }
 }
