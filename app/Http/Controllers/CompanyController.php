@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateCompanyRequest;
+use App\Support\MediaStorage;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class CompanyController extends Controller
 {
@@ -55,10 +55,10 @@ class CompanyController extends Controller
 
         if ($request->hasFile('logo')) {
             if ($company->normalizedLogoPath()) {
-                Storage::disk('public')->delete($company->normalizedLogoPath());
+                MediaStorage::delete($company->normalizedLogoPath());
             }
 
-            $data['logo'] = $request->file('logo')->store('companies', 'public');
+            $data['logo'] = MediaStorage::putFile('companies', $request->file('logo'));
         }
 
         $wasOnboardingIncomplete = ! $company->onboardingCompleted();

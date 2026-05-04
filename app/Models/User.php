@@ -3,13 +3,13 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\MediaStorage;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class User extends Authenticatable
@@ -184,11 +184,7 @@ class User extends Authenticatable
     {
         $photoPath = $this->normalizedPhotoPath();
 
-        if (! $photoPath || ! Storage::disk('public')->exists($photoPath)) {
-            return null;
-        }
-
-        return Storage::url($photoPath);
+        return MediaStorage::url($photoPath);
     }
 
     /**
@@ -208,6 +204,6 @@ class User extends Authenticatable
             return null;
         }
 
-        return ltrim(Str::replaceFirst('storage/', '', str_replace('\\', '/', $this->photo_path)), '/');
+        return MediaStorage::normalizePath($this->photo_path);
     }
 }

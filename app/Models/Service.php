@@ -2,14 +2,13 @@
 
 namespace App\Models;
 
+use App\Support\MediaStorage;
 use Database\Factories\ServiceFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class Service extends Model
 {
@@ -96,11 +95,7 @@ class Service extends Model
     {
         $imagePath = $this->normalizedImagePath();
 
-        if (! $imagePath || ! Storage::disk('public')->exists($imagePath)) {
-            return null;
-        }
-
-        return Storage::url($imagePath);
+        return MediaStorage::url($imagePath);
     }
 
     /**
@@ -112,6 +107,6 @@ class Service extends Model
             return null;
         }
 
-        return ltrim(Str::replaceFirst('storage/', '', str_replace('\\', '/', $this->image_path)), '/');
+        return MediaStorage::normalizePath($this->image_path);
     }
 }

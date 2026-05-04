@@ -4,7 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Client;
 use App\Models\Company;
+use App\Models\Payment;
 use App\Models\Product;
+use App\Models\ProductSale;
+use App\Models\Service;
+use App\Models\ServiceOrder;
+use App\Models\ServiceOrderItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -127,6 +132,140 @@ class ProductTest extends TestCase
             ->assertSee('R$ 70,00');
     }
 
+    public function test_standalone_sale_can_be_created_with_service_only(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create([
+            'commission_type' => 'percent',
+            'commission_value' => 50,
+        ]);
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create([
+            'name' => 'Barba',
+            'price' => 40.00,
+            'duration_minutes' => 35,
+            'active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('product-sales.store', absolute: false), [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'payment_method' => 'pix',
+                'sold_at' => '2026-05-03 09:00:00',
+                'service_items' => [
+                    ['service_id' => $service->id],
+                ],
+            ])
+            ->assertRedirect(route('clients.show', $client, false));
+
+        $order = ServiceOrder::query()->whereNull('appointment_id')->firstOrFail();
+
+        $this->assertSame(ServiceOrder::STATUS_PAID, $order->status);
+        $this->assertSame('40.00', (string) $order->subtotal_services);
+        $this->assertSame('0.00', (string) $order->subtotal_products);
+        $this->assertDatabaseHas('service_order_items', [
+            'service_order_id' => $order->id,
+            'type' => ServiceOrderItem::TYPE_SERVICE,
+            'service_id' => $service->id,
+            'professional_id' => $admin->id,
+            'total_price' => '40.00',
+        ]);
+        $this->assertDatabaseHas('payments', [
+            'appointment_id' => null,
+            'service_order_id' => $order->id,
+            'gross_amount' => '40.00',
+            'commission_amount' => '20.00',
+        ]);
+        $this->assertDatabaseCount('product_sales', 0);
+        $this->assertDatabaseHas('cash_movements', [
+            'company_id' => $company->id,
+            'type' => 'inflow',
+            'source_type' => Payment::class,
+            'amount' => '40.00',
+        ]);
+    }
+
+    public function test_standalone_sale_can_mix_services_and_products(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+        $firstService = Service::factory()->for($company)->create(['price' => 45.00, 'active' => true]);
+        $secondService = Service::factory()->for($company)->create(['price' => 35.00, 'active' => true]);
+        $product = Product::factory()->for($company)->create([
+            'price' => 20.00,
+            'stock_quantity' => 5,
+            'active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('product-sales.store', absolute: false), [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'payment_method' => 'card',
+                'sold_at' => '2026-05-03 10:00:00',
+                'service_items' => [
+                    ['service_id' => $firstService->id],
+                    ['service_id' => $secondService->id],
+                ],
+                'items' => [
+                    ['product_id' => $product->id, 'quantity' => 2],
+                ],
+            ])
+            ->assertRedirect(route('clients.show', $client, false));
+
+        $order = ServiceOrder::query()->whereNull('appointment_id')->firstOrFail();
+        $sale = ProductSale::query()->where('service_order_id', $order->id)->firstOrFail();
+
+        $this->assertSame('80.00', (string) $order->subtotal_services);
+        $this->assertSame('40.00', (string) $order->subtotal_products);
+        $this->assertSame('120.00', (string) $order->total);
+        $this->assertSame(2, $order->items()->where('type', ServiceOrderItem::TYPE_SERVICE)->count());
+        $this->assertSame(1, $order->items()->where('type', ServiceOrderItem::TYPE_PRODUCT)->count());
+        $this->assertDatabaseHas('payments', [
+            'service_order_id' => $order->id,
+            'gross_amount' => '80.00',
+        ]);
+        $this->assertDatabaseHas('product_sales', [
+            'id' => $sale->id,
+            'service_order_id' => $order->id,
+            'gross_amount' => '40.00',
+        ]);
+        $this->assertSame(3, $product->refresh()->stock_quantity);
+    }
+
+    public function test_standalone_service_sale_appears_in_client_history_endpoint(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create([
+            'name' => 'Corte avulso',
+            'price' => 55.00,
+            'active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('product-sales.store', absolute: false), [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'payment_method' => 'pix',
+                'sold_at' => '2026-05-03 11:00:00',
+                'service_items' => [
+                    ['service_id' => $service->id],
+                ],
+            ])
+            ->assertRedirect();
+
+        $this->actingAs($admin)
+            ->getJson(route('appointments.client-history', $client, absolute: false))
+            ->assertOk()
+            ->assertJsonPath('has_history', true)
+            ->assertJsonFragment(['Corte avulso'])
+            ->assertJsonPath('total_spent', 55);
+    }
+
     public function test_product_sale_cannot_exceed_stock_quantity(): void
     {
         $company = Company::factory()->create();
@@ -150,6 +289,28 @@ class ProductTest extends TestCase
             ->assertSessionHasErrors('items');
 
         $this->assertSame(1, $product->refresh()->stock_quantity);
+        $this->assertDatabaseCount('product_sales', 0);
+    }
+
+    public function test_standalone_sale_without_any_item_is_blocked(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+
+        $this->actingAs($admin)
+            ->from(route('product-sales.create', absolute: false))
+            ->post(route('product-sales.store', absolute: false), [
+                'client_id' => $client->id,
+                'user_id' => $admin->id,
+                'payment_method' => 'pix',
+                'sold_at' => '2026-05-03 12:00:00',
+            ])
+            ->assertRedirect(route('product-sales.create', absolute: false))
+            ->assertSessionHasErrors('items');
+
+        $this->assertDatabaseCount('service_orders', 0);
+        $this->assertDatabaseCount('payments', 0);
         $this->assertDatabaseCount('product_sales', 0);
     }
 

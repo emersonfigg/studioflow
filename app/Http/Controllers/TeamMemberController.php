@@ -6,10 +6,10 @@ use App\Http\Requests\StoreTeamMemberRequest;
 use App\Http\Requests\UpdateTeamMemberRequest;
 use App\Models\ProfessionalWorkingHour;
 use App\Models\User;
+use App\Support\MediaStorage;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class TeamMemberController extends Controller
 {
@@ -59,7 +59,7 @@ class TeamMemberController extends Controller
         }
 
         if ($photo) {
-            $data['photo_path'] = $photo->store('professionals', 'public');
+            $data['photo_path'] = MediaStorage::putFile('professionals', $photo);
         }
 
         $user = User::create([
@@ -112,10 +112,10 @@ class TeamMemberController extends Controller
         }
 
         if ($photo) {
-            $newPath = $photo->store('professionals', 'public');
+            $newPath = MediaStorage::putFile('professionals', $photo);
 
             if ($team->photo_path) {
-                Storage::disk('public')->delete($team->photo_path);
+                MediaStorage::delete($team->normalizedPhotoPath() ?? $team->photo_path);
             }
 
             $data['photo_path'] = $newPath;

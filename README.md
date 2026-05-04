@@ -7,6 +7,42 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## StudioFlow Deploy Notes
+
+### Uploads e imagens em produção
+
+Uploads de logos, produtos, serviços e fotos de profissionais devem usar storage persistente. Em produção na Railway, não use o filesystem local do container para esses arquivos, porque ele é efêmero e pode ser recriado a cada deploy/restart.
+
+Configuração recomendada para Railway Storage Bucket ou outro S3 compatível:
+
+```env
+FILESYSTEM_DISK=s3
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+AWS_DEFAULT_REGION=...
+AWS_BUCKET=...
+AWS_ENDPOINT=...
+AWS_URL=...
+AWS_USE_PATH_STYLE_ENDPOINT=true
+```
+
+Em desenvolvimento local, use:
+
+```env
+FILESYSTEM_DISK=public
+```
+
+O comando `php artisan storage:link` continua útil no ambiente local com o disco `public`, mas não deve ser a base de persistência dos uploads em produção. Como alternativa temporária na Railway, um Volume pode manter `storage/app/public`, mas a recomendação para o SaaS é usar S3-compatible storage.
+
+Para migrar imagens locais ainda existentes para o disco configurado:
+
+```bash
+php artisan media:migrate-local-to-s3 --dry-run
+php artisan media:migrate-local-to-s3
+```
+
+O comando mantém os paths atuais salvos no banco e apenas copia os arquivos encontrados do disco `public` local para o disco configurado.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:

@@ -6,10 +6,10 @@ use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
 use App\Models\Product;
 use App\Models\ProductSaleItem;
+use App\Support\MediaStorage;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
@@ -67,7 +67,7 @@ class ProductController extends Controller
         unset($data['image']);
 
         if ($image) {
-            $data['image_path'] = $image->store('products', 'public');
+            $data['image_path'] = MediaStorage::putFile('products', $image);
         }
 
         Product::create([
@@ -111,7 +111,7 @@ class ProductController extends Controller
         }
 
         if ($image) {
-            $newPath = $image->store('products', 'public');
+            $newPath = MediaStorage::putFile('products', $image);
 
             if ($product->image_path) {
                 $this->deleteProductImage($product);
@@ -161,14 +161,6 @@ class ProductController extends Controller
             return;
         }
 
-        Storage::disk('public')->delete($paths);
-
-        foreach ($paths as $path) {
-            $absolutePath = Storage::disk('public')->path($path);
-
-            if (is_file($absolutePath)) {
-                @unlink($absolutePath);
-            }
-        }
+        MediaStorage::delete($paths);
     }
 }

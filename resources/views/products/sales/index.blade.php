@@ -2,8 +2,8 @@
     <x-slot name="header">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Produtos</p>
-                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">Vendas de produtos</h2>
+                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Vendas</p>
+                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">Vendas registradas</h2>
             </div>
 
             <a href="{{ route('product-sales.create') }}" class="sf-button-primary">Nova venda</a>
@@ -12,7 +12,7 @@
 
     <section class="sf-card overflow-hidden">
         <div class="border-b border-white/10 px-5 py-4">
-            <h3 class="text-lg font-semibold text-white">Histórico de vendas</h3>
+            <h3 class="text-lg font-semibold text-white">Historico de vendas</h3>
         </div>
         <div class="space-y-4 px-5 py-5">
             @forelse ($sales as $sale)
@@ -20,10 +20,12 @@
                     <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                         <div>
                             <p class="text-base font-semibold text-white">{{ $sale->client->name }}</p>
-                            <p class="mt-1 text-sm text-[#c7d2e3]">{{ $sale->sold_at->format('d/m/Y H:i') }} · {{ $sale->payment_method }}</p>
-                            <p class="mt-2 text-sm text-[#c7d2e3]">{{ $sale->items->map(fn ($item) => $item->product->name . ' x' . $item->quantity)->join(', ') }}</p>
+                            <p class="mt-1 text-sm text-[#c7d2e3]">{{ $sale->closed_at?->format('d/m/Y H:i') }} - {{ $sale->professional?->name ?? 'Sem profissional' }}</p>
+                            <p class="mt-2 text-sm text-[#c7d2e3]">
+                                {{ $sale->items->map(fn ($item) => $item->description . ($item->type === 'product' ? ' x' . $item->quantity : ''))->join(', ') }}
+                            </p>
                         </div>
-                        <p class="text-lg font-semibold text-[#d4af37]">R$ {{ number_format((float) $sale->gross_amount, 2, ',', '.') }}</p>
+                        <p class="text-lg font-semibold text-[#d4af37]">R$ {{ number_format((float) $sale->total, 2, ',', '.') }}</p>
                     </div>
                 </article>
             @empty
@@ -34,4 +36,27 @@
             {{ $sales->links() }}
         </div>
     </section>
+
+    @if ($legacySales->isNotEmpty())
+        <section class="sf-card mt-4 overflow-hidden">
+            <div class="border-b border-white/10 px-5 py-4">
+                <h3 class="text-lg font-semibold text-white">Vendas antigas de produtos</h3>
+                <p class="mt-1 text-sm text-[#c7d2e3]">Registros feitos antes da comanda avulsa.</p>
+            </div>
+            <div class="space-y-4 px-5 py-5">
+                @foreach ($legacySales as $legacySale)
+                    <article class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
+                        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                            <div>
+                                <p class="text-base font-semibold text-white">{{ $legacySale->client->name }}</p>
+                                <p class="mt-1 text-sm text-[#c7d2e3]">{{ $legacySale->sold_at->format('d/m/Y H:i') }} - {{ $legacySale->user?->name ?? 'Sem profissional' }}</p>
+                                <p class="mt-2 text-sm text-[#c7d2e3]">{{ $legacySale->items->map(fn ($item) => $item->product->name . ' x' . $item->quantity)->join(', ') }}</p>
+                            </div>
+                            <p class="text-lg font-semibold text-[#d4af37]">R$ {{ number_format((float) $legacySale->gross_amount, 2, ',', '.') }}</p>
+                        </div>
+                    </article>
+                @endforeach
+            </div>
+        </section>
+    @endif
 </x-app-layout>

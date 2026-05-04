@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\Appointment;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\Service;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -28,7 +29,9 @@ class StoreProductSaleRequest extends FormRequest
             'payment_method' => ['required', Rule::in(Payment::PAYMENT_METHODS)],
             'sold_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
-            'items' => ['required', 'array', 'min:1'],
+            'service_items' => ['nullable', 'array'],
+            'service_items.*.service_id' => ['required', 'integer'],
+            'items' => ['nullable', 'array'],
             'items.*.product_id' => ['required', 'integer'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
         ];
@@ -63,6 +66,30 @@ class StoreProductSaleRequest extends FormRequest
                 $validator->errors()->add('user_id', 'Selecione um profissional valido da sua empresa.');
             }
 
+            $serviceIds = collect($this->input('service_items', []))
+                ->pluck('service_id')
+                ->filter()
+                ->unique()
+                ->values();
+
+            $productItems = collect($this->input('items', []));
+
+            if ($serviceIds->isEmpty() && $productItems->isEmpty()) {
+                $validator->errors()->add('items', 'Adicione pelo menos um servico ou produto para salvar a venda.');
+            }
+
+            if ($serviceIds->isNotEmpty()) {
+                $validServiceIds = Service::query()
+                    ->where('company_id', $companyId)
+                    ->where('active', true)
+                    ->whereIn('id', $serviceIds)
+                    ->pluck('id');
+
+                if ($validServiceIds->count() !== $serviceIds->count()) {
+                    $validator->errors()->add('service_items', 'Um ou mais servicos nao pertencem a sua empresa ou estao inativos.');
+                }
+            }
+
             $productIds = collect($this->input('items', []))
                 ->pluck('product_id')
                 ->filter()
@@ -71,6 +98,7 @@ class StoreProductSaleRequest extends FormRequest
 
             $validProductIds = Product::query()
                 ->where('company_id', $companyId)
+                ->where('active', true)
                 ->whereIn('id', $productIds)
                 ->pluck('id');
 
@@ -80,6 +108,7 @@ class StoreProductSaleRequest extends FormRequest
 
             $products = Product::query()
                 ->where('company_id', $companyId)
+                ->where('active', true)
                 ->whereIn('id', $productIds)
                 ->get(['id', 'stock_quantity'])
                 ->keyBy('id');

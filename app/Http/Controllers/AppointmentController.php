@@ -208,6 +208,14 @@ class AppointmentController extends Controller
             ->latest('sold_at')
             ->limit(5)
             ->get();
+        $standaloneServiceOrders = $client->serviceOrders()
+            ->with('items.service')
+            ->where('company_id', $request->user()->company_id)
+            ->whereNull('appointment_id')
+            ->whereHas('items', fn ($query) => $query->where('type', 'service'))
+            ->latest('closed_at')
+            ->limit(5)
+            ->get();
         $serviceSpent = (float) $client->payments()
             ->where('company_id', $request->user()->company_id)
             ->sum('gross_amount');
@@ -215,14 +223,16 @@ class AppointmentController extends Controller
             ->where('company_id', $request->user()->company_id)
             ->sum('gross_amount');
         $totalSpent = $serviceSpent + $productSpent;
-        $interactionCount = max(1, $appointments->where('status', 'completed')->count() + $productSales->count());
+        $interactionCount = max(1, $appointments->where('status', 'completed')->count() + $productSales->count() + $standaloneServiceOrders->count());
         $lastAppointment = $appointments->first();
+        $lastVisit = $lastAppointment?->start_time ?? $client->last_visit_at;
 
         return response()->json([
-            'has_history' => $appointments->isNotEmpty() || $productSales->isNotEmpty(),
-            'last_visit' => $lastAppointment?->start_time?->format('d/m/Y H:i'),
+            'has_history' => $appointments->isNotEmpty() || $productSales->isNotEmpty() || $standaloneServiceOrders->isNotEmpty(),
+            'last_visit' => $lastVisit?->format('d/m/Y H:i'),
             'last_services' => $appointments
                 ->flatMap(fn (Appointment $appointment) => $appointment->bookedServices()->pluck('name'))
+                ->merge($standaloneServiceOrders->flatMap(fn ($order) => $order->items->pluck('service.name')->filter()))
                 ->unique()
                 ->take(5)
                 ->values(),

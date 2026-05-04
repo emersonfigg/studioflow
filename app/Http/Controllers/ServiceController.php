@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreServiceRequest;
 use App\Http\Requests\UpdateServiceRequest;
 use App\Models\Service;
+use App\Support\MediaStorage;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -59,7 +60,7 @@ class ServiceController extends Controller
         unset($data['library_image']);
 
         if ($image) {
-            $data['image_path'] = $image->store('services', 'public');
+            $data['image_path'] = MediaStorage::putFile('services', $image);
         } elseif ($libraryImage) {
             $data['image_path'] = $this->copyLibraryImageToServices($libraryImage);
         }
@@ -125,14 +126,14 @@ class ServiceController extends Controller
         unset($data['library_image']);
 
         if ($image) {
-            $newPath = $image->store('services', 'public');
+            $newPath = MediaStorage::putFile('services', $image);
         } elseif ($libraryImage) {
             $newPath = $this->copyLibraryImageToServices($libraryImage);
         }
 
         if (isset($newPath)) {
             if ($service->image_path) {
-                Storage::disk('public')->delete($service->normalizedImagePath() ?? $service->image_path);
+                MediaStorage::delete($service->normalizedImagePath() ?? $service->image_path);
             }
 
             $data['image_path'] = $newPath;
@@ -152,7 +153,7 @@ class ServiceController extends Controller
         $this->ensureServiceBelongsToUserCompany($request, $service);
 
         if ($service->image_path) {
-            Storage::disk('public')->delete($service->normalizedImagePath() ?? $service->image_path);
+            MediaStorage::delete($service->normalizedImagePath() ?? $service->image_path);
         }
 
         $service->delete();
@@ -183,7 +184,7 @@ class ServiceController extends Controller
             ->map(function (string $path): array {
                 return [
                     'path' => $path,
-                    'url' => Storage::url($path),
+                    'url' => Storage::disk('public')->url($path),
                     'label' => Str::of(pathinfo($path, PATHINFO_FILENAME))
                         ->replace(['-', '_'], ' ')
                         ->title()
@@ -203,7 +204,7 @@ class ServiceController extends Controller
         $filename = Str::slug(pathinfo($path, PATHINFO_FILENAME));
         $destination = 'services/'.$filename.'-'.Str::lower(Str::random(10)).'.'.$extension;
 
-        Storage::disk('public')->copy($path, $destination);
+        MediaStorage::put($destination, Storage::disk('public')->get($path));
 
         return $destination;
     }

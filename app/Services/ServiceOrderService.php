@@ -10,6 +10,7 @@ use App\Models\Service;
 use App\Models\ServiceOrder;
 use App\Models\ServiceOrderItem;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -120,12 +121,14 @@ class ServiceOrderService
         return $this->recalculate($order);
     }
 
-    public function close(ServiceOrder $order, User $actor, string $paymentMethod, ?string $notes = null): Payment
+    public function close(ServiceOrder $order, User $actor, string $paymentMethod, ?string $notes = null, ?CarbonInterface $closedAt = null): ?Payment
     {
-        return DB::transaction(function () use ($order, $paymentMethod, $notes): Payment {
+        $closedAt ??= now();
+
+        return DB::transaction(function () use ($order, $paymentMethod, $notes, $closedAt): ?Payment {
             /** @var ServiceOrder $lockedOrder */
             $lockedOrder = ServiceOrder::query()
-                ->with(['appointment.user', 'appointment.client', 'items.product'])
+                ->with(['appointment.user', 'appointment.client', 'items.product', 'items.service', 'professional', 'client'])
                 ->whereKey($order->id)
                 ->lockForUpdate()
                 ->firstOrFail();
@@ -162,43 +165,56 @@ class ServiceOrderService
             }
 
             $appointment = $lockedOrder->appointment;
-            $professional = $appointment->user;
+            $professional = $appointment?->user ?? $lockedOrder->professional;
             $serviceSubtotal = (float) $lockedOrder->subtotal_services;
-            $commissionAmount = $this->calculateCommissionAmount($professional, $serviceSubtotal);
-            $commissionRate = $professional->commission_type === 'percent'
-                ? round((float) ($professional->commission_value ?? 0), 2)
-                : null;
+            $payment = null;
 
-            $payment = Payment::create([
-                'company_id' => $lockedOrder->company_id,
-                'appointment_id' => $appointment->id,
-                'service_order_id' => $lockedOrder->id,
-                'user_id' => $professional->id,
-                'client_id' => $lockedOrder->client_id,
-                'service_id' => $appointment->service_id,
-                'gross_amount' => $serviceSubtotal,
-                'payment_method' => $paymentMethod,
-                'commission_type' => $professional->commission_type,
-                'commission_rate' => $commissionRate,
-                'commission_amount' => $commissionAmount,
-                'net_amount' => round($serviceSubtotal - $commissionAmount, 2),
-                'paid_at' => now(),
-                'notes' => $notes,
-            ]);
+            if ($serviceSubtotal > 0) {
+                if (! $professional) {
+                    throw ValidationException::withMessages([
+                        'payment_method' => 'Informe um profissional para fechar servicos na comanda.',
+                    ]);
+                }
 
-            $appointment->update(['status' => 'completed']);
-            $this->cashRegisterService->recordPayment($payment->load('client'));
+                /** @var ServiceOrderItem|null $firstServiceItem */
+                $firstServiceItem = $lockedOrder->items->firstWhere('type', ServiceOrderItem::TYPE_SERVICE);
+                $commissionAmount = $this->calculateCommissionAmount($professional, $serviceSubtotal);
+                $commissionRate = $professional->commission_type === 'percent'
+                    ? round((float) ($professional->commission_value ?? 0), 2)
+                    : null;
+
+                $payment = Payment::create([
+                    'company_id' => $lockedOrder->company_id,
+                    'appointment_id' => $appointment?->id,
+                    'service_order_id' => $lockedOrder->id,
+                    'user_id' => $professional->id,
+                    'client_id' => $lockedOrder->client_id,
+                    'service_id' => $appointment?->service_id ?? $firstServiceItem?->service_id,
+                    'gross_amount' => $serviceSubtotal,
+                    'payment_method' => $paymentMethod,
+                    'commission_type' => $professional->commission_type,
+                    'commission_rate' => $commissionRate,
+                    'commission_amount' => $commissionAmount,
+                    'net_amount' => round($serviceSubtotal - $commissionAmount, 2),
+                    'paid_at' => $closedAt,
+                    'notes' => $notes,
+                ]);
+
+                $this->cashRegisterService->recordPayment($payment->load('client'));
+            }
+
+            $appointment?->update(['status' => 'completed']);
 
             if ($productItems->isNotEmpty()) {
                 $sale = ProductSale::create([
                     'company_id' => $lockedOrder->company_id,
                     'client_id' => $lockedOrder->client_id,
-                    'appointment_id' => $appointment->id,
+                    'appointment_id' => $appointment?->id,
                     'service_order_id' => $lockedOrder->id,
                     'user_id' => $lockedOrder->professional_id,
                     'gross_amount' => $lockedOrder->subtotal_products,
                     'payment_method' => $paymentMethod,
-                    'sold_at' => now(),
+                    'sold_at' => $closedAt,
                     'notes' => $notes,
                 ]);
 
@@ -218,7 +234,11 @@ class ServiceOrderService
 
             $lockedOrder->update([
                 'status' => ServiceOrder::STATUS_PAID,
-                'closed_at' => now(),
+                'closed_at' => $closedAt,
+            ]);
+
+            $lockedOrder->client?->update([
+                'last_visit_at' => $closedAt,
             ]);
 
             return $payment;

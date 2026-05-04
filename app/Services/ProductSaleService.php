@@ -6,6 +6,8 @@ use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Product;
 use App\Models\ProductSale;
+use App\Models\Service;
+use App\Models\ServiceOrder;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -16,6 +18,7 @@ class ProductSaleService
 {
     public function __construct(
         private readonly CashRegisterService $cashRegisterService,
+        private readonly ServiceOrderService $serviceOrderService,
     ) {}
 
     /**
@@ -108,6 +111,87 @@ class ProductSaleService
             $this->cashRegisterService->recordProductSale($sale->load('client'));
 
             return $sale->load(['client', 'user', 'items.product']);
+        });
+    }
+
+    /**
+     * Register a standalone service order without creating an appointment.
+     *
+     * @param  array{
+     *     client_id:int,
+     *     user_id?:int|null,
+     *     payment_method:string,
+     *     sold_at?:string|null,
+     *     notes?:string|null,
+     *     service_items?:array<int, array{service_id:int}>,
+     *     items?:array<int, array{product_id:int, quantity:int}>
+     * }  $data
+     */
+    public function registerStandaloneOrder(User $actor, array $data): ServiceOrder
+    {
+        $companyId = $actor->company_id;
+        $soldAt = ! empty($data['sold_at'])
+            ? CarbonImmutable::parse($data['sold_at'])
+            : CarbonImmutable::now();
+
+        return DB::transaction(function () use ($actor, $data, $soldAt, $companyId): ServiceOrder {
+            /** @var Client $client */
+            $client = Client::query()
+                ->where('company_id', $companyId)
+                ->findOrFail($data['client_id']);
+
+            /** @var User $professional */
+            $professional = User::query()
+                ->where('company_id', $companyId)
+                ->where('active', true)
+                ->findOrFail($data['user_id'] ?? $actor->id);
+
+            $order = ServiceOrder::create([
+                'company_id' => $companyId,
+                'appointment_id' => null,
+                'client_id' => $client->id,
+                'professional_id' => $professional->id,
+                'status' => ServiceOrder::STATUS_OPEN,
+                'opened_at' => $soldAt,
+            ]);
+
+            $serviceIds = collect($data['service_items'] ?? [])->pluck('service_id')->filter()->all();
+
+            if ($serviceIds !== []) {
+                /** @var Collection<int, Service> $services */
+                $services = Service::query()
+                    ->where('company_id', $companyId)
+                    ->where('active', true)
+                    ->whereIn('id', $serviceIds)
+                    ->get()
+                    ->keyBy('id');
+
+                foreach ($serviceIds as $serviceId) {
+                    /** @var Service|null $service */
+                    $service = $services->get((int) $serviceId);
+
+                    if (! $service) {
+                        throw ValidationException::withMessages([
+                            'service_items' => 'Um ou mais servicos nao estao disponiveis.',
+                        ]);
+                    }
+
+                    $this->serviceOrderService->addService($order, $service, $professional);
+                }
+            }
+
+            foreach ($data['items'] ?? [] as $item) {
+                $product = Product::query()
+                    ->where('company_id', $companyId)
+                    ->where('active', true)
+                    ->findOrFail($item['product_id']);
+
+                $this->serviceOrderService->addProduct($order, $product, (int) $item['quantity']);
+            }
+
+            $this->serviceOrderService->close($order, $actor, $data['payment_method'], $data['notes'] ?? null, $soldAt);
+
+            return $order->fresh(['client', 'professional', 'items.service', 'items.product']);
         });
     }
 

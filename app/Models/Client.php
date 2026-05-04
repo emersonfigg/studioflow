@@ -84,4 +84,9 @@ class Client extends Model
     {
         return $this->hasMany(ProductSale::class);
     }
+
+    public function serviceOrders(): HasMany
+    {
+        return $this->hasMany(ServiceOrder::class);
+    }
 }

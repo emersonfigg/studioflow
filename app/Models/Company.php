@@ -2,12 +2,11 @@
 
 namespace App\Models;
 
+use App\Support\MediaStorage;
 use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class Company extends Model
 {
@@ -171,11 +170,7 @@ class Company extends Model
     {
         $logoPath = $this->normalizedLogoPath();
 
-        if (! $logoPath || ! Storage::disk('public')->exists($logoPath)) {
-            return null;
-        }
-
-        return Storage::url($logoPath);
+        return MediaStorage::url($logoPath);
     }
 
     /**
@@ -187,7 +182,7 @@ class Company extends Model
             return null;
         }
 
-        return ltrim(Str::replaceFirst('storage/', '', str_replace('\\', '/', $this->logo)), '/');
+        return MediaStorage::normalizePath($this->logo);
     }
 
     /**

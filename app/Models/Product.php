@@ -2,12 +2,11 @@
 
 namespace App\Models;
 
+use App\Support\MediaStorage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class Product extends Model
 {
@@ -75,11 +74,7 @@ class Product extends Model
     {
         $imagePath = $this->normalizedImagePath();
 
-        if (! $imagePath || ! Storage::disk('public')->exists($imagePath)) {
-            return null;
-        }
-
-        return Storage::url($imagePath);
+        return MediaStorage::url($imagePath);
     }
 
     /**
@@ -91,6 +86,6 @@ class Product extends Model
             return null;
         }
 
-        return ltrim(Str::replaceFirst('storage/', '', str_replace('\\', '/', $this->image_path)), '/');
+        return MediaStorage::normalizePath($this->image_path);
     }
 }
