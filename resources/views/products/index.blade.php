@@ -58,15 +58,26 @@
                     <article class="sf-card p-5 transition hover:-translate-y-0.5 hover:border-[#d4af37]/20 hover:shadow-[0_18px_40px_rgba(9,20,45,0.28)]">
                         <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                             <div class="flex min-w-0 items-start gap-4">
-                                @if ($product->image_url)
-                                    <img src="{{ $product->image_url }}" alt="Imagem de {{ $product->name }}" class="h-20 w-20 rounded-2xl object-cover ring-1 ring-white/10">
-                                @else
-                                    <div class="flex h-20 w-20 items-center justify-center rounded-2xl border border-dashed border-white/10 bg-[#132746] text-[#d4af37]">
+                                <div class="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl ring-1 ring-white/10">
+                                    @if ($product->image_url)
+                                        <img
+                                            src="{{ $product->image_url }}"
+                                            alt="Imagem de {{ $product->name }}"
+                                            class="absolute inset-0 h-full w-full object-cover"
+                                            loading="lazy"
+                                            decoding="async"
+                                            onerror="this.classList.add('hidden'); this.nextElementSibling?.classList.remove('hidden')"
+                                        >
+                                    @endif
+                                    <div @class([
+                                        'absolute inset-0 flex items-center justify-center rounded-2xl border border-dashed border-white/10 bg-[#132746] text-[#d4af37]',
+                                        'hidden' => (bool) $product->image_url,
+                                    ])>
                                         <svg class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                                             <path d="M7.5 6A2.5 2.5 0 005 8.5v7A2.5 2.5 0 007.5 18h9a2.5 2.5 0 002.5-2.5v-7A2.5 2.5 0 0016.5 6h-9zm0 1.5h9A1 1 0 0117.5 8.5v4.085l-2.23-2.23a1.75 1.75 0 00-2.475 0l-2.92 2.92-1.17-1.17a1.75 1.75 0 00-2.475 0L6.5 13.835V8.5a1 1 0 011-1zm8.75 2.25a1.25 1.25 0 11-2.5 0 1.25 1.25 0 012.5 0zM7.29 13.166a.25.25 0 01.354 0l1.7 1.7a.75.75 0 001.06 0l3.451-3.45a.25.25 0 01.354 0l2.291 2.29v1.794a1 1 0 01-1 1h-9a1 1 0 01-1-1v-.544l1.79-1.79z" />
                                         </svg>
                                     </div>
-                                @endif
+                                </div>
                                 <div class="min-w-0">
                                     <div class="flex items-center gap-3">
                                         <h3 class="text-lg font-semibold text-white">{{ $product->name }}</h3>

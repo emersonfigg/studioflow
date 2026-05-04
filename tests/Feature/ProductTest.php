@@ -20,6 +20,43 @@ class ProductTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_product_update_with_image_persists_path_and_index_renders_image_url(): void
+    {
+        Storage::fake('public');
+
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $product = Product::factory()->for($company)->create([
+            'name' => 'Produto com foto',
+            'image_path' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('products.update', $product, false), [
+                'name' => 'Produto com foto',
+                'sku' => 'PRD-IMG-001',
+                'description' => 'Teste de upload de imagem.',
+                'image' => UploadedFile::fake()->image('produto.webp'),
+                'price' => '89.90',
+                'stock_quantity' => 15,
+                'active' => '1',
+            ])
+            ->assertRedirect(route('products.index', absolute: false));
+
+        $product->refresh();
+
+        $this->assertNotNull($product->image_path);
+        Storage::disk('public')->assertExists($product->image_path);
+        $this->assertNotNull($product->image_url);
+        $this->assertStringStartsWith('/storage/products/', (string) $product->image_url);
+
+        $this->actingAs($admin)
+            ->get(route('products.index', absolute: false))
+            ->assertOk()
+            ->assertSee('Produto com foto')
+            ->assertSee((string) $product->image_url, false);
+    }
+
     public function test_admin_can_create_and_update_products_in_own_company(): void
     {
         Storage::fake('public');

@@ -60,17 +60,28 @@
                     <div class="flex items-start justify-between gap-4">
                         <div class="min-w-0">
                             <div class="mb-4 overflow-hidden rounded-2xl border border-white/10 bg-[#132746]">
-                                @if ($service->image_url)
-                                    <img src="{{ $service->image_url }}" alt="Imagem de {{ $service->name }}" class="h-40 w-full object-cover">
-                                @else
-                                    <div class="flex h-40 items-center justify-center bg-[#132746]">
+                                <div class="relative h-40 w-full overflow-hidden bg-[#132746]">
+                                    @if ($service->image_url)
+                                        <img
+                                            src="{{ $service->image_url }}"
+                                            alt="Imagem de {{ $service->name }}"
+                                            class="absolute inset-0 h-full w-full object-cover"
+                                            loading="lazy"
+                                            decoding="async"
+                                            onerror="this.classList.add('hidden'); this.nextElementSibling?.classList.remove('hidden')"
+                                        >
+                                    @endif
+                                    <div @class([
+                                        'absolute inset-0 flex h-40 items-center justify-center bg-[#132746]',
+                                        'hidden' => (bool) $service->image_url,
+                                    ])>
                                         <div class="flex h-14 w-14 items-center justify-center rounded-full bg-[#d4af37]/12 text-[#d4af37]">
                                             <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2 1.586-1.586a2 2 0 012.828 0L20 14m-9-5h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                             </svg>
                                         </div>
                                     </div>
-                                @endif
+                                </div>
                             </div>
 
                             <div class="inline-flex items-center rounded-full border border-white/10 bg-[#132746] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">

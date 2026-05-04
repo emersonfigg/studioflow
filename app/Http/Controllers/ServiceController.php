@@ -184,7 +184,7 @@ class ServiceController extends Controller
             ->map(function (string $path): array {
                 return [
                     'path' => $path,
-                    'url' => Storage::disk('public')->url($path),
+                    'url' => MediaStorage::url($path) ?? Storage::disk('public')->url($path),
                     'label' => Str::of(pathinfo($path, PATHINFO_FILENAME))
                         ->replace(['-', '_'], ' ')
                         ->title()

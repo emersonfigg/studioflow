@@ -15,5 +15,8 @@
         <a href="{{ route('finance.report', request()->query()) }}" class="{{ $page === 'report' ? 'border-[#d4af37]/25 bg-[#d4af37]/12 text-white' : 'border-transparent text-[#c7d2e3] hover:border-white/10 hover:bg-white/5 hover:text-white' }} inline-flex items-center rounded-2xl border px-4 py-3 text-sm font-medium transition">
             Relatório
         </a>
+        <a href="{{ route('finance.performance', request()->query()) }}" class="{{ $page === 'performance' ? 'border-[#d4af37]/25 bg-[#d4af37]/12 text-white' : 'border-transparent text-[#c7d2e3] hover:border-white/10 hover:bg-white/5 hover:text-white' }} inline-flex items-center rounded-2xl border px-4 py-3 text-sm font-medium transition">
+            Desempenho
+        </a>
     </div>
 </div>

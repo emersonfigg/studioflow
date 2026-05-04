@@ -46,20 +46,45 @@ class MediaStorage
 
     public static function url(?string $path): ?string
     {
+        $path = trim(str_replace('\\', '/', (string) $path));
+
+        if ($path === '') {
+            return null;
+        }
+
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+
         $path = self::normalizePath($path);
 
         if (! $path) {
             return null;
         }
 
-        $disk = Storage::disk(self::diskName());
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+
+        $diskName = self::diskName();
+        $disk = Storage::disk($diskName);
+
+        if ($diskName === 'public' && $disk->exists($path)) {
+            return self::publicDiskUrl($path);
+        }
 
         if ($disk->exists($path)) {
             return $disk->url($path);
         }
 
-        if (self::diskName() !== 'public' && Storage::disk('public')->exists($path)) {
-            return Storage::disk('public')->url($path);
+        if ($diskName !== 'public' && Storage::disk('public')->exists($path)) {
+            return self::publicDiskUrl($path);
+        }
+
+        $driver = (string) config("filesystems.disks.{$diskName}.driver", 'local');
+
+        if ($diskName !== 'public' && $driver === 's3') {
+            return $disk->url($path);
         }
 
         return null;
@@ -71,6 +96,17 @@ class MediaStorage
             return null;
         }
 
-        return ltrim(Str::replaceFirst('storage/', '', str_replace('\\', '/', $path)), '/');
+        $path = trim(str_replace('\\', '/', $path));
+
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+
+        return ltrim(Str::replaceFirst('storage/', '', $path), '/');
+    }
+
+    private static function publicDiskUrl(string $path): string
+    {
+        return '/storage/'.ltrim($path, '/');
     }
 }

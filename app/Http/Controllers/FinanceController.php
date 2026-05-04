@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\ProductSale;
 use App\Models\User;
 use App\Services\CashRegisterService;
+use App\Services\DashboardPerformanceService;
 use App\Support\BrazilianCurrency;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -331,6 +332,44 @@ class FinanceController extends Controller
     }
 
     /**
+     * Display professional performance dashboard.
+     */
+    public function performance(Request $request, DashboardPerformanceService $dashboardPerformanceService): View
+    {
+        [$from, $to, $selectedUserId, $users] = $this->baseFilters($request);
+
+        if ($request->string('period')->value() !== '') {
+            [$from, $to] = $this->resolvePeriodRange(
+                $request->string('period')->value(),
+                $request->filled('from') ? CarbonImmutable::parse($request->string('from'))->startOfDay() : $from,
+                $request->filled('to') ? CarbonImmutable::parse($request->string('to'))->endOfDay() : $to,
+            );
+        }
+
+        $period = $request->string('period')->value() ?: 'custom';
+        $periodLabel = $this->periodLabel($period);
+        $metrics = $dashboardPerformanceService->build($request->user()->company_id, [
+            'from' => $from,
+            'to' => $to,
+            'selected_user_id' => $selectedUserId,
+            'period' => $period,
+            'period_label' => $periodLabel,
+        ]);
+
+        return view('finance.performance', [
+            'users' => $users,
+            'selectedUserId' => $selectedUserId,
+            'canFilterProfessionals' => $request->user()->isAdmin(),
+            'from' => $from,
+            'to' => $to,
+            'period' => $period,
+            'periodLabel' => $periodLabel,
+            'metrics' => $metrics,
+            'page' => 'performance',
+        ]);
+    }
+
+    /**
      * Build the shared finance dataset with filters and company isolation.
      *
      * @return array{0: CarbonImmutable, 1: CarbonImmutable, 2: int|null, 3: \Illuminate\Database\Eloquent\Collection<int, User>, 4: Collection<int, Payment>}
@@ -381,5 +420,35 @@ class FinanceController extends Controller
             : $request->user()->id;
 
         return [$from, $to, $selectedUserId, $users];
+    }
+
+    /**
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
+     */
+    private function resolvePeriodRange(string $period, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        return match ($period) {
+            'today' => [CarbonImmutable::today()->startOfDay(), CarbonImmutable::today()->endOfDay()],
+            '7d' => [CarbonImmutable::today()->subDays(6)->startOfDay(), CarbonImmutable::today()->endOfDay()],
+            '30d' => [CarbonImmutable::today()->subDays(29)->startOfDay(), CarbonImmutable::today()->endOfDay()],
+            'this_month' => [CarbonImmutable::today()->startOfMonth(), CarbonImmutable::today()->endOfDay()],
+            'last_month' => [
+                CarbonImmutable::today()->subMonthNoOverflow()->startOfMonth(),
+                CarbonImmutable::today()->subMonthNoOverflow()->endOfMonth(),
+            ],
+            default => [$from, $to],
+        };
+    }
+
+    private function periodLabel(string $period): string
+    {
+        return match ($period) {
+            'today' => 'Hoje',
+            '7d' => 'Últimos 7 dias',
+            '30d' => 'Últimos 30 dias',
+            'this_month' => 'Este mês',
+            'last_month' => 'Mês anterior',
+            default => 'Período personalizado',
+        };
     }
 }

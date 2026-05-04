@@ -7,6 +7,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PdvController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductSaleController;
 use App\Http\Controllers\ProfessionalAvailabilityController;
@@ -70,6 +71,8 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
     Route::get('products/sales', [ProductSaleController::class, 'index'])->name('product-sales.index');
     Route::get('products/sales/create', [ProductSaleController::class, 'create'])->name('product-sales.create');
     Route::post('products/sales', [ProductSaleController::class, 'store'])->name('product-sales.store');
+    Route::get('pdv', [PdvController::class, 'index'])->name('pdv.index');
+    Route::post('pdv', [PdvController::class, 'store'])->name('pdv.store');
     Route::resource('services', ServiceController::class);
     Route::resource('team', TeamMemberController::class)->except(['show', 'destroy']);
     Route::patch('team/{team}/toggle-active', [TeamMemberController::class, 'toggleActive'])
@@ -100,6 +103,8 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
         ->name('finance.cash.close');
     Route::get('finance/report', [FinanceController::class, 'report'])
         ->name('finance.report');
+    Route::get('finance/performance', [FinanceController::class, 'performance'])
+        ->name('finance.performance');
     Route::get('finance/commissions/settlements/create', [CommissionSettlementController::class, 'create'])
         ->name('finance.commissions.settlements.create');
     Route::post('finance/commissions/settlements', [CommissionSettlementController::class, 'store'])

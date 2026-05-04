@@ -115,7 +115,7 @@ class ServiceTest extends TestCase
             ->assertSee('Visible Service')
             ->assertSee('Detalhes e performance do serviço')
             ->assertSee('/storage/services/visible-service.jpg')
-            ->assertSee('h-20 w-20 shrink-0 rounded-xl object-cover', false)
+            ->assertSee('absolute inset-0 h-full w-full object-cover', false)
             ->assertDontSee('h-56 w-full object-cover', false)
             ->assertSee('Receita gerada no mês');
 

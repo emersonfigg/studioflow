@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\Product;
+use App\Models\Service;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -63,7 +64,19 @@ class MediaStorageTest extends TestCase
         $this->assertSame('https://media.studioflow.test/products/pomada.webp', $product->image_url);
     }
 
-    public function test_missing_product_image_returns_null_for_placeholder_fallback(): void
+    public function test_missing_product_image_on_public_disk_returns_null_for_placeholder_fallback(): void
+    {
+        config(['filesystems.default' => 'public']);
+        Storage::fake('public');
+
+        $product = Product::factory()->create([
+            'image_path' => 'products/missing.webp',
+        ]);
+
+        $this->assertNull($product->image_url);
+    }
+
+    public function test_stale_product_image_path_on_s3_disk_still_returns_public_url(): void
     {
         config(['filesystems.default' => 's3']);
         Storage::fake('s3');
@@ -72,7 +85,58 @@ class MediaStorageTest extends TestCase
             'image_path' => 'products/missing.webp',
         ]);
 
-        $this->assertNull($product->image_url);
+        $this->assertNotNull($product->image_url);
+        $this->assertStringContainsString('products/missing.webp', (string) $product->image_url);
+    }
+
+    public function test_service_image_url_uses_storage_url_from_configured_disk(): void
+    {
+        config([
+            'filesystems.default' => 's3',
+            'filesystems.disks.s3' => [
+                'driver' => 'local',
+                'root' => storage_path('framework/testing/disks/s3-service-url'),
+                'url' => 'https://media.studioflow.test',
+                'visibility' => 'public',
+                'throw' => false,
+            ],
+        ]);
+        $this->cleanTestingDisk('s3-service-url');
+        Storage::disk('s3')->put('services/corte.webp', 'image-content');
+
+        $service = Service::factory()->create([
+            'image_path' => 'services/corte.webp',
+        ]);
+
+        $this->assertSame('https://media.studioflow.test/services/corte.webp', $service->image_url);
+    }
+
+    public function test_pdv_catalog_json_includes_image_url_for_products_and_services(): void
+    {
+        config(['filesystems.default' => 'public']);
+        Storage::fake('public');
+        Storage::disk('public')->put('products/pdv-thumb.webp', 'x');
+        Storage::disk('public')->put('services/pdv-svc.webp', 'y');
+
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $product = Product::factory()->for($company)->create([
+            'image_path' => 'products/pdv-thumb.webp',
+            'active' => true,
+        ]);
+        $service = Service::factory()->for($company)->create([
+            'image_path' => 'services/pdv-svc.webp',
+            'active' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('pdv.index', absolute: false));
+
+        $response->assertOk();
+        $html = $response->getContent();
+        $this->assertStringContainsString('pdv-thumb.webp', $html);
+        $this->assertStringContainsString('pdv-svc.webp', $html);
+        $this->assertMatchesRegularExpression('/"image_url":"[^"]*pdv-thumb\.webp"/', $html);
+        $this->assertMatchesRegularExpression('/"image_url":"[^"]*pdv-svc\.webp"/', $html);
     }
 
     public function test_company_logo_uses_configured_disk(): void
