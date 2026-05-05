@@ -68,9 +68,14 @@ class MediaStorage
 
         $diskName = self::diskName();
         $disk = Storage::disk($diskName);
+        $driver = (string) config("filesystems.disks.{$diskName}.driver", 'local');
 
-        if ($diskName === 'public' && $disk->exists($path)) {
-            return self::publicDiskUrl($path);
+        if ($driver === 's3') {
+            return $disk->url($path);
+        }
+
+        if ($diskName === 'public') {
+            return $disk->exists($path) ? self::publicDiskUrl($path) : null;
         }
 
         if ($disk->exists($path)) {
@@ -79,12 +84,6 @@ class MediaStorage
 
         if ($diskName !== 'public' && Storage::disk('public')->exists($path)) {
             return self::publicDiskUrl($path);
-        }
-
-        $driver = (string) config("filesystems.disks.{$diskName}.driver", 'local');
-
-        if ($diskName !== 'public' && $driver === 's3') {
-            return $disk->url($path);
         }
 
         return null;

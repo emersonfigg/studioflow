@@ -22,7 +22,9 @@ class MigrateLocalMediaToS3Command extends Command
         $targetDisk = MediaStorage::diskName();
 
         if ($targetDisk === 'public') {
-            $this->components->warn('FILESYSTEM_DISK está como public. Configure s3 antes de migrar para storage persistente.');
+            $this->components->warn(
+                'FILESYSTEM_DISK=public: arquivos ficam no disco do container e somem no redeploy sem volume. Para Railway use FILESYSTEM_DISK=s3 (R2/S3) antes de migrar.'
+            );
 
             return self::SUCCESS;
         }

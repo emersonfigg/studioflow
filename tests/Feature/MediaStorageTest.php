@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\Product;
 use App\Models\Service;
 use App\Models\User;
+use App\Support\MediaStorage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -14,6 +15,26 @@ use Tests\TestCase;
 class MediaStorageTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_media_storage_put_file_stores_relative_path_under_folder(): void
+    {
+        config(['filesystems.default' => 'public']);
+        Storage::fake('public');
+
+        $relative = MediaStorage::putFile('products', UploadedFile::fake()->image('gloss.webp'));
+
+        $this->assertMatchesRegularExpression('#^products/[^/]+$#', $relative);
+        Storage::disk('public')->assertExists($relative);
+    }
+
+    public function test_media_storage_url_on_public_disk_prefixes_storage_path(): void
+    {
+        config(['filesystems.default' => 'public']);
+        Storage::fake('public');
+        Storage::disk('public')->put('products/x.webp', 'x');
+
+        $this->assertSame('/storage/products/x.webp', MediaStorage::url('products/x.webp'));
+    }
 
     public function test_product_upload_uses_configured_filesystem_disk(): void
     {

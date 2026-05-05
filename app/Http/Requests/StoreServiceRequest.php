@@ -3,8 +3,8 @@
 namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\NormalizesBrazilianCurrency;
+use App\Support\ServiceImageLibrary;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class StoreServiceRequest extends FormRequest
@@ -48,11 +48,6 @@ class StoreServiceRequest extends FormRequest
      */
     private function availableLibraryImages(): array
     {
-        return collect(Storage::disk('public')->files('service-library/services'))
-            ->filter(function (string $path): bool {
-                return in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'webp', 'svg'], true);
-            })
-            ->values()
-            ->all();
+        return ServiceImageLibrary::relativePaths();
     }
 }

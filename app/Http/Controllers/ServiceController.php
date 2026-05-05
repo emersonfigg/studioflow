@@ -6,6 +6,7 @@ use App\Http\Requests\StoreServiceRequest;
 use App\Http\Requests\UpdateServiceRequest;
 use App\Models\Service;
 use App\Support\MediaStorage;
+use App\Support\ServiceImageLibrary;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -176,15 +177,22 @@ class ServiceController extends Controller
      */
     private function serviceLibraryImages(): array
     {
-        return collect(Storage::disk('public')->files('service-library/services'))
-            ->filter(function (string $path): bool {
-                return in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'webp', 'svg'], true);
-            })
-            ->sort()
+        return collect(ServiceImageLibrary::relativePaths())
             ->map(function (string $path): array {
+                $fallbackUrl = null;
+                try {
+                    if (Storage::disk('public')->exists($path)) {
+                        $fallbackUrl = Storage::disk('public')->url($path);
+                    }
+                } catch (\Throwable) {
+                    $fallbackUrl = null;
+                }
+
                 return [
                     'path' => $path,
-                    'url' => MediaStorage::url($path) ?? Storage::disk('public')->url($path),
+                    'url' => ServiceImageLibrary::publicWebUrl($path)
+                        ?? MediaStorage::url($path)
+                        ?? $fallbackUrl,
                     'label' => Str::of(pathinfo($path, PATHINFO_FILENAME))
                         ->replace(['-', '_'], ' ')
                         ->title()
@@ -204,7 +212,7 @@ class ServiceController extends Controller
         $filename = Str::slug(pathinfo($path, PATHINFO_FILENAME));
         $destination = 'services/'.$filename.'-'.Str::lower(Str::random(10)).'.'.$extension;
 
-        MediaStorage::put($destination, Storage::disk('public')->get($path));
+        MediaStorage::put($destination, ServiceImageLibrary::getContents($path));
 
         return $destination;
     }
