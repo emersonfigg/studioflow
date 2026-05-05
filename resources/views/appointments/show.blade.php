@@ -47,7 +47,7 @@
                         Registrar pagamento
                     </a>
                 @elseif ($appointment->status !== 'completed' && $appointment->status !== 'cancelled' && ! $appointment->payment && (auth()->user()->isAdmin() || auth()->id() === $appointment->user_id))
-                    <a href="{{ route('appointments.payments.create', $appointment) }}" class="sf-button-primary">
+                    <a href="{{ route('pdv.index', ['appointment_id' => $appointment->id]) }}" class="sf-button-primary">
                         Concluir atendimento
                     </a>
                 @endif

@@ -73,6 +73,8 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
     Route::post('products/sales', [ProductSaleController::class, 'store'])->name('product-sales.store');
     Route::get('pdv', [PdvController::class, 'index'])->name('pdv.index');
     Route::post('pdv', [PdvController::class, 'store'])->name('pdv.store');
+    Route::get('pdv/receipt/{serviceOrder}', [PdvController::class, 'receipt'])->name('pdv.receipt');
+    Route::get('sales/{serviceOrder}/receipt', [PdvController::class, 'receipt'])->name('sales.receipt');
     Route::resource('services', ServiceController::class);
     Route::resource('team', TeamMemberController::class)->except(['show', 'destroy']);
     Route::patch('team/{team}/toggle-active', [TeamMemberController::class, 'toggleActive'])

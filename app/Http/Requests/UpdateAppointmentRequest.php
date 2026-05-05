@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Appointment;
+use App\Models\Product;
 use App\Models\Service;
 use App\Models\User;
 use App\Services\AvailabilityService;
@@ -22,8 +23,6 @@ class UpdateAppointmentRequest extends FormRequest
     }
 
     /**
-     * Get the validation rules that apply to the request.
-     *
      * @return array<string, mixed>
      */
     public function rules(): array
@@ -39,10 +38,12 @@ class UpdateAppointmentRequest extends FormRequest
                 'required',
                 Rule::exists('users', 'id')->where('company_id', $companyId),
             ],
-            'service_id' => [
-                'required',
-                Rule::exists('services', 'id')->where('company_id', $companyId),
-            ],
+            'service_id' => ['nullable', Rule::exists('services', 'id')->where('company_id', $companyId)],
+            'service_ids' => ['required', 'array', 'min:1'],
+            'service_ids.*' => ['integer', 'distinct', Rule::exists('services', 'id')->where('company_id', $companyId)->where('active', true)],
+            'product_items' => ['nullable', 'array'],
+            'product_items.*.product_id' => ['required_with:product_items', 'integer', Rule::exists('products', 'id')->where('company_id', $companyId)->where('active', true)],
+            'product_items.*.quantity' => ['required_with:product_items', 'integer', 'min:1', 'max:999'],
             'start_time' => ['required', 'date'],
             'status' => ['required', Rule::in(Appointment::STATUSES)],
             'source' => ['required', Rule::in(Appointment::SOURCES)],
@@ -51,8 +52,60 @@ class UpdateAppointmentRequest extends FormRequest
     }
 
     /**
-     * Configure the validator instance.
+     * @return array<string, string>
      */
+    public function messages(): array
+    {
+        return [
+            'service_ids.required' => 'Adicione pelo menos um serviço para continuar.',
+            'service_ids.array' => 'Adicione pelo menos um serviço para continuar.',
+            'service_ids.min' => 'Adicione pelo menos um serviço para continuar.',
+            'service_ids.*.exists' => 'Um dos serviços selecionados não está disponível ou está inativo.',
+            'service_ids.*.distinct' => 'Não é possível repetir o mesmo serviço duas vezes.',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'service_ids' => 'serviços',
+            'service_ids.*' => 'serviço',
+            'client_id' => 'cliente',
+            'user_id' => 'profissional',
+            'start_time' => 'data e hora',
+        ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $serviceIds = collect((array) $this->input('service_ids', []))
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($serviceIds === [] && $this->filled('service_id')) {
+            $serviceIds = [(int) $this->input('service_id')];
+        }
+
+        $productItems = collect((array) $this->input('product_items', []))
+            ->filter(fn (mixed $item): bool => is_array($item) && ! empty($item['product_id']))
+            ->map(fn (array $item): array => [
+                'product_id' => $item['product_id'] ?? null,
+                'quantity' => $item['quantity'] ?? 1,
+            ])
+            ->values()
+            ->all();
+
+        $this->merge([
+            'service_ids' => $serviceIds,
+            'service_id' => $serviceIds[0] ?? $this->input('service_id'),
+            'product_items' => $productItems,
+        ]);
+    }
+
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
@@ -60,21 +113,29 @@ class UpdateAppointmentRequest extends FormRequest
                 return;
             }
 
-            /** @var Appointment|null $appointment */
+            /** @var Appointment $appointment */
             $appointment = $this->route('appointment');
-            $service = Service::query()
+
+            $services = Service::query()
                 ->where('company_id', $this->user()->company_id)
-                ->find($this->integer('service_id'));
+                ->whereIn('id', (array) $this->input('service_ids', []))
+                ->get();
             $professional = User::query()
                 ->where('company_id', $this->user()->company_id)
                 ->find($this->integer('user_id'));
 
-            if (! $appointment || ! $service || ! $professional) {
+            if ($services->isEmpty() || ! $professional) {
+                return;
+            }
+
+            $this->validateProductStock($validator);
+
+            if ($validator->errors()->isNotEmpty()) {
                 return;
             }
 
             $startTime = CarbonImmutable::parse((string) $this->input('start_time'));
-            $endTime = $startTime->addMinutes((int) $service->duration_minutes);
+            $endTime = $startTime->addMinutes((int) $services->sum('duration_minutes'));
             $clientConflict = Appointment::findClientScheduleConflict(
                 (int) $this->user()->company_id,
                 $this->integer('client_id'),
@@ -92,10 +153,10 @@ class UpdateAppointmentRequest extends FormRequest
                 return;
             }
 
-            $availableSlots = app(AvailabilityService::class)->availableSlots(
+            $availableSlots = app(AvailabilityService::class)->availableSlotsForDuration(
                 $this->user()->company,
                 $professional,
-                $service,
+                (int) $services->sum('duration_minutes'),
                 $startTime,
                 false,
                 $appointment->id,
@@ -108,5 +169,32 @@ class UpdateAppointmentRequest extends FormRequest
                 );
             }
         });
+    }
+
+    private function validateProductStock(Validator $validator): void
+    {
+        $items = collect((array) $this->input('product_items', []));
+
+        if ($items->isEmpty()) {
+            return;
+        }
+
+        $products = Product::query()
+            ->where('company_id', $this->user()->company_id)
+            ->whereIn('id', $items->pluck('product_id')->filter()->all())
+            ->get()
+            ->keyBy('id');
+
+        foreach ($items->groupBy('product_id') as $productId => $groupedItems) {
+            $product = $products->get((int) $productId);
+            $quantity = (int) $groupedItems->sum('quantity');
+
+            if (! $product || $product->stock_quantity < $quantity) {
+                $validator->errors()->add(
+                    'product_items',
+                    'Estoque insuficiente para um dos produtos selecionados.'
+                );
+            }
+        }
     }
 }

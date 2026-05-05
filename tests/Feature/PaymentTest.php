@@ -18,6 +18,45 @@ class PaymentTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_payment_create_redirects_to_pdv_when_appointment_not_completed(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create(['price' => 95.00]);
+        $appointment = Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'service_id' => $service->id,
+            'user_id' => $admin->id,
+            'status' => 'in_progress',
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->get(route('appointments.payments.create', $appointment, false))
+            ->assertRedirect(route('pdv.index', ['appointment_id' => $appointment->id], false));
+    }
+
+    public function test_payment_create_shows_legacy_form_when_completed_without_payment(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create();
+        $appointment = Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'service_id' => $service->id,
+            'user_id' => $admin->id,
+            'status' => 'completed',
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->get(route('appointments.payments.create', $appointment, false))
+            ->assertOk()
+            ->assertSee('Registre o pagamento', false);
+    }
+
     public function test_admin_can_register_payment_for_an_appointment(): void
     {
         $company = Company::factory()->create();

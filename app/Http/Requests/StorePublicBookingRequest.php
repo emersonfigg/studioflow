@@ -48,7 +48,20 @@ class StorePublicBookingRequest extends FormRequest
             ],
             'date' => ['required', 'date_format:Y-m-d'],
             'time' => ['required', 'date_format:H:i'],
-            'client_name' => [$hasIdentifiedClient ? 'nullable' : 'required', 'string', 'max:255'],
+            'client_name' => [
+                $hasIdentifiedClient ? 'nullable' : 'required',
+                'string',
+                'max:255',
+                function (string $attribute, mixed $value, \Closure $fail) use ($hasIdentifiedClient): void {
+                    if ($hasIdentifiedClient) {
+                        return;
+                    }
+                    $parts = array_values(array_filter(preg_split('/\s+/u', trim((string) $value)) ?: [], fn (string $p): bool => $p !== ''));
+                    if (count($parts) < 2) {
+                        $fail('O nome completo (nome e sobrenome) é obrigatório.');
+                    }
+                },
+            ],
             'client_phone' => [$hasIdentifiedClient ? 'nullable' : 'required', 'string', 'max:255'],
             'client_email' => [$hasIdentifiedClient ? 'nullable' : 'required', 'email', 'max:255'],
             'notes' => ['nullable', 'string'],

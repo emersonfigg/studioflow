@@ -17,6 +17,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -147,12 +148,15 @@ class AppointmentController extends Controller
         $this->ensureAppointmentBelongsToUserCompany($request, $appointment);
 
         $data = $this->appointmentData($request);
+        $serviceIds = $data['service_ids'];
+        unset($data['service_ids'], $data['product_items']);
 
-        DB::transaction(function () use ($request, $appointment, $availabilityService, $data): void {
+        DB::transaction(function () use ($request, $appointment, $availabilityService, $data, $serviceIds): void {
             $this->ensureSlotStillAvailable($request, $availabilityService, $data, $appointment);
             $this->ensureClientStillAvailable($request, $data, $appointment);
 
-            $appointment->update($data);
+            $appointment->update(Arr::only($data, $appointment->getFillable()));
+            $this->syncAppointmentServices($appointment->fresh(), $serviceIds);
         });
 
         return redirect()->route('appointments.show', $appointment)->with('status', 'appointment-updated');

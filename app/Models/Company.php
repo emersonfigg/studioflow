@@ -28,6 +28,7 @@ class Company extends Model
         'logo',
         'active',
         'onboarding_completed_at',
+        'auto_print_receipt',
     ];
 
     /**
@@ -39,6 +40,7 @@ class Company extends Model
     {
         return [
             'active' => 'boolean',
+            'auto_print_receipt' => 'boolean',
             'onboarding_completed_at' => 'datetime',
         ];
     }

@@ -17,12 +17,17 @@ class PaymentController extends Controller
     /**
      * Show the payment form for the appointment conclusion flow.
      */
-    public function create(Request $request, Appointment $appointment, ServiceOrderService $serviceOrders): View
+    public function create(Request $request, Appointment $appointment, ServiceOrderService $serviceOrders): View|RedirectResponse
     {
         $this->ensurePaymentAccess($request, $appointment);
 
         abort_if($appointment->payment()->exists(), 422, 'Este atendimento ja possui pagamento registrado.');
         abort_if($appointment->status === 'cancelled', 422, 'Nao e possivel registrar pagamento para atendimento cancelado.');
+
+        // Fluxo principal de fechamento: PDV com agendamento carregado.
+        if ($appointment->status !== 'completed') {
+            return redirect()->route('pdv.index', ['appointment_id' => $appointment->id]);
+        }
 
         $order = $serviceOrders->ensureForAppointment($appointment);
 

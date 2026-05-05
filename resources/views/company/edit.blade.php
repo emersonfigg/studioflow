@@ -117,6 +117,22 @@
                         <p class="mt-2 text-xs text-[#c7d2e3]">Essa frase pode aparecer na navegacao e na pagina pública de agendamento.</p>
                         <x-input-error class="mt-2" :messages="$errors->get('description')" />
                     </div>
+
+                    <div class="lg:col-span-2 rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">PDV</p>
+                        <label class="mt-3 flex cursor-pointer items-start gap-3 text-sm text-[#c7d2e3]">
+                            <input type="hidden" name="auto_print_receipt" value="0">
+                            <input
+                                type="checkbox"
+                                name="auto_print_receipt"
+                                value="1"
+                                class="mt-1 rounded border-white/20 bg-[#1b335b] text-[#d4af37] focus:ring-[#d4af37]"
+                                @checked(old('auto_print_receipt', $company->auto_print_receipt))
+                            >
+                            <span>Abrir comprovante automaticamente após cada venda no PDV (nova aba)</span>
+                        </label>
+                        <p class="mt-2 text-xs text-[#c7d2e3]/80">Requer permissão de pop-up no navegador. O botão manual de impressão continua disponível.</p>
+                    </div>
                 </div>
             </form>
         </section>

@@ -53,6 +53,34 @@ class StoreAppointmentRequest extends FormRequest
         ];
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'service_ids.required' => 'Adicione pelo menos um serviço para continuar.',
+            'service_ids.array' => 'Adicione pelo menos um serviço para continuar.',
+            'service_ids.min' => 'Adicione pelo menos um serviço para continuar.',
+            'service_ids.*.exists' => 'Um dos serviços selecionados não está disponível ou está inativo.',
+            'service_ids.*.distinct' => 'Não é possível repetir o mesmo serviço duas vezes.',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'service_ids' => 'serviços',
+            'service_ids.*' => 'serviço',
+            'client_id' => 'cliente',
+            'user_id' => 'profissional',
+            'start_time' => 'data e hora',
+        ];
+    }
+
     protected function prepareForValidation(): void
     {
         $serviceIds = collect((array) $this->input('service_ids', []))

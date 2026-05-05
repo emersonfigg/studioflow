@@ -595,7 +595,7 @@ class PublicBookingTest extends TestCase
                 'user_id' => $user->id,
                 'date' => '2026-04-28',
                 'time' => '09:00',
-                'client_name' => 'Paula',
+                'client_name' => 'Paula Santos',
                 'client_phone' => '71977776666',
                 'client_email' => 'paula@example.com',
             ])
@@ -618,7 +618,7 @@ class PublicBookingTest extends TestCase
                 'user_id' => $user->id,
                 'date' => '2026-04-28',
                 'time' => '14:00',
-                'client_name' => 'Paula',
+                'client_name' => 'Paula Santos',
                 'client_phone' => '71999999999',
                 'client_email' => 'paula@example.com',
             ])
@@ -654,7 +654,7 @@ class PublicBookingTest extends TestCase
             'user_id' => $user->id,
             'date' => '2026-04-28',
             'time' => '11:00',
-            'client_name' => 'Carla',
+            'client_name' => 'Carla Dias',
             'client_phone' => '71991112222',
             'client_email' => 'carla@example.com',
             'notes' => 'Primeira visita.',
@@ -669,7 +669,7 @@ class PublicBookingTest extends TestCase
             ->assertOk()
             ->assertSee('Agendamento confirmado')
             ->assertSee('Studio Flow')
-            ->assertSee('Carla')
+            ->assertSee('Carla Dias')
             ->assertSee('71991112222')
             ->assertSee('Design de Sobrancelha')
             ->assertSee('Limpeza Facial')
@@ -1192,7 +1192,7 @@ class PublicBookingTest extends TestCase
                 'user_id' => $otherUser->id,
                 'date' => '2026-04-28',
                 'time' => '09:00',
-                'client_name' => 'Paula',
+                'client_name' => 'Paula Santos',
                 'client_phone' => '71977776666',
                 'client_email' => 'paula@example.com',
             ])
@@ -1205,7 +1205,7 @@ class PublicBookingTest extends TestCase
                 'user_id' => $user->id,
                 'date' => '2026-04-28',
                 'time' => '09:30',
-                'client_name' => 'Paula',
+                'client_name' => 'Paula Santos',
                 'client_phone' => '71977776666',
                 'client_email' => 'paula@example.com',
             ])
@@ -1213,6 +1213,34 @@ class PublicBookingTest extends TestCase
             ->assertSessionHasErrors(['time']);
 
         $this->assertDatabaseCount('appointments', 1);
+    }
+
+    public function test_public_booking_rejects_incomplete_client_name(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-27 10:00:00');
+
+        $company = Company::factory()->create();
+        $service = Service::factory()->for($company)->create([
+            'active' => true,
+            'duration_minutes' => 30,
+        ]);
+        $user = User::factory()->for($company)->create(['active' => true]);
+        $this->createWorkingHour($company, $user, 2, '08:00', '18:00');
+
+        $this->from(route('public-bookings.create', $company, false))
+            ->post(route('public-bookings.store', $company, false), [
+                'service_ids' => [$service->id],
+                'user_id' => $user->id,
+                'date' => '2026-04-28',
+                'time' => '09:00',
+                'client_name' => 'Paula',
+                'client_phone' => '71977776666',
+                'client_email' => 'paula@example.com',
+            ])
+            ->assertRedirect(route('public-bookings.create', $company, false))
+            ->assertSessionHasErrors(['client_name']);
+
+        $this->assertDatabaseCount('appointments', 0);
     }
 
     private function bookingUrl(Company $company, array $query = []): string

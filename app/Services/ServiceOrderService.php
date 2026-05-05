@@ -107,6 +107,17 @@ class ServiceOrderService
         return $this->recalculate($order);
     }
 
+    /**
+     * Remove all line items from an open order (used when rebuilding cart from PDV).
+     */
+    public function clearAllItems(ServiceOrder $order): ServiceOrder
+    {
+        $this->ensureOpen($order);
+        $order->items()->delete();
+
+        return $this->recalculate($order);
+    }
+
     public function syncSingleServiceAmount(ServiceOrder $order, float $amount): ServiceOrder
     {
         $serviceItems = $order->items()->where('type', ServiceOrderItem::TYPE_SERVICE)->get();

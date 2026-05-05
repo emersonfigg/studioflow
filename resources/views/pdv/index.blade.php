@@ -1,15 +1,94 @@
 <x-app-layout>
+    @php($saleResult = session('pdv_sale_result'))
+    @if (is_array($saleResult) && ! empty($saleResult['auto_print_receipt']) && ! empty($saleResult['receipt_url']))
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                window.open(@json($saleResult['receipt_url']), '_blank', 'noopener,noreferrer');
+            });
+        </script>
+    @endif
+
     <div class="pdv-page mx-auto w-full max-w-[1800px] px-0 pb-6 sm:px-1 lg:px-2">
+        @if (is_array($saleResult))
+            <div
+                class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-500/40 bg-emerald-950/55 px-3 py-2.5 text-sm text-emerald-50 shadow-md sm:px-4"
+                role="status"
+            >
+                <div class="min-w-0 flex-1">
+                    <p class="font-semibold text-white">
+                        @if (! empty($saleResult['appointment_completed']))
+                            Venda concluída e agendamento finalizado com sucesso.
+                        @else
+                            Venda concluída com sucesso.
+                        @endif
+                    </p>
+                    <p class="mt-0.5 text-xs text-emerald-100/90">
+                        #{{ $saleResult['service_order_id'] ?? '—' }}
+                        <span class="mx-1.5 text-emerald-400/70">·</span>
+                        R$ {{ $saleResult['total'] ?? '0,00' }}
+                        <span class="mx-1.5 text-emerald-400/70">·</span>
+                        {{ $saleResult['payment_label'] ?? $saleResult['payment_method'] ?? '' }}
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    @if (! empty($saleResult['receipt_url']))
+                        <a
+                            href="{{ $saleResult['receipt_url'] }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="rounded-lg border border-emerald-400/50 bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500"
+                        >{{ ! empty($saleResult['appointment_completed']) ? 'Imprimir comprovante' : 'Imprimir' }}</a>
+                    @endif
+                    @if (empty($saleResult['appointment_completed']))
+                        <a href="{{ route('product-sales.index') }}" class="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/15">Ver venda</a>
+                    @endif
+                    <a href="{{ route('pdv.index') }}" class="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-white/10">Nova venda</a>
+                    @if (! empty($saleResult['appointment_completed']))
+                        <a href="{{ route('appointments.index') }}" class="rounded-lg border border-[#d4af37]/40 bg-[#d4af37]/15 px-3 py-1.5 text-xs font-semibold text-[#d4af37] hover:bg-[#d4af37]/25">Voltar para agendamentos</a>
+                    @endif
+                </div>
+            </div>
+        @endif
+
         <form
             method="POST"
             action="{{ route('pdv.store') }}"
-            x-data="pdvScreen(catalog)"
+            autocomplete="off"
+            x-data="pdvScreen(@js($catalog), @js($initialCart ?? []))"
             x-init="init()"
             x-on:keydown.window="handlePdvHotkeys($event)"
             x-on:keydown.slash.prevent="$refs.searchInput.focus()"
+            x-on:submit="submitting = true"
             class="pdv-frame flex min-h-[min(100vh,920px)] flex-col overflow-hidden rounded-2xl border border-[#d4af37]/25 bg-[#132746] shadow-[0_24px_48px_rgba(9,20,45,0.45)] ring-1 ring-[#d4af37]/10"
         >
             @csrf
+            {{-- Hook para testes e inspeção: carrinho inicial server-side (Alpine usa o mesmo dado via @js acima) --}}
+            <script type="application/json" id="pdv-initial-cart-data" class="hidden">@json($initialCart ?? [])</script>
+            @if (isset($pdvAppointment) && $pdvAppointment && isset($appointmentSummary))
+                <input type="hidden" name="appointment_id" value="{{ $pdvAppointment->id }}">
+                <div class="border-b border-[#d4af37]/35 bg-[#1b335b] px-4 py-3 text-sm text-[#c7d2e3] sm:px-5">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <p class="text-xs font-bold uppercase tracking-[0.18em] text-[#d4af37]">Atendimento vinculado ao agendamento #{{ $appointmentSummary['id'] }}</p>
+                        @if (! empty($appointmentSummary['service_labels']))
+                            <span class="inline-flex items-center rounded-full border border-emerald-400/35 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-100">
+                                Serviços carregados do agendamento
+                            </span>
+                        @endif
+                    </div>
+                    <div class="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        <p><span class="text-white/60">Cliente:</span> <span class="font-medium text-white">{{ $appointmentSummary['client_name'] ?? '—' }}</span></p>
+                        <p><span class="text-white/60">Profissional:</span> <span class="font-medium text-white">{{ $appointmentSummary['professional_name'] ?? '—' }}</span></p>
+                        <p><span class="text-white/60">Horário:</span> <span class="font-medium text-white">{{ $appointmentSummary['start_time'] ?? '—' }}@if (! empty($appointmentSummary['end_time'])) – {{ $appointmentSummary['end_time'] }}@endif</span></p>
+                        <p><span class="text-white/60">Serviços (referência):</span> <span class="font-semibold text-[#d4af37]">R$ {{ $appointmentSummary['services_total_formatted'] }}</span></p>
+                    </div>
+                    @if (! empty($appointmentSummary['service_labels']))
+                        <p class="mt-2 text-xs text-[#c7d2e3]">{{ implode(' · ', $appointmentSummary['service_labels']) }}</p>
+                    @endif
+                    @if (! empty($appointmentSummary['commission_reference']))
+                        <p class="mt-2 text-xs text-[#c7d2e3]/90">{{ $appointmentSummary['commission_reference'] }}</p>
+                    @endif
+                </div>
+            @endif
 
             {{-- 2. Barra superior (identidade StudioFlow) --}}
             <header class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-white/10 bg-[#1b335b] px-4 py-2.5 text-xs text-[#c7d2e3] sm:px-5 sm:text-sm">
@@ -28,7 +107,10 @@
                         >
                             <option value="">— Balcão —</option>
                             @foreach ($clients as $client)
-                                <option value="{{ $client->id }}">{{ $client->name }}</option>
+                                <option
+                                    value="{{ $client->id }}"
+                                    @selected((string) old('client_id', isset($pdvAppointment) && $pdvAppointment ? $pdvAppointment->client_id : null) === (string) $client->id)
+                                >{{ $client->name }}</option>
                             @endforeach
                         </select>
                     </label>
@@ -41,7 +123,10 @@
                         >
                             <option value="">— Sessão —</option>
                             @foreach ($professionals as $professional)
-                                <option value="{{ $professional->id }}">{{ $professional->name }}</option>
+                                <option
+                                    value="{{ $professional->id }}"
+                                    @selected((string) old('user_id', isset($pdvAppointment) && $pdvAppointment ? $pdvAppointment->user_id : null) === (string) $professional->id)
+                                >{{ $professional->name }}</option>
                             @endforeach
                         </select>
                     </label>
@@ -129,7 +214,6 @@
                         x-on:keydown.arrow-up.prevent="highlightPrev()"
                         x-on:keydown.enter.prevent="selectHighlighted()"
                         type="text"
-                        autofocus
                         autocomplete="off"
                         class="sf-input mt-2 !border-white/15 !bg-[#223d69] !py-4 !text-lg !font-semibold !text-white placeholder:text-[#c7d2e3]/50"
                         placeholder="Buscar ou escanear…"
@@ -168,7 +252,7 @@
                                     <span class="mt-0.5 block truncate text-sm text-white" x-text="item.name"></span>
                                 </button>
                             </template>
-                            <p x-show="filteredCatalog.length === 0" class="px-3 py-6 text-center text-sm text-[#c7d2e3]">Digite para filtrar.</p>
+                            <p x-show="filteredCatalog.length === 0" class="px-3 py-6 text-center text-sm text-[#c7d2e3]">Digite código, SKU ou nome para buscar.</p>
                         </div>
                     </div>
                 </section>
@@ -215,7 +299,10 @@
                                             <td class="w-12 px-1 py-2 text-center">
                                                 <button
                                                     type="button"
-                                                    class="text-[10px] font-bold uppercase text-rose-300 hover:text-rose-200"
+                                                    class="text-[10px] font-bold uppercase"
+                                                    :class="item.source === 'appointment' ? 'cursor-not-allowed text-white/25' : 'text-rose-300 hover:text-rose-200'"
+                                                    :disabled="item.source === 'appointment'"
+                                                    :title="item.source === 'appointment' ? 'Serviço do agendamento (fixo)' : 'Remover linha'"
                                                     x-on:click="removeItem(index)"
                                                 >Excl.</button>
                                             </td>
@@ -261,7 +348,7 @@
                             class="sf-select mt-2 !w-full !border-white/15 !bg-[#223d69] !py-3 !text-white"
                         >
                             @foreach ($paymentMethods as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
+                                <option value="{{ $value }}" @selected(old('payment_method', 'cash') === $value)>{{ $label }}</option>
                             @endforeach
                         </select>
                     </label>
@@ -272,16 +359,16 @@
                             rows="2"
                             class="sf-input mt-2 !min-h-[3rem] !w-full !border-white/15 !bg-[#223d69] !text-white placeholder:text-[#c7d2e3]/40"
                             placeholder="Opcional"
-                        ></textarea>
+                        >{{ old('notes') }}</textarea>
                     </label>
                     <div class="lg:col-span-3">
                         <button
                             x-ref="submitBtn"
                             type="submit"
                             class="sf-button-primary w-full !py-4 !text-base !font-black !uppercase !tracking-wider disabled:opacity-40"
-                            :disabled="cart.length === 0"
+                            :disabled="cart.length === 0 || submitting"
                         >
-                            Concluir venda
+                            <span x-text="submitting ? 'Finalizando…' : 'Concluir venda'"></span>
                         </button>
                     </div>
                 </div>
@@ -322,14 +409,38 @@
     </div>
 
     <script>
-        const catalog = @json($catalog);
+        function pdvScreen(catalogData, initialCartData) {
+            const root = catalogData && typeof catalogData === 'object' ? catalogData : {};
+            const products = Array.isArray(root.products) ? root.products : [];
+            const services = Array.isArray(root.services) ? root.services : [];
 
-        function pdvScreen(catalogData) {
+            const bootCart = Array.isArray(initialCartData) && initialCartData.length
+                ? initialCartData.map((row) => {
+                    const id = row.id != null && row.id !== '' ? Number(row.id) : 0;
+                    const isProduct = String(row.type || '').toLowerCase() === 'product';
+                    const type = isProduct ? 'product' : 'service';
+                    const serviceId = isProduct ? undefined : (row.service_id != null ? Number(row.service_id) : id);
+
+                    return {
+                        ...row,
+                        type,
+                        id,
+                        price: Number(row.price || 0),
+                        quantity: Math.max(1, Number(row.quantity || 1)),
+                        source: row.source || null,
+                        service_id: serviceId,
+                        code: row.code || (isProduct ? 'P' + id : 'S' + (serviceId || id)),
+                        image_url: row.image_url ?? null,
+                    };
+                })
+                : [];
+
             return {
+                submitting: false,
                 search: '',
                 highlightedIndex: 0,
-                cart: [],
-                catalog: [...catalogData.products, ...catalogData.services],
+                cart: bootCart,
+                catalog: [...products, ...services],
                 currentTime: '',
                 previewImageFailed: false,
                 init() {
@@ -345,6 +456,9 @@
                             this.previewImageFailed = false;
                         },
                     );
+                    this.$nextTick(() => {
+                        this.$refs.searchInput?.focus();
+                    });
                 },
                 tickClock() {
                     const d = new Date();
@@ -358,19 +472,24 @@
                 },
                 get filteredCatalog() {
                     const term = this.search.trim().toLowerCase();
-                    const rows = !term
-                        ? this.catalog.slice(0, 12)
-                        : this.catalog
-                              .filter((item) => {
-                                  const code = `${item.code || ''}`.toLowerCase();
-                                  const sku = `${item.sku || ''}`.toLowerCase();
-                                  const name = `${item.name}`.toLowerCase();
-                                  return name.includes(term) || code.includes(term) || sku.includes(term);
-                              })
-                              .slice(0, 20);
+                    if (!term) {
+                        this.highlightedIndex = 0;
+
+                        return [];
+                    }
+                    const rows = this.catalog
+                        .filter((item) => {
+                            const code = `${item.code || ''}`.toLowerCase();
+                            const sku = `${item.sku || ''}`.toLowerCase();
+                            const name = `${item.name}`.toLowerCase();
+
+                            return name.includes(term) || code.includes(term) || sku.includes(term);
+                        })
+                        .slice(0, 24);
                     if (this.highlightedIndex >= rows.length) {
                         this.highlightedIndex = 0;
                     }
+
                     return rows;
                 },
                 get previewItem() {
@@ -436,25 +555,36 @@
                     }
                 },
                 addCatalogItem(item) {
+                    const isService = item.type === 'service';
                     this.cart.push({
                         id: item.id,
+                        service_id: isService ? item.id : undefined,
                         type: item.type,
                         code: item.code || (item.type === 'product' ? 'P' + item.id : 'S' + item.id),
                         name: item.name,
                         price: Number(item.price || 0),
                         quantity: 1,
+                        source: null,
                         image_url: item.image_url ?? null,
                     });
                     this.search = '';
                     this.highlightedIndex = 0;
                 },
                 removeItem(index) {
+                    if (this.cart[index]?.source === 'appointment') {
+                        return;
+                    }
                     this.cart.splice(index, 1);
                 },
                 removeLastItem() {
-                    if (this.cart.length > 0) {
-                        this.cart.pop();
+                    if (this.cart.length === 0) {
+                        return;
                     }
+                    const last = this.cart[this.cart.length - 1];
+                    if (last?.source === 'appointment') {
+                        return;
+                    }
+                    this.cart.pop();
                 },
                 clearSearch() {
                     this.search = '';
@@ -475,6 +605,9 @@
                     }
                     if (e.key === 'F12') {
                         e.preventDefault();
+                        if (this.submitting) {
+                            return;
+                        }
                         if (this.cart.length > 0 && this.$refs.submitBtn) {
                             this.$refs.submitBtn.click();
                         }
@@ -498,7 +631,11 @@
                         this.removeLastItem();
                     }
                     if (e.key === 'Escape') {
-                        if (document.activeElement !== this.$refs.searchInput) {
+                        const tag = e.target?.tagName;
+                        if (tag === 'TEXTAREA' || tag === 'SELECT') {
+                            return;
+                        }
+                        if (tag === 'INPUT' && e.target?.type === 'number') {
                             return;
                         }
                         e.preventDefault();
@@ -507,12 +644,12 @@
                 },
                 get subtotalServices() {
                     return this.cart
-                        .filter((item) => item.type === 'service')
+                        .filter((item) => String(item.type) === 'service')
                         .reduce((acc, item) => acc + item.price * Math.max(1, Number(item.quantity || 1)), 0);
                 },
                 get subtotalProducts() {
                     return this.cart
-                        .filter((item) => item.type === 'product')
+                        .filter((item) => String(item.type) === 'product')
                         .reduce((acc, item) => acc + item.price * Math.max(1, Number(item.quantity || 1)), 0);
                 },
                 get total() {
@@ -521,18 +658,19 @@
                 get servicePayload() {
                     const rows = [];
                     this.cart
-                        .filter((item) => item.type === 'service')
+                        .filter((item) => String(item.type) === 'service')
                         .forEach((item) => {
                             const qty = Math.max(1, Number(item.quantity || 1));
+                            const sid = item.service_id ?? item.id;
                             for (let i = 0; i < qty; i++) {
-                                rows.push({ service_id: item.id });
+                                rows.push({ service_id: Number(sid) });
                             }
                         });
                     return rows;
                 },
                 get productPayload() {
                     return this.cart
-                        .filter((item) => item.type === 'product')
+                        .filter((item) => String(item.type) === 'product')
                         .map((item) => ({ product_id: item.id, quantity: Math.max(1, Number(item.quantity || 1)) }));
                 },
             };

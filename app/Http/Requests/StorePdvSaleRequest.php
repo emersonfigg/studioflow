@@ -2,10 +2,12 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Service;
+use App\Models\ServiceOrder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -23,6 +25,7 @@ class StorePdvSaleRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'appointment_id' => ['nullable', 'integer'],
             'client_id' => ['nullable', 'integer'],
             'user_id' => ['nullable', 'integer'],
             'payment_method' => ['required', Rule::in(Payment::PAYMENT_METHODS)],
@@ -41,6 +44,30 @@ class StorePdvSaleRequest extends FormRequest
             $companyId = $this->user()?->company_id;
             if ($companyId === null || $validator->errors()->isNotEmpty()) {
                 return;
+            }
+
+            if ($this->filled('appointment_id')) {
+                $appointment = Appointment::query()
+                    ->where('company_id', $companyId)
+                    ->whereKey($this->integer('appointment_id'))
+                    ->first();
+                if (! $appointment) {
+                    $validator->errors()->add('appointment_id', 'Agendamento invalido para sua empresa.');
+                } elseif (in_array($appointment->status, ['completed', 'cancelled'], true)) {
+                    $validator->errors()->add('appointment_id', 'Este agendamento nao pode ser finalizado pelo PDV.');
+                } else {
+                    $hasPaidOrder = ServiceOrder::query()
+                        ->where('company_id', $companyId)
+                        ->where('appointment_id', $this->integer('appointment_id'))
+                        ->where('status', ServiceOrder::STATUS_PAID)
+                        ->exists();
+                    if ($hasPaidOrder) {
+                        $validator->errors()->add(
+                            'appointment_id',
+                            'Este agendamento ja foi finalizado. Nao e possivel registrar outra venda para o mesmo atendimento.'
+                        );
+                    }
+                }
             }
 
             if ($this->filled('client_id')) {
@@ -68,6 +95,14 @@ class StorePdvSaleRequest extends FormRequest
                 ->filter()
                 ->unique()
                 ->values();
+
+            if ($this->filled('appointment_id') && ! $validator->errors()->has('appointment_id') && $serviceIds->isEmpty()) {
+                $validator->errors()->add(
+                    'service_items',
+                    'Fechamento com agendamento exige ao menos um servico (subtotal de servicos nao pode ser zero).'
+                );
+            }
+
             if ($serviceIds->isNotEmpty()) {
                 $valid = Service::query()
                     ->where('company_id', $companyId)
@@ -95,23 +130,55 @@ class StorePdvSaleRequest extends FormRequest
                 }
             }
 
-            if ($serviceIds->isEmpty() && $productIds->isEmpty()) {
+            if ($serviceIds->isEmpty() && $productIds->isEmpty() && ! $this->filled('appointment_id')) {
                 $validator->errors()->add('items', 'Adicione ao menos um servico ou produto.');
             }
         });
     }
 
     /**
-     * @return array{client_id:int,user_id:int|null,payment_method:string,notes:?string,service_items:array<int,array{service_id:int}>,items:array<int,array{product_id:int,quantity:int}>}
+     * @return array{
+     *     client_id:int,
+     *     user_id:int,
+     *     appointment_id:int|null,
+     *     payment_method:string,
+     *     notes:?string,
+     *     service_items:array<int,array{service_id:int}>,
+     *     items:array<int,array{product_id:int,quantity:int}>
+     * }
      */
     public function payload(): array
     {
         $companyId = $this->user()->company_id;
         $walkInClientId = $this->resolveWalkInClientId($companyId);
 
+        $appointmentId = $this->filled('appointment_id') ? $this->integer('appointment_id') : null;
+
+        $clientId = $this->integer('client_id') ?: $walkInClientId;
+        $userId = $this->filled('user_id') ? $this->integer('user_id') : null;
+
+        if ($appointmentId !== null) {
+            $appointment = Appointment::query()
+                ->where('company_id', $companyId)
+                ->whereKey($appointmentId)
+                ->whereNotIn('status', ['completed', 'cancelled'])
+                ->first();
+            if ($appointment) {
+                $clientId = (int) $appointment->client_id;
+                if ($userId === null) {
+                    $userId = (int) $appointment->user_id;
+                }
+            }
+        }
+
+        if ($userId === null) {
+            $userId = (int) $this->user()->id;
+        }
+
         return [
-            'client_id' => $this->integer('client_id') ?: $walkInClientId,
-            'user_id' => $this->filled('user_id') ? $this->integer('user_id') : null,
+            'client_id' => $clientId,
+            'user_id' => $userId,
+            'appointment_id' => $appointmentId,
             'payment_method' => (string) $this->input('payment_method'),
             'notes' => $this->filled('notes') ? (string) $this->input('notes') : null,
             'service_items' => collect($this->input('service_items', []))

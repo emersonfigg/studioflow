@@ -160,7 +160,7 @@
                                             @endif
 
                                             @if ($appointment->status !== 'cancelled' && ! $appointment->payment && (auth()->user()->isAdmin() || auth()->id() === $appointment->user_id))
-                                                <a href="{{ route('appointments.payments.create', $appointment) }}" class="sf-button-primary !px-3 !py-2 !text-xs">
+                                                <a href="{{ route('pdv.index', ['appointment_id' => $appointment->id]) }}" class="sf-button-primary !px-3 !py-2 !text-xs">
                                                     Concluir atendimento
                                                 </a>
                                             @endif

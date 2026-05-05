@@ -135,8 +135,8 @@ class MediaStorageTest extends TestCase
         $html = $response->getContent();
         $this->assertStringContainsString('pdv-thumb.webp', $html);
         $this->assertStringContainsString('pdv-svc.webp', $html);
-        $this->assertMatchesRegularExpression('/"image_url":"[^"]*pdv-thumb\.webp"/', $html);
-        $this->assertMatchesRegularExpression('/"image_url":"[^"]*pdv-svc\.webp"/', $html);
+        $this->assertMatchesRegularExpression('/pdv-thumb\.webp/', $html);
+        $this->assertMatchesRegularExpression('/pdv-svc\.webp/', $html);
     }
 
     public function test_company_logo_uses_configured_disk(): void

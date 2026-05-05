@@ -119,7 +119,8 @@ class ProductSaleService
      *
      * @param  array{
      *     client_id:int,
-     *     user_id?:int|null,
+     *     user_id:int,
+     *     appointment_id?:int|null,
      *     payment_method:string,
      *     sold_at?:string|null,
      *     notes?:string|null,
@@ -135,25 +136,75 @@ class ProductSaleService
             : CarbonImmutable::now();
 
         return DB::transaction(function () use ($actor, $data, $soldAt, $companyId): ServiceOrder {
-            /** @var Client $client */
-            $client = Client::query()
-                ->where('company_id', $companyId)
-                ->findOrFail($data['client_id']);
+            $appointmentId = $data['appointment_id'] ?? null;
+
+            $appointment = null;
+            if ($appointmentId) {
+                $appointment = Appointment::query()
+                    ->where('company_id', $companyId)
+                    ->whereKey($appointmentId)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+            }
+
+            $professionalId = (int) ($data['user_id'] ?? $appointment?->user_id ?? $actor->id);
 
             /** @var User $professional */
             $professional = User::query()
                 ->where('company_id', $companyId)
                 ->where('active', true)
-                ->findOrFail($data['user_id'] ?? $actor->id);
+                ->findOrFail($professionalId);
 
-            $order = ServiceOrder::create([
-                'company_id' => $companyId,
-                'appointment_id' => null,
-                'client_id' => $client->id,
-                'professional_id' => $professional->id,
-                'status' => ServiceOrder::STATUS_OPEN,
-                'opened_at' => $soldAt,
-            ]);
+            if ($appointmentId) {
+                /** @var Client $client */
+                $client = Client::query()
+                    ->where('company_id', $companyId)
+                    ->findOrFail($appointment->client_id);
+
+                $order = ServiceOrder::query()
+                    ->where('company_id', $companyId)
+                    ->where('appointment_id', $appointmentId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($order && $order->status === ServiceOrder::STATUS_PAID) {
+                    throw ValidationException::withMessages([
+                        'appointment_id' => 'Este agendamento ja foi finalizado no caixa.',
+                    ]);
+                }
+
+                if (! $order) {
+                    $order = ServiceOrder::create([
+                        'company_id' => $companyId,
+                        'appointment_id' => $appointmentId,
+                        'client_id' => $client->id,
+                        'professional_id' => $professional->id,
+                        'status' => ServiceOrder::STATUS_OPEN,
+                        'opened_at' => $soldAt,
+                    ]);
+                } else {
+                    $this->serviceOrderService->clearAllItems($order);
+                    $order->update([
+                        'client_id' => $client->id,
+                        'professional_id' => $professional->id,
+                    ]);
+                    $order = $order->fresh();
+                }
+            } else {
+                /** @var Client $client */
+                $client = Client::query()
+                    ->where('company_id', $companyId)
+                    ->findOrFail($data['client_id']);
+
+                $order = ServiceOrder::create([
+                    'company_id' => $companyId,
+                    'appointment_id' => null,
+                    'client_id' => $client->id,
+                    'professional_id' => $professional->id,
+                    'status' => ServiceOrder::STATUS_OPEN,
+                    'opened_at' => $soldAt,
+                ]);
+            }
 
             $serviceIds = collect($data['service_items'] ?? [])->pluck('service_id')->filter()->all();
 

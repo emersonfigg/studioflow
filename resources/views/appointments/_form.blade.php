@@ -265,14 +265,14 @@
                     </div>
                 </section>
 
-                <section class="sf-card p-5">
+                <section class="sf-card p-5 transition @error('service_ids') ring-2 ring-rose-400/60 ring-offset-2 ring-offset-[#0f203b] @enderror">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Serviços</p>
                         <h3 class="mt-2 text-lg font-semibold text-white">Serviços do atendimento</h3>
                     </div>
 
                     <div class="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-                        <select x-model="selectedServiceId" class="sf-select block w-full">
+                        <select x-model="selectedServiceId" name="_picker_service" class="sf-select block w-full" autocomplete="off">
                             <option value="">Adicionar serviço</option>
                             <template x-for="service in services" :key="service.id">
                                 <option x-bind:value="service.id" x-text="service.label"></option>
@@ -280,26 +280,33 @@
                         </select>
                         <button type="button" x-on:click="addService()" class="sf-button-primary">Adicionar serviço</button>
                     </div>
-                    <x-input-error class="mt-2" :messages="$errors->get('service_ids')" />
+
+                    @error('service_ids')
+                        <p class="mt-3 rounded-xl border border-rose-400/35 bg-rose-950/35 px-4 py-3 text-sm text-rose-100">{{ $message }}</p>
+                    @enderror
+                    <x-input-error class="mt-2" :messages="$errors->get('service_ids.*')" />
                     <x-input-error class="mt-2" :messages="$errors->get('service_id')" />
 
                     <div class="mt-4 space-y-3">
-                        <template x-for="(service, index) in selectedServices" :key="service.id">
+                        <template x-for="sid in selectedServiceIds" :key="String(sid)">
                             <div class="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#132746] px-4 py-3">
-                                <div>
-                                    <input type="hidden" x-bind:name="`service_ids[${index}]`" x-bind:value="service.id">
-                                    <p class="text-sm font-semibold text-white" x-text="service.name"></p>
-                                    <p class="mt-1 text-xs text-[#c7d2e3]">
-                                        <span x-text="`${service.duration} min`"></span>
-                                        <span> · </span>
-                                        <span x-text="money(service.price)"></span>
-                                    </p>
+                                <input type="hidden" name="service_ids[]" x-bind:value="sid">
+                                <div class="min-w-0 flex-1">
+                                    <div x-show="serviceById(sid)">
+                                        <p class="text-sm font-semibold text-white" x-text="serviceById(sid) ? serviceById(sid).name : ''"></p>
+                                        <p class="mt-1 text-xs text-[#c7d2e3]">
+                                            <span x-text="serviceById(sid) ? `${serviceById(sid).duration} min` : ''"></span>
+                                            <span> · </span>
+                                            <span x-text="serviceById(sid) ? money(serviceById(sid).price) : ''"></span>
+                                        </p>
+                                    </div>
+                                    <p x-show="! serviceById(sid)" class="text-sm text-amber-200">Serviço indisponível na lista (#<span x-text="sid"></span>). Remova e adicione novamente.</p>
                                 </div>
-                                <button type="button" x-on:click="removeService(service.id)" class="sf-button-ghost px-3 py-2 text-xs">Remover</button>
+                                <button type="button" x-on:click="removeService(sid)" class="sf-button-ghost shrink-0 px-3 py-2 text-xs">Remover</button>
                             </div>
                         </template>
 
-                        <div x-show="selectedServices.length === 0" class="rounded-2xl border border-dashed border-white/15 px-4 py-5 text-sm text-[#c7d2e3]">
+                        <div x-show="selectedServiceIds.length === 0" class="rounded-2xl border border-dashed border-white/15 px-4 py-5 text-sm text-[#c7d2e3]">
                             Adicione pelo menos um serviço para calcular duração, valor e disponibilidade.
                         </div>
                     </div>

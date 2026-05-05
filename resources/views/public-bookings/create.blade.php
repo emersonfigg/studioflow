@@ -34,7 +34,7 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="min-h-screen bg-[#1b335b] font-sans text-white antialiased">
-        <main class="mx-auto min-h-screen max-w-7xl px-3 pb-28 pt-4 sm:px-6 lg:px-8 lg:pb-10">
+        <main class="mx-auto min-h-screen w-full max-w-full px-4 pb-28 pt-4 sm:px-5 md:max-w-none lg:max-w-7xl lg:px-8 lg:pb-10">
             <div
                 x-data="{
                     selectedServiceIds: @js($selectedServiceIdStrings),
@@ -48,9 +48,22 @@
                     catalog: @js($servicesCatalog),
                     categories: ['Todos', 'Serviços'],
                     selectedCategory: 'Todos',
-                    visibleSlotLimits: {'ManhÃ£': 8, Tarde: 8, Noite: 8},
+                    visibleSlotLimits: { Manha: 8, Tarde: 8, Noite: 8 },
                     showMoreSlots(period) {
                         this.visibleSlotLimits[period] = (this.visibleSlotLimits[period] || 8) + 8;
+                    },
+                    applyFilters() {
+                        sessionStorage.setItem('publicBookingScrollY', String(window.scrollY));
+                        this.$nextTick(() => {
+                            if (this.$refs.bookingFilters) {
+                                this.$refs.bookingFilters.submit();
+                            }
+                        });
+                    },
+                    fullNameOk() {
+                        const parts = String(this.clientName || '').trim().split(/\s+/).filter(Boolean);
+
+                        return parts.length >= 2;
                     },
                     selectedServices() {
                         return this.catalog.filter((service) => this.selectedServiceIds.includes(String(service.id)));
@@ -78,13 +91,22 @@
                         return this.hasSelectedServices() && this.hasProfessional && this.selectedDate;
                     },
                     readyToConfirm() {
-                        return this.readyForSlots() && this.selectedTime && (this.clientName || @js((bool) $identifiedClient));
+                        if (! this.readyForSlots() || ! this.selectedTime) {
+                            return false;
+                        }
+                        if (@js((bool) $identifiedClient)) {
+                            return true;
+                        }
+
+                        return this.fullNameOk()
+                            && String(this.clientPhone || '').trim().length > 0
+                            && String(this.clientEmail || '').trim().length > 0;
                     },
                     formattedTotalPrice() {
                         return this.totalPrice().toFixed(2).replace('.', ',');
                     }
                 }"
-                class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]"
+                class="grid w-full max-w-full gap-5 xl:grid-cols-[minmax(0,1fr)_360px]"
             >
                 <section class="space-y-5">
                     <header class="overflow-hidden rounded-[24px] border border-white/10 bg-[#203d6b] px-4 py-5 shadow-[0_18px_48px_rgba(8,20,42,0.24)] sm:px-6">
@@ -122,7 +144,7 @@
                         </div>
                     </header>
 
-                    <form id="booking-filters" method="GET" action="{{ route('public-bookings.create', $company) }}" class="space-y-5">
+                    <form id="booking-filters" x-ref="bookingFilters" method="GET" action="{{ route('public-bookings.create', $company) }}" class="w-full max-w-full space-y-5">
                         <input type="hidden" name="filters_submitted" value="1">
 
                         <section class="sf-card p-4 sm:p-5">
@@ -144,7 +166,7 @@
                                                 <p class="truncate text-sm font-semibold text-white" x-text="service.name"></p>
                                                 <p class="mt-1 text-xs text-[#c7d2e3]" x-text="`${service.duration} min · R$ ${service.price}`"></p>
                                             </div>
-                                            <button type="button" class="text-xs font-semibold text-[#d4af37]" @click="selectedServiceIds = selectedServiceIds.filter((id) => id !== String(service.id)); $nextTick(() => document.getElementById('booking-filters').submit())">Remover</button>
+                                            <button type="button" class="text-xs font-semibold text-[#d4af37]" @click="selectedServiceIds = selectedServiceIds.filter((id) => id !== String(service.id)); $nextTick(() => applyFilters())">Remover</button>
                                         </div>
                                     </template>
                                 </div>
@@ -178,7 +200,7 @@
                                             value="{{ $service->id }}"
                                             class="peer sr-only"
                                             x-model="selectedServiceIds"
-                                            onchange="this.form.submit()"
+                                            @change="$nextTick(() => applyFilters())"
                                             @checked($checked)
                                         >
                                         <span class="{{ $checked ? 'border-[#d4af37]/50 bg-[#d4af37]/12' : 'border-white/10 bg-[#132746] hover:border-[#d4af37]/35 hover:bg-[#183157]' }} flex w-full items-center gap-3 rounded-[20px] border p-3 transition peer-checked:border-[#d4af37]/50 peer-checked:bg-[#d4af37]/12">
@@ -240,7 +262,7 @@
                                             name="user_id"
                                             value="{{ $user->id }}"
                                             class="peer sr-only"
-                                            onchange="this.form.submit()"
+                                            @change="$nextTick(() => applyFilters())"
                                             @checked($selected)
                                         >
                                         <span class="{{ $selected ? 'border-[#d4af37] bg-[#d4af37]/12 ring-2 ring-[#d4af37]/35' : 'border-white/10 bg-[#132746] hover:border-[#d4af37]/35' }} flex items-center justify-between gap-3 rounded-[20px] border p-3 transition">
@@ -284,7 +306,7 @@
                                     @endphp
                                     <button
                                         type="button"
-                                        @click="selectedDate = '{{ $quickDate['value'] }}'; $nextTick(() => $el.form.submit())"
+                                        @click="selectedDate = '{{ $quickDate['value'] }}'; $nextTick(() => applyFilters())"
                                         class="{{ $selected ? 'border-[#d4af37]/50 bg-[#d4af37]/12 text-white' : 'border-white/10 bg-[#132746] text-[#c7d2e3] hover:border-[#d4af37]/35 hover:bg-[#183157]' }} rounded-2xl border px-2 py-3 text-center transition"
                                     >
                                         <span class="block text-sm font-semibold">{{ $quickDate['label'] }}</span>
@@ -302,7 +324,7 @@
                                     min="{{ $today }}"
                                     x-model="selectedDate"
                                     class="sf-input mt-2 block w-full"
-                                    onchange="this.form.submit()"
+                                    @change="$nextTick(() => applyFilters())"
                                 >
                             </div>
 
@@ -359,7 +381,7 @@
 
                                         <div class="rounded-[20px] border border-white/10 bg-[#132746]/70 p-4">
                                             <label for="booking-time" class="text-sm font-medium text-white">Hor&aacute;rio do atendimento</label>
-                                            <select id="booking-time" name="time" x-model="selectedTime" class="sf-select mt-2 block w-full" required>
+                                            <select id="booking-time" name="time" x-model="selectedTime" class="sf-select mt-2 block w-full @error('time') ring-2 ring-rose-500 ring-offset-2 ring-offset-[#132746] @enderror" required>
                                                 <option value="">Selecione um hor&aacute;rio</option>
                                                 @foreach (['Manha', 'Tarde', 'Noite'] as $period)
                                                     @continue(! $slotPeriods->has($period))
@@ -421,20 +443,47 @@
 
                                 @unless ($identifiedClient)
                                     <div>
-                                        <label for="client_name" class="text-sm font-medium text-white">Nome</label>
-                                        <input id="client_name" name="client_name" type="text" x-model="clientName" value="{{ old('client_name') }}" class="sf-input mt-2 block w-full" required>
+                                        <label for="client_name" class="text-sm font-medium text-white">Nome completo</label>
+                                        <input
+                                            id="client_name"
+                                            name="client_name"
+                                            type="text"
+                                            x-model="clientName"
+                                            value="{{ old('client_name') }}"
+                                            autocomplete="name"
+                                            class="sf-input mt-2 block w-full @error('client_name') ring-2 ring-rose-500 ring-offset-2 ring-offset-[#1b335b] @enderror"
+                                            required
+                                            minlength="3"
+                                        >
+                                        <p class="mt-1 text-xs text-[#c7d2e3]">Informe nome e sobrenome (ex.: Ana Paula Souza).</p>
                                         <x-input-error class="mt-2" :messages="$errors->get('client_name')" />
                                     </div>
 
                                     <div class="grid gap-4 sm:grid-cols-2">
                                         <div>
                                             <label for="client_phone" class="text-sm font-medium text-white">Telefone/WhatsApp</label>
-                                            <input id="client_phone" name="client_phone" type="text" x-model="clientPhone" value="{{ old('client_phone') }}" class="sf-input mt-2 block w-full" required>
+                                            <input
+                                                id="client_phone"
+                                                name="client_phone"
+                                                type="text"
+                                                x-model="clientPhone"
+                                                value="{{ old('client_phone') }}"
+                                                class="sf-input mt-2 block w-full @error('client_phone') ring-2 ring-rose-500 ring-offset-2 ring-offset-[#1b335b] @enderror"
+                                                required
+                                            >
                                             <x-input-error class="mt-2" :messages="$errors->get('client_phone')" />
                                         </div>
                                         <div>
                                             <label for="client_email" class="text-sm font-medium text-white">E-mail</label>
-                                            <input id="client_email" name="client_email" type="email" x-model="clientEmail" value="{{ old('client_email') }}" class="sf-input mt-2 block w-full" required>
+                                            <input
+                                                id="client_email"
+                                                name="client_email"
+                                                type="email"
+                                                x-model="clientEmail"
+                                                value="{{ old('client_email') }}"
+                                                class="sf-input mt-2 block w-full @error('client_email') ring-2 ring-rose-500 ring-offset-2 ring-offset-[#1b335b] @enderror"
+                                                required
+                                            >
                                             <x-input-error class="mt-2" :messages="$errors->get('client_email')" />
                                         </div>
                                     </div>
@@ -539,8 +588,8 @@
             </div>
         </main>
 
-        <div class="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-[#132746]/95 px-3 py-3 shadow-[0_-18px_40px_rgba(8,20,42,0.35)] backdrop-blur xl:hidden">
-            <div class="mx-auto flex max-w-7xl items-center justify-between gap-3">
+        <div class="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-[#132746]/95 px-4 py-3 shadow-[0_-18px_40px_rgba(8,20,42,0.35)] backdrop-blur xl:hidden">
+            <div class="mx-auto flex w-full max-w-full items-center justify-between gap-3 sm:max-w-none lg:max-w-7xl">
                 <div class="min-w-0">
                     <p class="truncate text-sm font-semibold text-white">
                         {{ $selectedServiceIds->isNotEmpty() ? $selectedServiceIds->count().' serviço(s) · '.$totalDurationMinutes.' min' : 'Escolha os serviços' }}
@@ -554,5 +603,55 @@
                 </a>
             </div>
         </div>
+
+        <script>
+            (function () {
+                var raw = sessionStorage.getItem('publicBookingScrollY');
+                if (raw === null) {
+                    return;
+                }
+                sessionStorage.removeItem('publicBookingScrollY');
+                var y = parseInt(raw, 10);
+                if (Number.isNaN(y)) {
+                    return;
+                }
+                window.addEventListener(
+                    'load',
+                    function () {
+                        requestAnimationFrame(function () {
+                            window.scrollTo(0, y);
+                        });
+                    },
+                    { once: true }
+                );
+            })();
+        </script>
+
+        @if ($errors->any())
+            @php
+                $scrollToId = match (true) {
+                    $errors->has('client_name') => 'client_name',
+                    $errors->has('client_phone') => 'client_phone',
+                    $errors->has('client_email') => 'client_email',
+                    $errors->has('time') => 'booking-time',
+                    $errors->has('date') => 'public-date',
+                    default => null,
+                };
+            @endphp
+            @if ($scrollToId)
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        var el = document.getElementById(@json($scrollToId));
+                        if (! el) {
+                            return;
+                        }
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        try {
+                            el.focus({ preventScroll: true });
+                        } catch (e) {}
+                    });
+                </script>
+            @endif
+        @endif
     </body>
 </html>

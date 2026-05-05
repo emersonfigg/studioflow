@@ -27,6 +27,7 @@ class CompanyFactory extends Factory
             'logo' => null,
             'active' => true,
             'onboarding_completed_at' => now(),
+            'auto_print_receipt' => false,
         ];
     }
 }
