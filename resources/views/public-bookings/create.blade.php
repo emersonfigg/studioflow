@@ -60,10 +60,70 @@
                             }
                         });
                     },
-                    fullNameOk() {
-                        const parts = String(this.clientName || '').trim().split(/\s+/).filter(Boolean);
+                    clientNameTokens() {
+                        return String(this.clientName || '')
+                            .trim()
+                            .split(/\s+/u)
+                            .filter(Boolean);
+                    },
+                    fullNameStrongOk() {
+                        const meaningful = this.clientNameTokens().filter((w) => w.length >= 2);
 
-                        return parts.length >= 2;
+                        return meaningful.length >= 2;
+                    },
+                    clientNameFieldHint() {
+                        if (@js((bool) $identifiedClient)) {
+                            return null;
+                        }
+                        const raw = String(this.clientName || '').trim();
+                        if (raw === '') {
+                            return 'Informe seu nome completo.';
+                        }
+                        const tokens = this.clientNameTokens();
+                        const meaningful = tokens.filter((w) => w.length >= 2);
+                        if (meaningful.length >= 2) {
+                            return null;
+                        }
+                        if (tokens.length <= 1) {
+                            return 'Informe também seu sobrenome para continuar.';
+                        }
+
+                        return 'Informe nome e sobrenome com pelo menos 2 letras cada.';
+                    },
+                    blockedByIncompleteFullNameOnly() {
+                        if (@js((bool) $identifiedClient)) {
+                            return false;
+                        }
+
+                        return this.readyForSlots()
+                            && Boolean(this.selectedTime)
+                            && String(this.clientPhone || '').trim().length > 0
+                            && String(this.clientEmail || '').trim().length > 0
+                            && !this.fullNameStrongOk();
+                    },
+                    focusClientNameField() {
+                        const el = document.getElementById('client_name');
+                        if (!el) {
+                            return;
+                        }
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        try {
+                            el.focus({ preventScroll: true });
+                        } catch (_) {}
+                    },
+                    bookingSubmitIntercept(e) {
+                        if (@js((bool) $identifiedClient)) {
+                            return;
+                        }
+                        if (this.readyToConfirm()) {
+                            return;
+                        }
+                        e.preventDefault();
+                        this.$nextTick(() => {
+                            if (this.blockedByIncompleteFullNameOnly()) {
+                                this.focusClientNameField();
+                            }
+                        });
                     },
                     selectedServices() {
                         return this.catalog.filter((service) => this.selectedServiceIds.includes(String(service.id)));
@@ -98,7 +158,7 @@
                             return true;
                         }
 
-                        return this.fullNameOk()
+                        return this.fullNameStrongOk()
                             && String(this.clientPhone || '').trim().length > 0
                             && String(this.clientEmail || '').trim().length > 0;
                     },
@@ -332,7 +392,7 @@
                         </section>
                     </form>
 
-                    <form method="POST" action="{{ route('public-bookings.store', $company) }}" class="space-y-5">
+                    <form method="POST" action="{{ route('public-bookings.store', $company) }}" class="space-y-5" @submit="bookingSubmitIntercept($event)">
                         @csrf
                         @foreach ($selectedServiceIds as $serviceId)
                             <input type="hidden" name="service_ids[]" value="{{ $serviceId }}">
@@ -451,11 +511,13 @@
                                             x-model="clientName"
                                             value="{{ old('client_name') }}"
                                             autocomplete="name"
+                                            :class="{ 'ring-2 ring-amber-400 ring-offset-2 ring-offset-[#1b335b]': clientNameFieldHint() !== null && ! @js($errors->has('client_name')) }"
                                             class="sf-input mt-2 block w-full @error('client_name') ring-2 ring-rose-500 ring-offset-2 ring-offset-[#1b335b] @enderror"
                                             required
                                             minlength="3"
                                         >
-                                        <p class="mt-1 text-xs text-[#c7d2e3]">Informe nome e sobrenome (ex.: Ana Paula Souza).</p>
+                                        <p class="mt-1 text-xs text-amber-100/90" x-show="clientNameFieldHint()" x-cloak x-text="clientNameFieldHint()"></p>
+                                        <p class="mt-1 text-xs text-[#c7d2e3]" x-show="clientNameFieldHint() === null" x-cloak>Exemplo: Ana Paula Souza · nome e sobrenome com pelo menos 2 letras.</p>
                                         <x-input-error class="mt-2" :messages="$errors->get('client_name')" />
                                     </div>
 
@@ -508,15 +570,21 @@
 
                             <button
                                 type="submit"
-                                class="sf-button-primary mt-5 w-full min-h-[60px] text-base disabled:cursor-not-allowed disabled:opacity-60"
-                                x-bind:disabled="!readyToConfirm()"
+                                class="sf-button-primary mt-5 w-full min-h-[60px] text-base transition"
+                                :class="{ 'cursor-not-allowed opacity-60': !readyToConfirm() }"
+                                :aria-disabled="!readyToConfirm()"
                             >
                                 Confirmar agendamento
                             </button>
                             <template x-if="!readyToConfirm()">
-                                <p class="mt-3 text-center text-sm text-[#c7d2e3]">
-                                    Complete as etapas anteriores para confirmar.
-                                </p>
+                                <div class="mt-3 space-y-1 text-center">
+                                    <p x-show="blockedByIncompleteFullNameOnly()" x-cloak class="text-sm font-medium text-amber-100">
+                                        Para confirmar, informe seu nome e sobrenome.
+                                    </p>
+                                    <p x-show="!blockedByIncompleteFullNameOnly()" x-cloak class="text-sm text-[#c7d2e3]">
+                                        Complete as etapas anteriores para confirmar.
+                                    </p>
+                                </div>
                             </template>
                         </section>
                     </form>
@@ -576,6 +644,11 @@
                                     </div>
                                 </div>
 
+                                @unless ($identifiedClient)
+                                    <p x-show="clientNameTokens().length && !fullNameStrongOk()" x-cloak class="rounded-2xl border border-amber-500/35 bg-amber-500/10 px-4 py-2 text-xs text-amber-50">
+                                        Nome incompleto: informe também o sobrenome (mínimo 2 letras em cada parte).
+                                    </p>
+                                @endunless
                                 <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Cliente</p>
                                     <p class="mt-2 text-base font-semibold text-white" x-text="clientName || 'Preencha seus dados'">{{ $identifiedClient?->name ?? 'Preencha seus dados' }}</p>

@@ -56,9 +56,18 @@ class StorePublicBookingRequest extends FormRequest
                     if ($hasIdentifiedClient) {
                         return;
                     }
-                    $parts = array_values(array_filter(preg_split('/\s+/u', trim((string) $value)) ?: [], fn (string $p): bool => $p !== ''));
+                    $tokens = preg_split('/\s+/u', trim((string) $value)) ?: [];
+                    $parts = [];
+                    foreach ($tokens as $token) {
+                        $part = trim((string) $token);
+                        if ($part === '' || mb_strlen($part) < 2) {
+                            continue;
+                        }
+                        $parts[] = $part;
+                    }
+
                     if (count($parts) < 2) {
-                        $fail('O nome completo (nome e sobrenome) é obrigatório.');
+                        $fail('O nome completo com sobrenome é obrigatório.');
                     }
                 },
             ],

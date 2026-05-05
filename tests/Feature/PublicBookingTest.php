@@ -1238,7 +1238,9 @@ class PublicBookingTest extends TestCase
                 'client_email' => 'paula@example.com',
             ])
             ->assertRedirect(route('public-bookings.create', $company, false))
-            ->assertSessionHasErrors(['client_name']);
+            ->assertSessionHasErrors([
+                'client_name' => 'O nome completo com sobrenome é obrigatório.',
+            ]);
 
         $this->assertDatabaseCount('appointments', 0);
     }
