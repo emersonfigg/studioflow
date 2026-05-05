@@ -23,8 +23,25 @@ class MediaStorageTest extends TestCase
 
         $relative = MediaStorage::putFile('products', UploadedFile::fake()->image('gloss.webp'));
 
+        $this->assertIsString($relative);
         $this->assertMatchesRegularExpression('#^products/[^/]+$#', $relative);
         Storage::disk('public')->assertExists($relative);
+    }
+
+    public function test_media_disk_override_uses_s3_when_default_is_public(): void
+    {
+        config([
+            'filesystems.default' => 'public',
+            'filesystems.media_disk' => 's3',
+        ]);
+        Storage::fake('public');
+        Storage::fake('s3');
+
+        $relative = MediaStorage::putFile('products', UploadedFile::fake()->image('override.webp'));
+
+        $this->assertIsString($relative);
+        Storage::disk('s3')->assertExists($relative);
+        Storage::disk('public')->assertMissing($relative);
     }
 
     public function test_media_storage_url_on_public_disk_prefixes_storage_path(): void

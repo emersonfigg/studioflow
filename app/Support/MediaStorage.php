@@ -8,21 +8,28 @@ use Illuminate\Support\Str;
 
 class MediaStorage
 {
+    /**
+     * Disco para uploads persistentes (produtos, logos, serviços, profissionais).
+     */
     public static function diskName(): string
     {
-        $disk = (string) config('filesystems.default', 'public');
+        $configured = config('filesystems.media_disk');
+
+        $disk = (is_string($configured) && trim($configured) !== '')
+            ? trim($configured)
+            : (string) config('filesystems.default', 'public');
 
         return $disk === 'local' ? 'public' : $disk;
     }
 
-    public static function putFile(string $directory, UploadedFile $file): string
+    public static function putFile(string $directory, UploadedFile $file): string|false
     {
-        return $file->store($directory, self::diskName());
+        return $file->storePublicly($directory, ['disk' => self::diskName()]);
     }
 
     public static function put(string $path, string $contents): bool
     {
-        return Storage::disk(self::diskName())->put($path, $contents);
+        return Storage::disk(self::diskName())->put($path, $contents, ['visibility' => 'public']);
     }
 
     /**
@@ -44,6 +51,10 @@ class MediaStorage
         }
     }
 
+    /**
+     * URL absoluta ou raiz do site para servir a mídia; nunca usa APP_URL para S3/R2
+     * (usa AWS_URL / disco ou, no "public" local, apenas o prefixo /storage).
+     */
     public static function url(?string $path): ?string
     {
         $path = trim(str_replace('\\', '/', (string) $path));
@@ -68,9 +79,16 @@ class MediaStorage
 
         $diskName = self::diskName();
         $disk = Storage::disk($diskName);
-        $driver = (string) config("filesystems.disks.{$diskName}.driver", 'local');
 
-        if ($driver === 's3') {
+        $configuredDriver = (string) config("filesystems.disks.{$diskName}.driver", 'local');
+
+        /*
+         * Produção: driver s3 → URL pública via AWS_URL ou endpoint S3, sem checar existência
+         * (objeto pode existir no bucket mesmo se o container efêmero não enxergar).
+         *
+         * Tests: Storage::fake('s3') mantém driver "s3" na config, embora o adaptador seja local.
+         */
+        if ($configuredDriver === 's3') {
             return $disk->url($path);
         }
 

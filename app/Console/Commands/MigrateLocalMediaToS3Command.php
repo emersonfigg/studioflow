@@ -23,7 +23,7 @@ class MigrateLocalMediaToS3Command extends Command
 
         if ($targetDisk === 'public') {
             $this->components->warn(
-                'FILESYSTEM_DISK=public: arquivos ficam no disco do container e somem no redeploy sem volume. Para Railway use FILESYSTEM_DISK=s3 (R2/S3) antes de migrar.'
+                'Disco de mídia é "public": arquivos no filesystem do container somem no redeploy sem volume. Para Railway configure FILESYSTEM_DISK=s3 ou FILESYSTEM_MEDIA_DISK=s3 (Cloudflare R2 / S3) antes de migrar.'
             );
 
             return self::SUCCESS;
@@ -50,7 +50,11 @@ class MigrateLocalMediaToS3Command extends Command
             }
 
             if (! $dryRun) {
-                Storage::disk($targetDisk)->put($path, Storage::disk('public')->get($path));
+                Storage::disk($targetDisk)->put(
+                    $path,
+                    Storage::disk('public')->get($path),
+                    ['visibility' => 'public'],
+                );
             }
 
             $uploaded++;
