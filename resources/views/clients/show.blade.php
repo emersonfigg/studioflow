@@ -5,7 +5,10 @@
                 <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Clientes</p>
                 <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">{{ $client->name }}</h2>
                 <p class="mt-2 text-sm text-[#c7d2e3]">
-                    {{ $client->phone }} · cliente desde {{ $client->created_at->format('d/m/Y') }}
+                    {{ $client->client_code ?? '-' }} · {{ $client->phone }} · cliente desde {{ $client->created_at->format('d/m/Y') }}
+                    @unless ($client->active)
+                        <span class="ml-2 inline-flex rounded-full border border-rose-400/30 bg-rose-500/10 px-2 py-0.5 text-xs font-semibold text-rose-100">Inativo</span>
+                    @endunless
                 </p>
             </div>
 
@@ -25,6 +28,9 @@
                 {{ match (session('status')) {
                     'client-updated' => 'Cliente atualizado com sucesso.',
                     'product-sale-created' => 'Venda de produto registrada com sucesso.',
+                    'client-deactivated' => 'Cliente desativado.',
+                    'client-reactivated' => 'Cliente reativado.',
+                    'client-delete-blocked' => 'Exclusão bloqueada: há histórico operacional. Use desativar.',
                     default => session('status'),
                 } }}
             </div>
@@ -164,8 +170,16 @@
                     <h3 class="text-lg font-semibold text-white">Dados do cliente</h3>
                     <dl class="mt-4 space-y-3">
                         <div class="flex items-center justify-between gap-4">
+                            <dt class="text-sm text-[#c7d2e3]">Código</dt>
+                            <dd class="text-sm font-semibold text-white">{{ $client->client_code ?? '-' }}</dd>
+                        </div>
+                        <div class="flex items-center justify-between gap-4">
                             <dt class="text-sm text-[#c7d2e3]">Telefone</dt>
                             <dd class="text-sm font-semibold text-white">{{ $client->phone }}</dd>
+                        </div>
+                        <div class="flex items-center justify-between gap-4">
+                            <dt class="text-sm text-[#c7d2e3]">CPF</dt>
+                            <dd class="text-sm font-semibold text-white">{{ $client->cpf ? preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $client->cpf) : '-' }}</dd>
                         </div>
                         <div class="flex items-center justify-between gap-4">
                             <dt class="text-sm text-[#c7d2e3]">Aniversário</dt>
@@ -180,13 +194,32 @@
                     <div class="mt-6 flex flex-wrap gap-3">
                         <a href="{{ route('clients.index') }}" class="sf-button-ghost">Voltar para clientes</a>
                         @if (auth()->user()->isAdmin())
-                            <form method="POST" action="{{ route('clients.destroy', $client) }}">
-                                @csrf
-                                @method('DELETE')
-                                <x-danger-button onclick="return confirm('Excluir este cliente?')">
-                                    Excluir
-                                </x-danger-button>
-                            </form>
+                            @if ($client->active)
+                                <form method="POST" action="{{ route('clients.deactivate', $client) }}" class="inline">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="sf-button-secondary" onclick="return confirm('Desativar este cliente?')">
+                                        Desativar
+                                    </button>
+                                </form>
+                            @else
+                                <form method="POST" action="{{ route('clients.reactivate', $client) }}" class="inline">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="sf-button-secondary">
+                                        Reativar
+                                    </button>
+                                </form>
+                            @endif
+                            @if (! $client->hasOperationalHistory())
+                                <form method="POST" action="{{ route('clients.destroy', $client) }}" class="inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <x-danger-button onclick="return confirm('Excluir permanentemente este cliente?')">
+                                        Excluir
+                                    </x-danger-button>
+                                </form>
+                            @endif
                         @endif
                     </div>
                 </article>

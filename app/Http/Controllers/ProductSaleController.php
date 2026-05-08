@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreProductSaleRequest;
 use App\Models\Client;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductSale;
 use App\Models\Service;
@@ -49,16 +50,12 @@ class ProductSaleController extends Controller
         $companyId = $request->user()->company_id;
 
         return view('products.sales.create', [
-            'clients' => Client::query()->where('company_id', $companyId)->orderBy('name')->get(),
+            'clients' => Client::query()->where('company_id', $companyId)->active()->orderBy('name')->get(),
             'products' => Product::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
             'services' => Service::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
             'professionals' => User::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
             'prefilledClientId' => $request->integer('client_id') ?: null,
-            'paymentMethods' => [
-                'cash' => 'Dinheiro',
-                'pix' => 'Pix',
-                'card' => 'Cartao',
-            ],
+            'paymentMethods' => Payment::paymentMethodOptions(),
         ]);
     }
 

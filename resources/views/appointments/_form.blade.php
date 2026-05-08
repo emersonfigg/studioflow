@@ -163,10 +163,10 @@
             let option = [...select.options].find((item) => item.value === String(client.id));
 
             if (! option) {
-                option = new Option(client.name, client.id, true, true);
+                option = new Option(`${client.client_code ?? '-'} · ${client.name}`, client.id, true, true);
                 select.add(option);
             } else {
-                option.text = client.name;
+                option.text = `${client.client_code ?? '-'} · ${client.name}`;
                 option.selected = true;
             }
 
@@ -247,7 +247,7 @@
                                 <option value="">Selecione um cliente</option>
                                 @foreach ($clients as $client)
                                     <option value="{{ $client->id }}" @selected((int) old('client_id', $appointment?->client_id) === $client->id)>
-                                        {{ $client->name }}
+                                        {{ $client->client_code ?? '-' }} · {{ $client->name }} · {{ $client->phone }}{{ $client->cpf ? ' · CPF '.$client->cpf : '' }}
                                     </option>
                                 @endforeach
                             </select>

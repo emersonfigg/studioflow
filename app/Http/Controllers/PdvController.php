@@ -3,19 +3,24 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePdvSaleRequest;
+use App\Http\Requests\UpdatePdvSalePaymentMethodRequest;
 use App\Models\Appointment;
+use App\Models\CashMovement;
 use App\Models\Client;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\ProductSale;
 use App\Models\Service;
 use App\Models\ServiceOrder;
 use App\Models\ServiceOrderItem;
 use App\Models\User;
 use App\Services\CashRegisterService;
 use App\Services\ProductSaleService;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PdvController extends Controller
 {
@@ -85,7 +90,11 @@ class PdvController extends Controller
         }
 
         $cashRegister = $cashRegisterService->registerForDate($companyId, now());
-        $clients = Client::query()->where('company_id', $companyId)->orderBy('name')->get(['id', 'name', 'phone']);
+        $clients = Client::query()
+            ->where('company_id', $companyId)
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'client_code', 'name', 'phone', 'cpf']);
         $products = Product::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get([
             'id', 'name', 'sku', 'price', 'stock_quantity', 'image_path',
         ]);
@@ -131,12 +140,7 @@ class PdvController extends Controller
             'pdvAppointment' => $pdvAppointment,
             'appointmentSummary' => $appointmentSummary,
             'initialCart' => $initialCart,
-            'paymentMethods' => collect(Payment::PAYMENT_METHODS)->mapWithKeys(fn (string $method): array => [$method => match ($method) {
-                'cash' => 'Dinheiro',
-                'pix' => 'Pix',
-                'card' => 'Cartao',
-                default => ucfirst($method),
-            }])->all(),
+            'paymentMethods' => Payment::paymentMethodOptions(),
             'cashRegister' => $cashRegister,
         ]);
     }
@@ -164,6 +168,169 @@ class PdvController extends Controller
     }
 
     /**
+     * Operational history of finalized PDV sales/comandas.
+     */
+    public function sales(Request $request): View
+    {
+        $companyId = (int) $request->user()->company_id;
+        $from = $request->filled('from')
+            ? CarbonImmutable::parse((string) $request->input('from'))->startOfDay()
+            : CarbonImmutable::today()->subDays(14)->startOfDay();
+        $to = $request->filled('to')
+            ? CarbonImmutable::parse((string) $request->input('to'))->endOfDay()
+            : CarbonImmutable::today()->endOfDay();
+        $selectedClientId = $request->integer('client_id') ?: null;
+        $selectedProfessionalId = $request->integer('professional_id') ?: null;
+        $selectedPaymentMethod = trim((string) $request->input('payment_method', ''));
+        $paymentMethods = Payment::paymentMethodOptions();
+
+        $orders = ServiceOrder::query()
+            ->with(['client', 'professional', 'payment', 'productSale', 'appointment'])
+            ->where('company_id', $companyId)
+            ->where('status', ServiceOrder::STATUS_PAID)
+            ->whereBetween('closed_at', [$from, $to])
+            ->when($selectedClientId !== null, fn ($query) => $query->where('client_id', $selectedClientId))
+            ->when($selectedProfessionalId !== null, fn ($query) => $query->where('professional_id', $selectedProfessionalId))
+            ->when($selectedPaymentMethod !== '', function ($query) use ($selectedPaymentMethod): void {
+                $query->where(function ($inner) use ($selectedPaymentMethod): void {
+                    $inner->whereHas('payment', fn ($paymentQuery) => $paymentQuery->where('payment_method', $selectedPaymentMethod))
+                        ->orWhereHas('productSale', fn ($saleQuery) => $saleQuery->where('payment_method', $selectedPaymentMethod));
+                });
+            })
+            ->latest('closed_at')
+            ->paginate(20)
+            ->withQueryString();
+
+        $clients = Client::query()
+            ->where('company_id', $companyId)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+        $professionals = User::query()
+            ->where('company_id', $companyId)
+            ->where('active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('pdv.sales', [
+            'orders' => $orders,
+            'from' => $from,
+            'to' => $to,
+            'clients' => $clients,
+            'professionals' => $professionals,
+            'selectedClientId' => $selectedClientId,
+            'selectedProfessionalId' => $selectedProfessionalId,
+            'selectedPaymentMethod' => $selectedPaymentMethod,
+            'paymentMethods' => $paymentMethods,
+        ]);
+    }
+
+    /**
+     * Show details for a finalized sale/comanda.
+     */
+    public function showSale(Request $request, ServiceOrder $serviceOrder): View
+    {
+        abort_unless($serviceOrder->company_id === $request->user()->company_id, 404);
+        abort_unless($serviceOrder->status === ServiceOrder::STATUS_PAID, 404);
+
+        $order = $serviceOrder->loadMissing([
+            'client',
+            'professional',
+            'appointment',
+            'items.service',
+            'items.product',
+            'payment',
+            'productSale',
+        ]);
+
+        return view('pdv.sale-show', [
+            'order' => $order,
+            'canCorrectPaymentMethod' => $request->user()->hasFinancialPrivileges(),
+            'paymentMethods' => Payment::paymentMethodOptions(),
+        ]);
+    }
+
+    /**
+     * Correct payment method for finalized sale without altering amounts/items.
+     */
+    public function updateSalePaymentMethod(UpdatePdvSalePaymentMethodRequest $request, ServiceOrder $serviceOrder): RedirectResponse
+    {
+        abort_unless($serviceOrder->company_id === $request->user()->company_id, 404);
+        abort_unless($serviceOrder->status === ServiceOrder::STATUS_PAID, 422);
+
+        $serviceOrder->loadMissing(['payment', 'productSale']);
+        $payment = $serviceOrder->payment;
+        $productSale = $serviceOrder->productSale;
+
+        if (! $payment && ! $productSale) {
+            return back()->withErrors([
+                'payment_method' => 'Nao ha vinculo financeiro seguro para esta venda.',
+            ]);
+        }
+
+        $newMethod = $request->validated('payment_method');
+        $reason = trim((string) $request->validated('reason'));
+        $oldMethod = (string) ($payment?->payment_method ?? $productSale?->payment_method ?? '');
+
+        if ($oldMethod === '') {
+            return back()->withErrors([
+                'payment_method' => 'Nao foi possivel identificar a forma de pagamento atual.',
+            ]);
+        }
+
+        if ($oldMethod === $newMethod) {
+            return back()->with('status', 'payment-method-updated');
+        }
+
+        DB::transaction(function () use ($request, $serviceOrder, $payment, $productSale, $newMethod, $oldMethod, $reason): void {
+            $noteSuffix = sprintf(
+                "\n[Correcao forma pagamento PDV] %s por %s (id %s): %s -> %s. Motivo: %s",
+                now()->format('d/m/Y H:i'),
+                $request->user()->name,
+                $request->user()->id,
+                Payment::labelForPaymentMethod($oldMethod),
+                Payment::labelForPaymentMethod($newMethod),
+                $reason
+            );
+
+            if ($payment) {
+                $payment->update([
+                    'payment_method' => $newMethod,
+                    'notes' => trim((string) ($payment->notes ?? '').$noteSuffix),
+                ]);
+
+                CashMovement::query()
+                    ->where('company_id', $serviceOrder->company_id)
+                    ->where('source_type', Payment::class)
+                    ->where('source_id', $payment->id)
+                    ->update([
+                        'payment_method' => $newMethod,
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            if ($productSale) {
+                $productSale->update([
+                    'payment_method' => $newMethod,
+                    'notes' => trim((string) ($productSale->notes ?? '').$noteSuffix),
+                ]);
+
+                CashMovement::query()
+                    ->where('company_id', $serviceOrder->company_id)
+                    ->where('source_type', ProductSale::class)
+                    ->where('source_id', $productSale->id)
+                    ->update([
+                        'payment_method' => $newMethod,
+                        'updated_at' => now(),
+                    ]);
+            }
+        });
+
+        return redirect()
+            ->route('pdv.sales.show', $serviceOrder)
+            ->with('status', 'payment-method-updated');
+    }
+
+    /**
      * Store a POS standalone sale using existing service order logic.
      */
     public function store(StorePdvSaleRequest $request, ProductSaleService $productSaleService): RedirectResponse
@@ -171,12 +338,7 @@ class PdvController extends Controller
         $order = $productSaleService->registerStandaloneOrder($request->user(), $request->payload());
 
         $paymentMethod = (string) $request->input('payment_method');
-        $paymentLabel = match ($paymentMethod) {
-            'cash' => 'Dinheiro',
-            'pix' => 'Pix',
-            'card' => 'Cartao',
-            default => ucfirst($paymentMethod),
-        };
+        $paymentLabel = Payment::labelForPaymentMethod($paymentMethod);
 
         $appointmentCompleted = $order->appointment_id !== null;
         $company = $request->user()->company;

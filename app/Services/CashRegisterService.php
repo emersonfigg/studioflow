@@ -10,6 +10,7 @@ use App\Models\ProductSale;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class CashRegisterService
 {
@@ -132,7 +133,7 @@ class CashRegisterService
             $payment->paid_at,
             CashMovement::TYPE_INFLOW,
             (float) $payment->gross_amount,
-            'Recebimento de servico - ' . ($payment->client->name ?? 'Cliente'),
+            'Recebimento de servico - '.($payment->client->name ?? 'Cliente'),
             $payment->payment_method,
             Payment::class,
             $payment->id,
@@ -150,7 +151,7 @@ class CashRegisterService
             $sale->sold_at,
             CashMovement::TYPE_INFLOW,
             (float) $sale->gross_amount,
-            'Venda de produto - ' . ($sale->client->name ?? 'Cliente'),
+            'Venda de produto - '.($sale->client->name ?? 'Cliente'),
             $sale->payment_method,
             ProductSale::class,
             $sale->id,
@@ -168,11 +169,64 @@ class CashRegisterService
             $settlement->paid_at,
             CashMovement::TYPE_OUTFLOW,
             (float) $settlement->commission_amount,
-            'Acerto de comissao - ' . ($settlement->user->name ?? 'Profissional'),
+            'Acerto de comissao - '.($settlement->user->name ?? 'Profissional'),
             $settlement->payment_method,
             CommissionSettlement::class,
             $settlement->id,
             $settlement->created_by,
         );
+    }
+
+    /**
+     * Manual operational outflow from the day's register (e.g. supplies, withdrawals).
+     */
+    public function recordManualOutflow(
+        CashRegister $register,
+        User $user,
+        float $amount,
+        string $category,
+        ?string $description,
+        ?string $paymentMethod,
+        CarbonInterface $occurredAt,
+    ): CashMovement {
+        return DB::transaction(function () use ($register, $user, $amount, $category, $description, $paymentMethod, $occurredAt): CashMovement {
+            /** @var CashRegister|null $locked */
+            $locked = CashRegister::query()
+                ->whereKey($register->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($locked === null || $locked->closed_at !== null) {
+                throw ValidationException::withMessages([
+                    'cash_register_id' => 'Caixa invalido ou ja fechado.',
+                ]);
+            }
+
+            $locked->load('movements');
+            $rounded = round($amount, 2);
+
+            if ($rounded > $locked->expectedBalance()) {
+                throw ValidationException::withMessages([
+                    'amount' => 'Saldo insuficiente no caixa para esta saida.',
+                ]);
+            }
+
+            $label = trim($category);
+            $detail = $description ? trim($description) : '';
+            $text = $detail !== '' ? "{$label} — {$detail}" : $label;
+            $text = 'Saida manual — '.$text;
+
+            return $this->recordMovement(
+                (int) $locked->company_id,
+                $occurredAt,
+                CashMovement::TYPE_OUTFLOW,
+                $rounded,
+                $text,
+                $paymentMethod,
+                null,
+                null,
+                $user->id,
+            );
+        });
     }
 }

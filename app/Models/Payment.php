@@ -18,6 +18,8 @@ class Payment extends Model
         'cash',
         'pix',
         'card',
+        'card_debit',
+        'card_credit',
     ];
 
     /**
@@ -139,11 +141,26 @@ class Payment extends Model
      */
     public function paymentMethodLabel(): string
     {
-        return match ($this->payment_method) {
+        return self::labelForPaymentMethod((string) $this->payment_method);
+    }
+
+    public static function labelForPaymentMethod(string $method): string
+    {
+        return match ($method) {
             'cash' => 'Dinheiro',
             'pix' => 'Pix',
-            'card' => 'Cartao',
-            default => ucfirst($this->payment_method),
+            'card' => 'Cartão',
+            'card_debit' => 'Cartão débito',
+            'card_credit' => 'Cartão crédito',
+            default => ucfirst($method),
         };
+    }
+
+    /** @return array<string, string> value => pt-BR label */
+    public static function paymentMethodOptions(): array
+    {
+        return collect(self::PAYMENT_METHODS)
+            ->mapWithKeys(fn (string $m): array => [$m => self::labelForPaymentMethod($m)])
+            ->all();
     }
 }

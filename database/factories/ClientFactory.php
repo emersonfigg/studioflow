@@ -20,6 +20,7 @@ class ClientFactory extends Factory
     {
         return [
             'company_id' => Company::factory(),
+            'active' => true,
             'name' => fake()->name(),
             'phone' => fake()->phoneNumber(),
             'email' => fake()->unique()->safeEmail(),

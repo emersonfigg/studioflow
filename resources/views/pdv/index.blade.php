@@ -1,4 +1,8 @@
-<x-app-layout>
+@extends('layouts.pdv')
+
+@section('title', 'PDV')
+
+@section('content')
     @php($saleResult = session('pdv_sale_result'))
     @if (is_array($saleResult) && ! empty($saleResult['auto_print_receipt']) && ! empty($saleResult['receipt_url']))
         <script>
@@ -8,10 +12,10 @@
         </script>
     @endif
 
-    <div class="pdv-page mx-auto w-full max-w-[1800px] px-0 pb-6 sm:px-1 lg:px-2">
+    <div class="pdv-page mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 flex-col px-0 pb-0 sm:px-0.5 lg:px-1">
         @if (is_array($saleResult))
             <div
-                class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-500/40 bg-emerald-950/55 px-3 py-2.5 text-sm text-emerald-50 shadow-md sm:px-4"
+                class="mb-2 shrink-0 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-500/40 bg-emerald-950/55 px-3 py-2 text-sm text-emerald-50 shadow-md sm:px-4"
                 role="status"
             >
                 <div class="min-w-0 flex-1">
@@ -31,6 +35,7 @@
                     </p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
+                    <a href="{{ route('pdv.sales') }}" class="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-[#c7d2e3] hover:bg-white/10">Histórico</a>
                     @if (! empty($saleResult['receipt_url']))
                         <a
                             href="{{ $saleResult['receipt_url'] }}"
@@ -59,14 +64,14 @@
             x-on:keydown.window="handlePdvHotkeys($event)"
             x-on:keydown.slash.prevent="$refs.searchInput.focus()"
             x-on:submit="submitting = true"
-            class="pdv-frame flex min-h-[min(100vh,920px)] flex-col overflow-hidden rounded-2xl border border-[#d4af37]/25 bg-[#132746] shadow-[0_24px_48px_rgba(9,20,45,0.45)] ring-1 ring-[#d4af37]/10"
+            class="pdv-frame flex min-h-0 max-h-full flex-1 flex-col overflow-hidden rounded-2xl border border-[#d4af37]/25 bg-[#132746] shadow-[0_24px_48px_rgba(9,20,45,0.45)] ring-1 ring-[#d4af37]/10"
         >
             @csrf
             {{-- Hook para testes e inspeção: carrinho inicial server-side (Alpine usa o mesmo dado via @js acima) --}}
             <script type="application/json" id="pdv-initial-cart-data" class="hidden">@json($initialCart ?? [])</script>
             @if (isset($pdvAppointment) && $pdvAppointment && isset($appointmentSummary))
                 <input type="hidden" name="appointment_id" value="{{ $pdvAppointment->id }}">
-                <div class="border-b border-[#d4af37]/35 bg-[#1b335b] px-4 py-3 text-sm text-[#c7d2e3] sm:px-5">
+                <div class="shrink-0 border-b border-[#d4af37]/35 bg-[#1b335b] px-3 py-2 text-xs text-[#c7d2e3] sm:px-4 sm:text-sm">
                     <div class="flex flex-wrap items-center gap-2">
                         <p class="text-xs font-bold uppercase tracking-[0.18em] text-[#d4af37]">Atendimento vinculado ao agendamento #{{ $appointmentSummary['id'] }}</p>
                         @if (! empty($appointmentSummary['service_labels']))
@@ -91,11 +96,12 @@
             @endif
 
             {{-- 2. Barra superior (identidade StudioFlow) --}}
-            <header class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-white/10 bg-[#1b335b] px-4 py-2.5 text-xs text-[#c7d2e3] sm:px-5 sm:text-sm">
+            <header class="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/10 bg-[#1b335b] px-3 py-2 text-[11px] text-[#c7d2e3] sm:px-4 sm:text-xs">
                 <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
                     <span class="whitespace-nowrap font-bold tracking-wide text-[#d4af37]">PDV — Ponto de Venda</span>
                     <span class="hidden h-4 w-px bg-white/15 sm:inline-block" aria-hidden="true"></span>
                     <span class="font-semibold text-white">Operador: <span class="text-[#c7d2e3]">{{ auth()->user()->name }}</span></span>
+                    <a href="{{ route('pdv.sales') }}" class="ml-auto inline-flex items-center rounded-lg border border-white/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#c7d2e3] hover:bg-white/10 sm:ml-0">Histórico de vendas</a>
                 </div>
                 <div class="flex w-full flex-wrap items-end gap-3 lg:w-auto lg:flex-nowrap">
                     <label class="grid min-w-[140px] flex-1 gap-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#d4af37]/90 lg:max-w-[200px]">
@@ -103,14 +109,14 @@
                         <select
                             name="client_id"
                             x-ref="clientSelect"
-                            class="sf-select !border-white/15 !bg-[#223d69] !py-2 !text-sm !text-white"
+                            class="sf-select !border-white/15 !bg-[#223d69] !py-1.5 !text-xs !text-white sm:!text-sm sm:!py-2"
                         >
                             <option value="">— Balcão —</option>
                             @foreach ($clients as $client)
                                 <option
                                     value="{{ $client->id }}"
                                     @selected((string) old('client_id', isset($pdvAppointment) && $pdvAppointment ? $pdvAppointment->client_id : null) === (string) $client->id)
-                                >{{ $client->name }}</option>
+                                >{{ $client->client_code ?? '-' }} · {{ $client->name }} · {{ $client->phone }}{{ $client->cpf ? ' · CPF '.$client->cpf : '' }}</option>
                             @endforeach
                         </select>
                     </label>
@@ -119,7 +125,7 @@
                         <select
                             name="user_id"
                             x-ref="professionalSelect"
-                            class="sf-select !border-white/15 !bg-[#223d69] !py-2 !text-sm !text-white"
+                            class="sf-select !border-white/15 !bg-[#223d69] !py-1.5 !text-xs !text-white sm:!text-sm sm:!py-2"
                         >
                             <option value="">— Sessão —</option>
                             @foreach ($professionals as $professional)
@@ -156,16 +162,16 @@
             </header>
 
             {{-- 3. Faixa do item atual --}}
-            <div class="border-b border-[#d4af37]/20 bg-gradient-to-r from-[#223d69] via-[#1b335b] to-[#132746] px-4 py-5 sm:px-6 sm:py-6">
-                <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#d4af37]" x-text="currentKindLabel"></p>
-                <p class="mt-1 text-center text-xl font-bold uppercase leading-tight tracking-tight text-white sm:text-2xl md:text-3xl" x-text="bannerTitle"></p>
+            <div class="shrink-0 border-b border-[#d4af37]/20 bg-gradient-to-r from-[#223d69] via-[#1b335b] to-[#132746] px-3 py-2 sm:px-4 sm:py-3">
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-[#d4af37]" x-text="currentKindLabel"></p>
+                <p class="mt-0.5 text-center text-lg font-bold uppercase leading-tight tracking-tight text-white sm:text-xl lg:text-2xl" x-text="bannerTitle"></p>
             </div>
 
-            {{-- Corpo: 3 colunas (desktop) --}}
-            <div class="grid flex-1 grid-cols-1 gap-0 lg:grid-cols-12 lg:divide-x lg:divide-white/10">
+            {{-- Corpo: 3 colunas (desktop); no mobile só o carrinho expande/resto compacto --}}
+            <div class="flex min-h-0 flex-1 flex-col overflow-hidden lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-12 lg:grid-rows-[minmax(0,1fr)] lg:divide-x lg:divide-white/10 lg:overflow-hidden">
                 {{-- 4. Esquerda: imagem / ícone + VENDA --}}
-                <aside class="flex flex-col gap-4 border-b border-white/10 p-4 lg:col-span-3 lg:border-b-0 lg:p-5">
-                    <div class="relative flex aspect-square max-h-[220px] min-h-[160px] w-full overflow-hidden rounded-2xl border border-white/10 bg-[#223d69] shadow-inner">
+                <aside class="flex shrink-0 flex-col gap-2 border-b border-white/10 p-3 lg:col-span-3 lg:flex lg:max-h-none lg:min-h-0 lg:flex-col lg:justify-start lg:overflow-y-auto lg:border-b-0 lg:p-4">
+                    <div class="relative flex aspect-auto max-h-[120px] min-h-[92px] w-full shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#223d69] shadow-inner lg:aspect-square lg:max-h-[clamp(104px,20vh,160px)]">
                         <template x-if="visualItem && visualItem.image_url && !previewImageFailed">
                             <img
                                 :src="visualItem.image_url"
@@ -181,31 +187,31 @@
                             :class="visualItem && visualItem.image_url && !previewImageFailed ? 'pointer-events-none opacity-0' : 'opacity-100'"
                         >
                             <template x-if="visualItem && visualItem.type === 'product'">
-                                <svg class="h-24 w-24 text-[#d4af37]/90" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <svg class="h-16 w-16 text-[#d4af37]/90 sm:h-20 sm:w-20 lg:h-24 lg:w-24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                                     <path d="M7 4h10l1 2h2v2H4V6h2l1-2zm0 4h10v10a2 2 0 01-2 2H9a2 2 0 01-2-2V8zm2 2v8h6v-8H9z"/>
                                 </svg>
                             </template>
                             <template x-if="visualItem && visualItem.type === 'service'">
-                                <svg class="h-24 w-24 text-[#d4af37]/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                <svg class="h-16 w-16 text-[#d4af37]/90 sm:h-20 sm:w-20 lg:h-24 lg:w-24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/>
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z"/>
                                 </svg>
                             </template>
                             <template x-if="!visualItem">
-                                <svg class="h-24 w-24 text-[#d4af37]/50" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <svg class="h-16 w-16 text-[#d4af37]/50 sm:h-20 sm:w-20 lg:h-24 lg:w-24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
                                 </svg>
                             </template>
                         </div>
                     </div>
-                    <div class="rounded-2xl border border-[#d4af37]/30 bg-[#d4af37]/10 py-4 text-center">
-                        <span class="text-lg font-black uppercase tracking-[0.25em] text-[#d4af37] sm:text-xl">Venda</span>
-                        <p class="mt-1 text-[10px] font-semibold uppercase text-[#c7d2e3]">Item atual</p>
+                    <div class="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 py-2 text-center lg:rounded-2xl lg:py-3">
+                        <span class="text-sm font-black uppercase tracking-[0.22em] text-[#d4af37] sm:text-base lg:text-lg">Venda</span>
+                        <p class="mt-0.5 text-[10px] font-semibold uppercase text-[#c7d2e3]">Item atual</p>
                     </div>
                 </aside>
 
                 {{-- 5. Centro: campos grandes + sugestões --}}
-                <section class="flex flex-col border-b border-white/10 p-4 lg:col-span-4 lg:border-b-0 lg:p-5">
+                <section class="flex min-h-0 flex-col gap-2 border-b border-white/10 p-3 lg:col-span-4 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:border-b-0 lg:p-4">
                     <label class="text-[11px] font-bold uppercase tracking-[0.16em] text-[#d4af37]">Código / SKU / Nome</label>
                     <input
                         x-ref="searchInput"
@@ -215,32 +221,32 @@
                         x-on:keydown.enter.prevent="selectHighlighted()"
                         type="text"
                         autocomplete="off"
-                        class="sf-input mt-2 !border-white/15 !bg-[#223d69] !py-4 !text-lg !font-semibold !text-white placeholder:text-[#c7d2e3]/50"
+                        class="sf-input mt-2 !border-white/15 !bg-[#223d69] !py-3 !text-base !font-semibold !text-white placeholder:text-[#c7d2e3]/50 sm:!py-3.5 sm:!text-lg"
                         placeholder="Buscar ou escanear…"
                     >
 
-                    <div class="mt-4 grid gap-4 sm:grid-cols-3">
+                    <div class="mt-2 grid shrink-0 gap-2 sm:grid-cols-3 sm:gap-3">
                         <div>
                             <label class="text-[10px] font-bold uppercase tracking-[0.14em] text-[#c7d2e3]">Quantidade</label>
-                            <div class="sf-input mt-1 !border-white/15 !bg-[#1b335b] !py-4 !text-right !text-xl !font-bold !text-white tabular-nums" x-text="previewQty"></div>
+                            <div class="sf-input mt-1 !border-white/15 !bg-[#1b335b] !py-2.5 !text-right !text-lg !font-bold !text-white tabular-nums sm:!py-3 sm:!text-xl" x-text="previewQty"></div>
                         </div>
                         <div>
                             <label class="text-[10px] font-bold uppercase tracking-[0.14em] text-[#c7d2e3]">Preço unitário</label>
-                            <div class="sf-input mt-1 !border-white/15 !bg-[#1b335b] !py-4 !text-right !text-xl !font-bold !text-[#d4af37] tabular-nums">
+                            <div class="sf-input mt-1 !border-white/15 !bg-[#1b335b] !py-2.5 !text-right !text-lg !font-bold !text-[#d4af37] tabular-nums sm:!py-3 sm:!text-xl">
                                 R$ <span x-text="formatMoneyBRL(previewUnit)"></span>
                             </div>
                         </div>
                         <div class="sm:col-span-1">
                             <label class="text-[10px] font-bold uppercase tracking-[0.14em] text-[#c7d2e3]">Preço total</label>
-                            <div class="sf-input mt-1 !border-[#d4af37]/35 !bg-[#223d69] !py-4 !text-right !text-xl !font-bold !text-white tabular-nums">
+                            <div class="sf-input mt-1 !border-[#d4af37]/35 !bg-[#223d69] !py-2.5 !text-right !text-lg !font-bold !text-white tabular-nums sm:!py-3 sm:!text-xl">
                                 R$ <span x-text="formatMoneyBRL(previewLineTotal)"></span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="mt-4 min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-[#1b335b]/80">
-                        <p class="border-b border-white/10 bg-[#132746] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#d4af37]">Sugestões</p>
-                        <div class="max-h-48 overflow-y-auto p-1">
+                    <div class="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#1b335b]/80">
+                        <p class="shrink-0 border-b border-white/10 bg-[#132746] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#d4af37]">Sugestões</p>
+                        <div class="max-h-[min(11rem,30svh)] min-h-0 flex-1 overflow-y-auto overscroll-contain p-1 lg:max-h-none">
                             <template x-for="(item, idx) in filteredCatalog" :key="`${item.type}-${item.id}`">
                                 <button
                                     type="button"
@@ -257,11 +263,11 @@
                     </div>
                 </section>
 
-                {{-- 6. Direita: cupom --}}
-                <section class="flex min-h-[280px] flex-col p-4 lg:col-span-5 lg:p-5">
-                    <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#223d69] shadow-inner">
-                        <div class="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
-                            <table class="w-full min-w-[520px] border-collapse text-left text-[11px] text-[#c7d2e3]">
+                {{-- 6. Direita: cupom (única zona que expande e rola com muitos itens em mobile/tablet pequenos) --}}
+                <section class="flex min-h-0 flex-1 flex-col overflow-hidden p-3 lg:col-span-5 lg:min-h-0 lg:flex lg:h-auto lg:flex-1 lg:self-stretch lg:p-4">
+                    <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#223d69] shadow-inner lg:rounded-2xl">
+                        <div class="min-h-0 flex-1 overflow-x-auto overflow-y-auto overscroll-contain">
+                            <table class="w-full min-w-0 border-collapse text-left text-[11px] text-[#c7d2e3] sm:min-w-[480px]">
                                 <thead>
                                     <tr class="border-b border-dashed border-white/25 bg-[#132746] text-[10px] font-bold uppercase tracking-[0.12em] text-[#d4af37]">
                                         <th class="w-10 px-2 py-2 text-left">Item</th>
@@ -316,36 +322,63 @@
             </div>
 
             {{-- 7 + 8. Rodapé totais + pagamento --}}
-            <div class="border-t border-white/10 bg-[#0f203b] px-4 py-4 sm:px-5">
-                <div class="grid grid-cols-2 gap-3 md:grid-cols-6 lg:gap-4">
-                    <div class="rounded-xl border border-white/10 bg-[#132746] p-3">
-                        <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-[#d4af37]">Volumes / Itens</p>
-                        <p class="mt-1 text-2xl font-bold tabular-nums text-white" x-text="formatQty(totalVolumeQty)"></p>
+            <div class="shrink-0 border-t border-white/10 bg-[#0f203b] px-3 py-2 sm:px-4 sm:py-3">
+                <div class="grid grid-cols-2 gap-2 md:grid-cols-6 md:gap-3">
+                    <div class="rounded-lg border border-white/10 bg-[#132746] p-2 sm:rounded-xl sm:p-3">
+                        <p class="text-[9px] font-bold uppercase tracking-[0.14em] text-[#d4af37]">Volumes / Itens</p>
+                        <p class="mt-1 text-xl font-bold tabular-nums text-white sm:text-2xl" x-text="formatQty(totalVolumeQty)"></p>
                     </div>
-                    <div class="rounded-xl border border-white/10 bg-[#132746] p-3">
-                        <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-[#d4af37]">Subtotal serviços</p>
-                        <p class="mt-1 text-lg font-bold text-[#c7d2e3]">R$ <span class="tabular-nums text-white" x-text="formatMoneyBRL(subtotalServices)"></span></p>
+                    <div class="rounded-lg border border-white/10 bg-[#132746] p-2 sm:rounded-xl sm:p-3">
+                        <p class="text-[9px] font-bold uppercase tracking-[0.14em] text-[#d4af37]">Subtotal serviços</p>
+                        <p class="mt-1 text-base font-bold text-[#c7d2e3] sm:text-lg">R$ <span class="tabular-nums text-white" x-text="formatMoneyBRL(subtotalServices)"></span></p>
                     </div>
-                    <div class="rounded-xl border border-white/10 bg-[#132746] p-3">
-                        <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-[#d4af37]">Subtotal produtos</p>
-                        <p class="mt-1 text-lg font-bold text-[#c7d2e3]">R$ <span class="tabular-nums text-white" x-text="formatMoneyBRL(subtotalProducts)"></span></p>
+                    <div class="rounded-lg border border-white/10 bg-[#132746] p-2 sm:rounded-xl sm:p-3">
+                        <p class="text-[9px] font-bold uppercase tracking-[0.14em] text-[#d4af37]">Subtotal produtos</p>
+                        <p class="mt-1 text-base font-bold text-[#c7d2e3] sm:text-lg">R$ <span class="tabular-nums text-white" x-text="formatMoneyBRL(subtotalProducts)"></span></p>
                     </div>
-                    <div class="col-span-2 rounded-xl border-2 border-[#d4af37]/40 bg-gradient-to-br from-[#223d69] to-[#132746] p-4 md:col-span-3">
-                        <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#d4af37]">Total da venda</p>
-                        <p class="mt-1 text-right text-4xl font-black tabular-nums text-[#d4af37] sm:text-5xl">
+                    <div class="rounded-lg border border-rose-400/20 bg-[#132746] p-2 sm:rounded-xl sm:p-3">
+                        <label for="pdv-discount-value" class="block text-[10px] font-bold uppercase tracking-[0.14em] text-rose-200/90">Desconto</label>
+                        <div class="mt-2 grid grid-cols-[96px_minmax(0,1fr)] gap-2">
+                            <select
+                                id="pdv-discount-type"
+                                name="discount_type"
+                                class="sf-select !border-white/15 !bg-[#223d69] !py-1.5 !text-xs !text-white sm:!text-sm sm:!py-2"
+                                x-model="discountType"
+                            >
+                                <option value="fixed">R$</option>
+                                <option value="percent">%</option>
+                            </select>
+                            <input
+                                id="pdv-discount-value"
+                                name="discount_value"
+                                type="text"
+                                inputmode="decimal"
+                                placeholder="0,00"
+                                autocomplete="off"
+                                class="sf-input w-full !border-white/15 !bg-[#223d69] !py-2 !text-sm !text-white tabular-nums"
+                                x-model="discountInput"
+                            >
+                        </div>
+                        <p class="mt-2 text-[10px] text-rose-100/80">
+                            Aplicado: R$ <span class="font-semibold tabular-nums" x-text="formatMoneyBRL(discountApplied)"></span>
+                        </p>
+                    </div>
+                    <div class="col-span-2 rounded-lg border-2 border-[#d4af37]/40 bg-gradient-to-br from-[#223d69] to-[#132746] p-3 sm:rounded-xl sm:p-4 md:col-span-2">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-[#d4af37]">Total da venda</p>
+                        <p class="mt-1 text-right text-3xl font-black tabular-nums text-[#d4af37] sm:text-4xl">
                             R$ <span x-text="formatMoneyBRL(total)"></span>
                         </p>
                     </div>
                 </div>
 
-                <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-end">
+                <div class="mt-2 grid grid-cols-1 gap-3 lg:mt-3 lg:grid-cols-12 lg:items-end">
                     <label class="lg:col-span-4">
                         <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-[#d4af37]">Forma de pagamento</span>
                         <select
                             name="payment_method"
                             x-ref="paymentSelect"
                             required
-                            class="sf-select mt-2 !w-full !border-white/15 !bg-[#223d69] !py-3 !text-white"
+                            class="sf-select mt-2 !w-full !border-white/15 !bg-[#223d69] !py-2 !text-white sm:!py-2.5"
                         >
                             @foreach ($paymentMethods as $value => $label)
                                 <option value="{{ $value }}" @selected(old('payment_method', 'cash') === $value)>{{ $label }}</option>
@@ -357,7 +390,7 @@
                         <textarea
                             name="notes"
                             rows="2"
-                            class="sf-input mt-2 !min-h-[3rem] !w-full !border-white/15 !bg-[#223d69] !text-white placeholder:text-[#c7d2e3]/40"
+                            class="sf-input mt-2 !max-h-[3.75rem] !min-h-[2.5rem] !w-full !resize-y !border-white/15 !bg-[#223d69] !py-2 !text-sm !text-white placeholder:text-[#c7d2e3]/40"
                             placeholder="Opcional"
                         >{{ old('notes') }}</textarea>
                     </label>
@@ -365,7 +398,7 @@
                         <button
                             x-ref="submitBtn"
                             type="submit"
-                            class="sf-button-primary w-full !py-4 !text-base !font-black !uppercase !tracking-wider disabled:opacity-40"
+                            class="sf-button-primary w-full !py-3 !text-sm !font-black !uppercase !tracking-wider sm:!py-3.5 sm:!text-base disabled:opacity-40"
                             :disabled="cart.length === 0 || submitting"
                         >
                             <span x-text="submitting ? 'Finalizando…' : 'Concluir venda'"></span>
@@ -384,6 +417,7 @@
             <template x-for="(item, idx) in servicePayload" :key="`s-${idx}-${item.service_id}`">
                 <input type="hidden" :name="`service_items[${idx}][service_id]`" :value="item.service_id">
             </template>
+            <input type="hidden" name="discount" :value="formatMoneyBRL(discountApplied).replace(/\./g, '').replace(',', '.')">
             <template x-for="(item, idx) in productPayload" :key="`p-${idx}-${item.product_id}`">
                 <div>
                     <input type="hidden" :name="`items[${idx}][product_id]`" :value="item.product_id">
@@ -392,7 +426,7 @@
             </template>
 
             {{-- 9. Barra de atalhos --}}
-            <footer class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-white/10 bg-[#1b335b] px-3 py-2.5 text-[10px] font-semibold text-[#c7d2e3] sm:justify-between sm:text-[11px]">
+            <footer class="shrink-0 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-white/10 bg-[#1b335b] px-2 py-1.5 text-[9px] font-semibold text-[#c7d2e3] sm:justify-between sm:px-3 sm:py-2 sm:text-[10px]">
                 <div class="flex flex-wrap justify-center gap-x-3 gap-y-1 sm:justify-start">
                     <span><kbd class="rounded border border-white/20 bg-[#223d69] px-1.5 py-0.5 text-[#d4af37]">F2</kbd> Cliente</span>
                     <span><kbd class="rounded border border-white/20 bg-[#223d69] px-1.5 py-0.5 text-[#d4af37]">F3</kbd> Busca</span>
@@ -441,6 +475,8 @@
                 highlightedIndex: 0,
                 cart: bootCart,
                 catalog: [...products, ...services],
+                discountType: @json(old('discount_type', 'fixed')),
+                discountInput: @json(old('discount_value', old('discount', '0'))),
                 currentTime: '',
                 previewImageFailed: false,
                 init() {
@@ -652,8 +688,32 @@
                         .filter((item) => String(item.type) === 'product')
                         .reduce((acc, item) => acc + item.price * Math.max(1, Number(item.quantity || 1)), 0);
                 },
+                get discountValue() {
+                    const raw = String(this.discountInput || '').trim();
+                    if (!raw) {
+                        return 0;
+                    }
+                    const normalized = Number(
+                        raw.replace(/\s/g, '').replace(/\./g, '').replace(',', '.'),
+                    );
+
+                    return Number.isFinite(normalized) && normalized > 0 ? normalized : 0;
+                },
+                get discountApplied() {
+                    const subtotal = this.subtotalServices + this.subtotalProducts;
+                    if (subtotal <= 0) {
+                        return 0;
+                    }
+                    if (this.discountType === 'percent') {
+                        const percent = Math.max(0, Math.min(100, this.discountValue));
+                        return (subtotal * percent) / 100;
+                    }
+                    return Math.min(this.discountValue, subtotal);
+                },
                 get total() {
-                    return this.subtotalServices + this.subtotalProducts;
+                    const raw = this.subtotalServices + this.subtotalProducts - this.discountApplied;
+
+                    return raw > 0 ? raw : 0;
                 },
                 get servicePayload() {
                     const rows = [];
@@ -676,4 +736,4 @@
             };
         }
     </script>
-</x-app-layout>
+@endsection

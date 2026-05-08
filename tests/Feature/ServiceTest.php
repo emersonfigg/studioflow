@@ -41,6 +41,7 @@ class ServiceTest extends TestCase
             ->actingAs($admin)
             ->post('/services', [
                 'name' => 'New Service',
+                'description' => 'Descricao de teste do servico.',
                 'duration_minutes' => 60,
                 'price' => '125.50',
                 'active' => '1',
@@ -52,6 +53,7 @@ class ServiceTest extends TestCase
         $createResponse->assertRedirect(route('services.show', $createdService, absolute: false));
         $this->assertSame($company->id, $createdService->company_id);
         $this->assertTrue($createdService->active);
+        $this->assertSame('Descricao de teste do servico.', $createdService->description);
         $this->assertNotNull($createdService->image_path);
         Storage::disk('public')->assertExists($createdService->image_path);
 
@@ -60,6 +62,7 @@ class ServiceTest extends TestCase
             ->post("/services/{$service->id}", [
                 '_method' => 'PATCH',
                 'name' => 'Updated Service',
+                'description' => 'Descricao atualizada',
                 'duration_minutes' => 90,
                 'price' => '250.00',
                 'image' => UploadedFile::fake()->image('updated-service.png'),
@@ -72,6 +75,7 @@ class ServiceTest extends TestCase
             'id' => $service->id,
             'company_id' => $company->id,
             'name' => 'Updated Service',
+            'description' => 'Descricao atualizada',
             'duration_minutes' => 90,
             'price' => '250.00',
             'active' => false,

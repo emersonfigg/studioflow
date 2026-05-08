@@ -79,6 +79,11 @@ class User extends Authenticatable
         return $this->role === 'admin';
     }
 
+    public function hasFinancialPrivileges(): bool
+    {
+        return $this->isAdmin() || $this->role === 'financial';
+    }
+
     /**
      * Determine if the user is a global super admin.
      */

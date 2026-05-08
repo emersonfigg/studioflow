@@ -126,7 +126,7 @@
                 <x-responsive-nav-link :href="route('finance.cash')" :active="request()->routeIs('finance.cash*')">
                     Caixa
                 </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.index') || request()->routeIs('finance.production') || request()->routeIs('finance.commissions*') || request()->routeIs('finance.report') || request()->routeIs('finance.performance') || request()->routeIs('production.*')">
+                <x-responsive-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.index') || request()->routeIs('finance.production') || request()->routeIs('finance.commissions*') || request()->routeIs('finance.report') || request()->routeIs('finance.service-report') || request()->routeIs('finance.performance') || request()->routeIs('production.*')">
                     Financeiro
                 </x-responsive-nav-link>
             @endif

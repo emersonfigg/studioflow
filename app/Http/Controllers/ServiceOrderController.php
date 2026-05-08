@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Appointment;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Service;
 use App\Models\ServiceOrder;
@@ -29,11 +30,7 @@ class ServiceOrderController extends Controller
             'services' => Service::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
             'products' => Product::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
             'professionals' => User::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
-            'paymentMethods' => [
-                'cash' => 'Dinheiro',
-                'pix' => 'Pix',
-                'card' => 'Cartão',
-            ],
+            'paymentMethods' => Payment::paymentMethodOptions(),
         ]);
     }
 
@@ -86,7 +83,7 @@ class ServiceOrderController extends Controller
         $this->ensureOrderAccess($request, $order);
 
         $data = $request->validate([
-            'payment_method' => ['required', 'in:cash,pix,card'],
+            'payment_method' => ['required', Rule::in(Payment::PAYMENT_METHODS)],
             'notes' => ['nullable', 'string'],
         ]);
 

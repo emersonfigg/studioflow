@@ -61,6 +61,12 @@
         </div>
     </x-slot>
 
+    @if (session('status') === 'payment-method-updated')
+        <div class="mx-auto mb-4 max-w-5xl rounded-2xl border border-emerald-400/25 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-100">
+            Forma de pagamento atualizada com sucesso.
+        </div>
+    @endif
+
     <div class="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div class="sf-card p-6 sm:p-7">
             <dl class="grid gap-6 sm:grid-cols-2">
@@ -128,7 +134,7 @@
                 <dl class="mt-5 space-y-4">
                     <div>
                         <dt class="text-sm text-[#c7d2e3]">Forma de pagamento</dt>
-                        <dd class="mt-1 text-sm font-semibold text-white">{{ ucfirst($appointment->payment->payment_method) }}</dd>
+                        <dd class="mt-1 text-sm font-semibold text-white">{{ \App\Models\Payment::labelForPaymentMethod((string) $appointment->payment->payment_method) }}</dd>
                     </div>
                     <div>
                         <dt class="text-sm text-[#c7d2e3]">Valor bruto</dt>
@@ -147,6 +153,26 @@
                         <dd class="mt-1 text-sm font-semibold text-white">{{ $appointment->payment->paid_at->format('d/m/Y H:i') }}</dd>
                     </div>
                 </dl>
+                @if ($appointment->status === 'completed' && auth()->user()->hasFinancialPrivileges())
+                    <details class="mt-5 rounded-2xl border border-white/10 bg-[#132746] px-4 py-3 text-sm text-[#c7d2e3]">
+                        <summary class="cursor-pointer text-xs font-bold uppercase tracking-[0.16em] text-[#d4af37]">Corrigir forma de pagamento</summary>
+                        <form method="POST" action="{{ route('appointments.payment-method.update', $appointment) }}" class="mt-4 space-y-3">
+                            @csrf
+                            @method('PATCH')
+                            <div>
+                                <label for="payment_method_fix" class="text-xs font-semibold text-white">Nova forma</label>
+                                <select id="payment_method_fix" name="payment_method" class="sf-select mt-2 block w-full" required>
+                                    @foreach (\App\Models\Payment::paymentMethodOptions() as $value => $label)
+                                        <option value="{{ $value }}" @selected(old('payment_method', $appointment->payment->payment_method) === $value)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                <x-input-error class="mt-2" :messages="$errors->get('payment_method')" />
+                            </div>
+                            <button type="submit" class="sf-button-secondary w-full text-xs">Salvar correção</button>
+                            <p class="text-[11px] leading-relaxed text-[#c7d2e3]/80">O valor e a comissão não são alterados; apenas a forma registrada e o caixa vinculado.</p>
+                        </form>
+                    </details>
+                @endif
             @else
                 <p class="mt-4 text-sm leading-6 text-[#c7d2e3]">
                     Ainda não há pagamento registrado para este atendimento.

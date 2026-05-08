@@ -25,6 +25,10 @@
             <div class="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-100">
                 Caixa fechado com sucesso.
             </div>
+        @elseif (session('status') === 'cash-outflow-registered')
+            <div class="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-100">
+                Saida registrada no caixa.
+            </div>
         @endif
 
         <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -86,6 +90,45 @@
                         </div>
                     </dl>
 
+                    @if (! $register->closed_at && auth()->user()->hasFinancialPrivileges())
+                        <div class="mt-6 rounded-2xl border border-white/10 bg-[#132746] p-5">
+                            <h4 class="text-sm font-semibold text-white">Registrar saida manual</h4>
+                            <p class="mt-1 text-xs text-[#c7d2e3]">Insumos, retiradas e despesas operacionais diminuem o saldo esperado do dia.</p>
+                            <form method="POST" action="{{ route('finance.cash.outflow') }}" class="mt-4 space-y-3">
+                                @csrf
+                                <input type="hidden" name="cash_register_id" value="{{ $register->id }}">
+                                <div>
+                                    <x-input-label for="out_amount" value="Valor" />
+                                    <x-text-input id="out_amount" name="amount" type="text" inputmode="decimal" class="mt-2 block w-full" :value="old('amount')" required />
+                                </div>
+                                <div>
+                                    <x-input-label for="out_category" value="Categoria / motivo" />
+                                    <x-text-input id="out_category" name="category" type="text" class="mt-2 block w-full" :value="old('category')" required />
+                                </div>
+                                <div>
+                                    <x-input-label for="out_description" value="Descrição" />
+                                    <textarea id="out_description" name="description" rows="2" class="sf-input mt-2 block w-full">{{ old('description') }}</textarea>
+                                </div>
+                                <div>
+                                    <x-input-label for="out_payment_method" value="Forma de pagamento (opcional)" />
+                                    <select id="out_payment_method" name="payment_method" class="sf-select mt-2 block w-full">
+                                        <option value="">—</option>
+                                        @foreach (\App\Models\Payment::paymentMethodOptions() as $value => $label)
+                                            <option value="{{ $value }}" @selected(old('payment_method') === $value)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <button type="submit" class="sf-button-secondary w-full">Registrar saida</button>
+                            </form>
+                            @error('amount')
+                                <p class="mt-2 text-sm text-rose-200">{{ $message }}</p>
+                            @enderror
+                            @error('cash_register_id')
+                                <p class="mt-2 text-sm text-rose-200">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    @endif
+
                     @if (! $register->closed_at && auth()->user()->isAdmin())
                         <form method="POST" action="{{ route('finance.cash.close') }}" class="mt-6 space-y-4">
                             @csrf
@@ -128,7 +171,7 @@
                                     <tr class="transition hover:bg-white/[0.03]">
                                         <td class="px-6 py-4 text-sm text-[#c7d2e3]">{{ $movement->occurred_at->format('H:i') }}</td>
                                         <td class="px-6 py-4 text-sm text-white">{{ $movement->description }}</td>
-                                        <td class="px-6 py-4 text-sm text-[#c7d2e3]">{{ $movement->payment_method ? ucfirst($movement->payment_method) : '-' }}</td>
+                                        <td class="px-6 py-4 text-sm text-[#c7d2e3]">{{ $movement->payment_method ? \App\Models\Payment::labelForPaymentMethod($movement->payment_method) : '-' }}</td>
                                         <td class="px-6 py-4 text-sm">
                                             <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] {{ $movement->type === \App\Models\CashMovement::TYPE_INFLOW ? 'bg-emerald-500/10 text-emerald-100 ring-1 ring-emerald-400/20' : 'bg-rose-500/10 text-rose-100 ring-1 ring-rose-400/20' }}">
                                                 {{ $movement->type === \App\Models\CashMovement::TYPE_INFLOW ? 'Entrada' : 'Saida' }}

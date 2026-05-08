@@ -11,11 +11,7 @@ class ProductSale extends Model
 {
     use HasFactory;
 
-    public const PAYMENT_METHODS = [
-        'cash',
-        'pix',
-        'card',
-    ];
+    public const PAYMENT_METHODS = Payment::PAYMENT_METHODS;
 
     /**
      * The attributes that are mass assignable.

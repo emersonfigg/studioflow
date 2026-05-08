@@ -12,6 +12,12 @@
     </div>
 
     <div>
+        <x-input-label for="description" value="Descrição" />
+        <textarea id="description" name="description" rows="3" placeholder="Opcional — visível no cadastro e na área pública de agendamento" class="sf-input mt-1 block w-full">{{ old('description', $service?->description) }}</textarea>
+        <x-input-error class="mt-2" :messages="$errors->get('description')" />
+    </div>
+
+    <div>
         <x-input-label for="duration_minutes" :value="__('Duration Minutes')" />
         <x-text-input id="duration_minutes" name="duration_minutes" type="number" min="1" class="mt-1 block w-full" :value="old('duration_minutes', $service?->duration_minutes)" required />
         <x-input-error class="mt-2" :messages="$errors->get('duration_minutes')" />

@@ -34,7 +34,7 @@ class UpdateTeamMemberRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($team->id)],
             'password' => ['nullable', 'string', 'min:8'],
-            'role' => ['required', Rule::in(['admin', 'staff'])],
+            'role' => ['required', Rule::in(['admin', 'staff', 'financial'])],
             'active' => ['nullable', 'boolean'],
             'schedule_type' => ['required', Rule::in(['fixed', 'dynamic'])],
             'fixed_weekdays' => ['nullable', 'array'],

@@ -91,7 +91,7 @@
                         <select id="client_id" name="client_id" class="sf-select mt-2 block w-full" required>
                             <option value="">Selecione um cliente</option>
                             @foreach ($clients as $client)
-                                <option value="{{ $client->id }}" @selected(old('client_id', $prefilledClientId) == $client->id)>{{ $client->name }} - {{ $client->phone }}</option>
+                                <option value="{{ $client->id }}" @selected(old('client_id', $prefilledClientId) == $client->id)>{{ $client->client_code ?? '-' }} · {{ $client->name }} · {{ $client->phone }}{{ $client->cpf ? ' · CPF '.$client->cpf : '' }}</option>
                             @endforeach
                         </select>
                         <x-input-error :messages="$errors->get('client_id')" class="mt-2" />

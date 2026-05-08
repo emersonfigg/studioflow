@@ -240,6 +240,21 @@ class ProductSaleService
                 $this->serviceOrderService->addProduct($order, $product, (int) $item['quantity']);
             }
 
+            $order = $order->fresh(['items.service', 'items.product']);
+            $order = $this->serviceOrderService->recalculate($order);
+
+            $discount = round(max(0, (float) ($data['discount'] ?? 0)), 2);
+            $maxDiscount = round((float) $order->subtotal_services + (float) $order->subtotal_products, 2);
+
+            if ($discount > $maxDiscount) {
+                throw ValidationException::withMessages([
+                    'discount' => 'O desconto nao pode ser maior que a soma dos subtotais.',
+                ]);
+            }
+
+            $order->update(['discount' => $discount]);
+            $order = $this->serviceOrderService->recalculate($order->fresh(['items.service', 'items.product']));
+
             $this->serviceOrderService->close($order, $actor, $data['payment_method'], $data['notes'] ?? null, $soldAt);
 
             return $order->fresh(['client', 'professional', 'items.service', 'items.product']);

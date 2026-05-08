@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Appointment;
+use App\Models\CashMovement;
 use App\Models\Client;
 use App\Models\CommissionSettlement;
 use App\Models\Company;
@@ -591,5 +592,60 @@ class PaymentTest extends TestCase
                 'payment_method' => 'pix',
             ])
             ->assertNotFound();
+    }
+
+    public function test_admin_can_correct_payment_method_after_completion(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create();
+        $service = Service::factory()->for($company)->create(['price' => 80]);
+        $appointment = Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'service_id' => $service->id,
+            'user_id' => $admin->id,
+            'status' => 'completed',
+        ]);
+
+        $payment = Payment::factory()->create([
+            'company_id' => $company->id,
+            'appointment_id' => $appointment->id,
+            'service_order_id' => null,
+            'payment_method' => 'cash',
+        ]);
+
+        CashMovement::query()->create([
+            'company_id' => $company->id,
+            'cash_register_id' => $company->cashRegisters()->create([
+                'date' => now()->toDateString(),
+                'opening_amount' => 0,
+                'opened_by' => $admin->id,
+                'opened_at' => now(),
+            ])->id,
+            'type' => 'inflow',
+            'source_type' => Payment::class,
+            'source_id' => $payment->id,
+            'payment_method' => 'cash',
+            'amount' => 80,
+            'occurred_at' => now(),
+            'description' => 'Teste',
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('appointments.payment-method.update', $appointment, false), [
+                'payment_method' => 'card_debit',
+            ])
+            ->assertRedirect(route('appointments.show', $appointment, false));
+
+        $this->assertDatabaseHas('payments', [
+            'id' => $payment->id,
+            'payment_method' => 'card_debit',
+        ]);
+
+        $this->assertDatabaseHas('cash_movements', [
+            'source_type' => Payment::class,
+            'source_id' => $payment->id,
+            'payment_method' => 'card_debit',
+        ]);
     }
 }

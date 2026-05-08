@@ -27,10 +27,17 @@ class ClientController extends Controller
         $clients = Client::query()
             ->where('company_id', $companyId)
             ->when($search !== '', function (Builder $query) use ($search): void {
-                $query->where(function (Builder $query) use ($search): void {
+                $normalizedSearch = Client::normalizeCpf($search) ?? preg_replace('/\D+/', '', $search);
+
+                $query->where(function (Builder $query) use ($search, $normalizedSearch): void {
                     $query
-                        ->where('name', 'like', '%' . $search . '%')
-                        ->orWhere('phone', 'like', '%' . $search . '%');
+                        ->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('phone', 'like', '%'.$search.'%')
+                        ->orWhere('client_code', 'like', '%'.strtoupper($search).'%');
+
+                    if ($normalizedSearch !== '') {
+                        $query->orWhere('cpf_normalized', 'like', '%'.$normalizedSearch.'%');
+                    }
                 });
             })
             ->withCount([
@@ -90,6 +97,7 @@ class ClientController extends Controller
         $client = Client::create([
             ...$request->validated(),
             'company_id' => $request->user()->company_id,
+            'active' => true,
         ]);
 
         return redirect()->route('clients.show', $client)->with('status', 'client-created');
@@ -105,6 +113,7 @@ class ClientController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:255'],
+            'cpf' => ['nullable', 'string', 'max:20'],
             'birthday' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
         ]);
@@ -119,10 +128,16 @@ class ClientController extends Controller
         if ($client === null) {
             $client = Client::create([
                 ...$data,
+                'cpf' => Client::normalizeCpf($data['cpf'] ?? null),
                 'company_id' => $request->user()->company_id,
+                'active' => true,
             ]);
 
             $wasRecentlyCreated = true;
+        } elseif (! $client->isOperationallyActive()) {
+            return response()->json([
+                'message' => 'Este cadastro esta desativado. Solicite reativacao a administracao.',
+            ], 422);
         }
 
         return response()->json([
@@ -130,6 +145,7 @@ class ClientController extends Controller
                 'id' => $client->id,
                 'name' => $client->name,
                 'phone' => $client->phone,
+                'client_code' => $client->client_code,
             ],
             'reused' => ! $wasRecentlyCreated,
             'message' => $wasRecentlyCreated
@@ -225,9 +241,37 @@ class ClientController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
         $this->ensureClientBelongsToUserCompany($request, $client);
 
+        if ($client->hasOperationalHistory()) {
+            return redirect()
+                ->route('clients.show', $client)
+                ->with('status', 'client-delete-blocked');
+        }
+
         $client->delete();
 
         return redirect()->route('clients.index')->with('status', 'client-deleted');
+    }
+
+    public function deactivate(Request $request, Client $client): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $this->ensureClientBelongsToUserCompany($request, $client);
+        $client->update(['active' => false]);
+
+        return redirect()
+            ->route('clients.show', $client)
+            ->with('status', 'client-deactivated');
+    }
+
+    public function reactivate(Request $request, Client $client): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $this->ensureClientBelongsToUserCompany($request, $client);
+        $client->update(['active' => true]);
+
+        return redirect()
+            ->route('clients.show', $client)
+            ->with('status', 'client-reactivated');
     }
 
     /**

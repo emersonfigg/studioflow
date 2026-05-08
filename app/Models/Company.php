@@ -29,6 +29,7 @@ class Company extends Model
         'active',
         'onboarding_completed_at',
         'auto_print_receipt',
+        'client_code_counter',
     ];
 
     /**
@@ -41,6 +42,7 @@ class Company extends Model
         return [
             'active' => 'boolean',
             'auto_print_receipt' => 'boolean',
+            'client_code_counter' => 'integer',
             'onboarding_completed_at' => 'datetime',
         ];
     }

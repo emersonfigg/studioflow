@@ -71,6 +71,7 @@
         <label for="role" class="text-sm font-medium text-white">Perfil</label>
         <select id="role" name="role" class="sf-select mt-2 block w-full" required>
             <option value="admin" @selected($selectedRole === 'admin')>Administrador</option>
+            <option value="financial" @selected($selectedRole === 'financial')>Financeiro</option>
             <option value="staff" @selected($selectedRole === 'staff')>Profissional</option>
         </select>
         <x-input-error class="mt-2" :messages="$errors->get('role')" />

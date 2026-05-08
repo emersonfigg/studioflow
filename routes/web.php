@@ -61,8 +61,14 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
         ->name('appointments.payments.create');
     Route::post('appointments/{appointment}/complete', [PaymentController::class, 'store'])
         ->name('appointments.payments.store');
+    Route::patch('appointments/{appointment}/payment-method', [PaymentController::class, 'updatePaymentMethod'])
+        ->name('appointments.payment-method.update');
     Route::post('clients/inline', [ClientController::class, 'storeInline'])
         ->name('clients.inline.store');
+    Route::patch('clients/{client}/deactivate', [ClientController::class, 'deactivate'])
+        ->name('clients.deactivate');
+    Route::patch('clients/{client}/reactivate', [ClientController::class, 'reactivate'])
+        ->name('clients.reactivate');
     Route::resource('clients', ClientController::class);
     Route::get('company/onboarding', [CompanyController::class, 'onboarding'])->name('company.onboarding');
     Route::get('company', [CompanyController::class, 'edit'])->name('company.edit');
@@ -73,6 +79,10 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
     Route::post('products/sales', [ProductSaleController::class, 'store'])->name('product-sales.store');
     Route::get('pdv', [PdvController::class, 'index'])->name('pdv.index');
     Route::post('pdv', [PdvController::class, 'store'])->name('pdv.store');
+    Route::get('pdv/sales', [PdvController::class, 'sales'])->name('pdv.sales');
+    Route::get('pdv/sales/{serviceOrder}', [PdvController::class, 'showSale'])->name('pdv.sales.show');
+    Route::patch('pdv/sales/{serviceOrder}/payment-method', [PdvController::class, 'updateSalePaymentMethod'])
+        ->name('pdv.sales.payment-method.update');
     Route::get('pdv/receipt/{serviceOrder}', [PdvController::class, 'receipt'])->name('pdv.receipt');
     Route::get('sales/{serviceOrder}/receipt', [PdvController::class, 'receipt'])->name('sales.receipt');
     Route::resource('services', ServiceController::class);
@@ -103,8 +113,12 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
         ->name('finance.cash.open');
     Route::post('finance/cash/close', [FinanceController::class, 'closeCash'])
         ->name('finance.cash.close');
+    Route::post('finance/cash/outflow', [FinanceController::class, 'registerCashOutflow'])
+        ->name('finance.cash.outflow');
     Route::get('finance/report', [FinanceController::class, 'report'])
         ->name('finance.report');
+    Route::get('finance/service-report', [FinanceController::class, 'serviceReport'])
+        ->name('finance.service-report');
     Route::get('finance/performance', [FinanceController::class, 'performance'])
         ->name('finance.performance');
     Route::get('finance/commissions/settlements/create', [CommissionSettlementController::class, 'create'])

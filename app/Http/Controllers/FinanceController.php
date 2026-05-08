@@ -2,17 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreCashOutflowRequest;
 use App\Models\CashMovement;
 use App\Models\CashRegister;
 use App\Models\CommissionSettlement;
 use App\Models\Payment;
 use App\Models\ProductSale;
+use App\Models\ServiceOrder;
+use App\Models\ServiceOrderItem;
 use App\Models\User;
 use App\Services\CashRegisterService;
 use App\Services\DashboardPerformanceService;
 use App\Support\BrazilianCurrency;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -263,6 +267,34 @@ class FinanceController extends Controller
     }
 
     /**
+     * Register a manual cash outflow on the open register.
+     */
+    public function registerCashOutflow(StoreCashOutflowRequest $request, CashRegisterService $cashRegisterService): RedirectResponse
+    {
+        $data = $request->validated();
+        $register = CashRegister::query()
+            ->where('company_id', $request->user()->company_id)
+            ->findOrFail($data['cash_register_id']);
+
+        $occurredAt = CarbonImmutable::parse($register->date->format('Y-m-d'))
+            ->setTimeFromTimeString(now()->format('H:i:s'));
+
+        $cashRegisterService->recordManualOutflow(
+            $register,
+            $request->user(),
+            (float) $data['amount'],
+            $data['category'],
+            $data['description'] ?? null,
+            $data['payment_method'] ?? null,
+            $occurredAt,
+        );
+
+        return redirect()
+            ->route('finance.cash', ['date' => $register->date->format('Y-m-d')])
+            ->with('status', 'cash-outflow-registered');
+    }
+
+    /**
      * Display consolidated financial report.
      */
     public function report(Request $request): View
@@ -370,6 +402,54 @@ class FinanceController extends Controller
     }
 
     /**
+     * Revenue and volume by service line (paid orders only).
+     */
+    public function serviceReport(Request $request): View
+    {
+        [$from, $to, $selectedUserId, $users] = $this->baseFilters($request);
+        $companyId = (int) $request->user()->company_id;
+
+        $totalsQuery = $this->serviceReportItemsQuery($companyId, $from, $to, $selectedUserId);
+
+        $totalQuantity = (float) (clone $totalsQuery)->sum('service_order_items.quantity');
+        $totalGross = (float) (clone $totalsQuery)->sum('service_order_items.total_price');
+
+        $rows = (clone $totalsQuery)
+            ->select('services.id as service_row_id', 'services.name as service_row_name')
+            ->selectRaw('SUM(service_order_items.quantity) as qty_sold')
+            ->selectRaw('SUM(service_order_items.total_price) as gross')
+            ->groupBy('services.id', 'services.name')
+            ->orderBy('services.name')
+            ->get()
+            ->map(function ($row) use ($totalGross): array {
+                $qty = (float) $row->qty_sold;
+                $gross = (float) $row->gross;
+                $ticket = $qty > 0 ? round($gross / $qty, 2) : 0.0;
+
+                return [
+                    'name' => (string) $row->service_row_name,
+                    'quantity' => $qty,
+                    'gross' => $gross,
+                    'ticket' => $ticket,
+                    'pct' => $totalGross > 0 ? round(($gross / $totalGross) * 100, 2) : 0.0,
+                ];
+            });
+
+        return view('finance.service-report', [
+            'from' => $from,
+            'to' => $to,
+            'users' => $users,
+            'selectedUserId' => $selectedUserId,
+            'canFilterProfessionals' => $request->user()->isAdmin(),
+            'totalQuantity' => $totalQuantity,
+            'totalGross' => $totalGross,
+            'averageTicket' => $totalQuantity > 0 ? round($totalGross / $totalQuantity, 2) : 0.0,
+            'rows' => $rows,
+            'page' => 'service-report',
+        ]);
+    }
+
+    /**
      * Build the shared finance dataset with filters and company isolation.
      *
      * @return array{0: CarbonImmutable, 1: CarbonImmutable, 2: int|null, 3: \Illuminate\Database\Eloquent\Collection<int, User>, 4: Collection<int, Payment>}
@@ -450,5 +530,30 @@ class FinanceController extends Controller
             'last_month' => 'Mês anterior',
             default => 'Período personalizado',
         };
+    }
+
+    /**
+     * @return Builder<ServiceOrderItem>
+     */
+    private function serviceReportItemsQuery(int $companyId, CarbonImmutable $from, CarbonImmutable $to, ?int $professionalId): Builder
+    {
+        $query = ServiceOrderItem::query()
+            ->join('service_orders', 'service_orders.id', '=', 'service_order_items.service_order_id')
+            ->leftJoin('appointments', 'appointments.id', '=', 'service_orders.appointment_id')
+            ->join('services', 'services.id', '=', 'service_order_items.service_id')
+            ->where('service_order_items.type', ServiceOrderItem::TYPE_SERVICE)
+            ->where('service_orders.company_id', $companyId)
+            ->where('service_orders.status', ServiceOrder::STATUS_PAID)
+            ->whereNotNull('service_order_items.service_id')
+            ->whereBetween('service_orders.closed_at', [$from, $to]);
+
+        if ($professionalId !== null) {
+            $query->whereRaw(
+                'COALESCE(service_order_items.professional_id, service_orders.professional_id, appointments.user_id) = ?',
+                [$professionalId]
+            );
+        }
+
+        return $query;
     }
 }

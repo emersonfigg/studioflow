@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Appointment;
+use App\Models\Client;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Service;
@@ -46,8 +47,15 @@ class StoreProductSaleRequest extends FormRequest
                 return;
             }
 
-            if (! $this->user()->company->clients()->whereKey($this->integer('client_id'))->exists()) {
+            $client = Client::query()
+                ->where('company_id', $companyId)
+                ->whereKey($this->integer('client_id'))
+                ->first();
+
+            if (! $client) {
                 $validator->errors()->add('client_id', 'Selecione um cliente valido da sua empresa.');
+            } elseif (! $client->isOperationallyActive()) {
+                $validator->errors()->add('client_id', 'Este cliente esta desativado e nao pode receber novas vendas.');
             }
 
             if ($this->filled('appointment_id')) {

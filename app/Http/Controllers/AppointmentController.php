@@ -265,6 +265,7 @@ class AppointmentController extends Controller
         return [
             'clients' => Client::query()
                 ->where('company_id', $companyId)
+                ->active()
                 ->orderBy('name')
                 ->get(),
             'services' => Service::query()
@@ -377,11 +378,18 @@ class AppointmentController extends Controller
         array $data,
         ?Appointment $ignoreAppointment = null,
     ): void {
-        Client::query()
+        /** @var Client $clientRow */
+        $clientRow = Client::query()
             ->where('company_id', $request->user()->company_id)
             ->whereKey($data['client_id'])
             ->lockForUpdate()
             ->firstOrFail();
+
+        if (! $clientRow->active) {
+            throw ValidationException::withMessages([
+                'client_id' => 'Este cliente esta desativado e nao pode receber novos agendamentos.',
+            ]);
+        }
 
         $conflict = Appointment::findClientScheduleConflict(
             (int) $request->user()->company_id,

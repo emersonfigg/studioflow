@@ -21,6 +21,22 @@
 
     <div class="grid gap-5 lg:grid-cols-2">
         <div>
+            <x-input-label for="cpf" value="CPF (opcional)" />
+            <x-text-input
+                id="cpf"
+                name="cpf"
+                type="text"
+                inputmode="numeric"
+                maxlength="14"
+                class="mt-2 block w-full"
+                :value="old('cpf', $client?->cpf)"
+                placeholder="000.000.000-00"
+                oninput="this.value = this.value.replace(/\D/g, '').slice(0, 11).replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');"
+            />
+            <x-input-error class="mt-2" :messages="$errors->get('cpf')" />
+        </div>
+
+        <div>
             <x-input-label for="birthday" value="Aniversário" />
             <x-text-input id="birthday" name="birthday" type="date" class="mt-2 block w-full" :value="old('birthday', optional($client?->birthday)->format('Y-m-d'))" />
             <x-input-error class="mt-2" :messages="$errors->get('birthday')" />

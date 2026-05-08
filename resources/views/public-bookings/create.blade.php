@@ -17,6 +17,19 @@
         'date' => $selectedDate,
         'filters_submitted' => 1,
     ];
+    $shareTitle = 'Agendar horário - '.$company->name;
+    $shareDescription = 'Agende seu horário online com '.$company->name.' pelo StudioFlow.';
+    $shareUrl = request()->fullUrl();
+    $fallbackShareImage = 'https://placehold.co/1200x630/png?text=StudioFlow';
+    $companyLogo = $company->logo_url;
+    $absoluteLogoUrl = $companyLogo
+        ? (str_starts_with($companyLogo, 'http://') || str_starts_with($companyLogo, 'https://') ? $companyLogo : url($companyLogo))
+        : $fallbackShareImage;
+
+    if (app()->environment('production')) {
+        $shareUrl = preg_replace('/^http:\/\//i', 'https://', $shareUrl) ?? $shareUrl;
+        $absoluteLogoUrl = preg_replace('/^http:\/\//i', 'https://', $absoluteLogoUrl) ?? $absoluteLogoUrl;
+    }
 @endphp
 
 <!DOCTYPE html>
@@ -25,8 +38,17 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        <meta property="og:title" content="{{ $shareTitle }}">
+        <meta property="og:description" content="{{ $shareDescription }}">
+        <meta property="og:image" content="{{ $absoluteLogoUrl }}">
+        <meta property="og:url" content="{{ $shareUrl }}">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ $shareTitle }}">
+        <meta name="twitter:description" content="{{ $shareDescription }}">
+        <meta name="twitter:image" content="{{ $absoluteLogoUrl }}">
 
-        <title>Agendar horário - {{ $company->name }}</title>
+        <title>{{ $shareTitle }}</title>
 
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
@@ -277,6 +299,9 @@
                                             </span>
                                             <span class="min-w-0 flex-1">
                                                 <span class="block truncate text-sm font-semibold text-white">{{ $service->name }}</span>
+                                                @if (filled($service->description))
+                                                    <span class="mt-0.5 block line-clamp-2 text-[11px] leading-snug text-[#c7d2e3]/90">{{ $service->description }}</span>
+                                                @endif
                                                 <span class="mt-1 flex flex-wrap gap-2 text-xs text-[#c7d2e3]">
                                                     <span>{{ $service->duration_minutes }} min</span>
                                                     <span class="font-semibold text-[#d4af37]">R$ {{ number_format((float) $service->price, 2, ',', '.') }}</span>

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Client;
 use App\Models\Company;
+use App\Models\ServiceOrder;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -229,5 +230,123 @@ class ClientTest extends TestCase
             ]);
 
         $this->assertDatabaseCount('clients', 2);
+    }
+
+    public function test_admin_can_deactivate_and_reactivate_client_and_delete_is_blocked_with_history(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create(['active' => true]);
+        ServiceOrder::query()->create([
+            'company_id' => $company->id,
+            'client_id' => $client->id,
+            'professional_id' => $admin->id,
+            'status' => ServiceOrder::STATUS_OPEN,
+            'subtotal_services' => 0,
+            'subtotal_products' => 0,
+            'discount' => 0,
+            'total' => 0,
+            'opened_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('clients.deactivate', $client, false))
+            ->assertRedirect(route('clients.show', $client, false));
+
+        $this->assertDatabaseHas('clients', [
+            'id' => $client->id,
+            'active' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('clients.destroy', $client, false))
+            ->assertRedirect(route('clients.show', $client, false));
+
+        $this->assertDatabaseHas('clients', [
+            'id' => $client->id,
+            'active' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('clients.reactivate', $client, false))
+            ->assertRedirect(route('clients.show', $client, false));
+
+        $this->assertDatabaseHas('clients', [
+            'id' => $client->id,
+            'active' => true,
+        ]);
+    }
+
+    public function test_client_code_is_generated_per_company_and_cpf_is_unique_per_company(): void
+    {
+        $companyA = Company::factory()->create();
+        $companyB = Company::factory()->create();
+        $adminA = User::factory()->admin()->for($companyA)->create();
+        $adminB = User::factory()->admin()->for($companyB)->create();
+
+        $this->actingAs($adminA)->post('/clients', [
+            'name' => 'Cliente A1',
+            'phone' => '11999990001',
+            'cpf' => '111.222.333-44',
+        ])->assertRedirect();
+
+        $this->actingAs($adminA)->post('/clients', [
+            'name' => 'Cliente A2',
+            'phone' => '11999990002',
+            'cpf' => '11122233344',
+        ])->assertSessionHasErrors('cpf');
+
+        $this->actingAs($adminB)->post('/clients', [
+            'name' => 'Cliente B1',
+            'phone' => '11999990003',
+            'cpf' => '11122233344',
+        ])->assertRedirect();
+
+        $firstClientA = Client::query()->where('company_id', $companyA->id)->firstOrFail();
+        $firstClientB = Client::query()->where('company_id', $companyB->id)->firstOrFail();
+
+        $this->assertSame('C0001', $firstClientA->client_code);
+        $this->assertSame('C0001', $firstClientB->client_code);
+    }
+
+    public function test_client_search_supports_code_and_cpf(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $client = Client::factory()->for($company)->create([
+            'name' => 'Cliente Busca',
+            'phone' => '11988887777',
+            'cpf' => '12345678901',
+            'cpf_normalized' => '12345678901',
+            'client_code' => 'C0042',
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/clients?search=C0042')
+            ->assertOk()
+            ->assertSee('Cliente Busca');
+
+        $this->actingAs($admin)
+            ->get('/clients?search=123.456.789-01')
+            ->assertOk()
+            ->assertSee('Cliente Busca');
+
+        $this->assertNotNull($client);
+    }
+
+    public function test_inactive_client_is_hidden_from_operational_flows(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $inactiveClient = Client::factory()->for($company)->create([
+            'name' => 'Inativo Operacional',
+            'active' => false,
+        ]);
+
+        $this->actingAs($admin)->get('/pdv')->assertOk()->assertDontSee('Inativo Operacional');
+        $this->actingAs($admin)->get('/appointments/create')->assertOk()->assertDontSee('Inativo Operacional');
+        $this->actingAs($admin)->get(route('product-sales.create', absolute: false))->assertOk()->assertDontSee('Inativo Operacional');
+
+        $this->assertNotNull($inactiveClient);
     }
 }

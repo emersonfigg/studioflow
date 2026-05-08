@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreClientRequest extends FormRequest
 {
@@ -21,12 +22,24 @@ class StoreClientRequest extends FormRequest
      */
     public function rules(): array
     {
+        $companyId = $this->user()->company_id;
+
         return [
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:255'],
+            'cpf' => ['nullable', 'string', 'size:11', Rule::unique('clients', 'cpf_normalized')->where('company_id', $companyId)],
             'birthday' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
             'last_visit_at' => ['nullable', 'date'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $digits = preg_replace('/\D+/', '', (string) $this->input('cpf'));
+
+        $this->merge([
+            'cpf' => $digits === '' ? null : $digits,
+        ]);
     }
 }

@@ -89,4 +89,34 @@ class CashRegisterTest extends TestCase
             'amount' => '40.00',
         ]);
     }
+
+    public function test_financial_user_can_register_manual_cash_outflow_when_balance_is_sufficient(): void
+    {
+        $company = Company::factory()->create();
+        $financial = User::factory()->financial()->for($company)->create();
+
+        $register = $company->cashRegisters()->create([
+            'date' => '2026-04-30',
+            'opening_amount' => 100,
+            'opened_by' => $financial->id,
+            'opened_at' => now(),
+        ]);
+
+        $this->actingAs($financial)
+            ->post(route('finance.cash.outflow', false), [
+                'cash_register_id' => $register->id,
+                'amount' => '30.00',
+                'category' => 'Insumos',
+                'description' => 'Compra de pomada',
+                'payment_method' => 'pix',
+            ])
+            ->assertRedirect(route('finance.cash', ['date' => '2026-04-30'], false));
+
+        $this->assertDatabaseHas('cash_movements', [
+            'cash_register_id' => $register->id,
+            'type' => 'outflow',
+            'amount' => '30.00',
+            'payment_method' => 'pix',
+        ]);
+    }
 }

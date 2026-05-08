@@ -51,6 +51,13 @@ class UserFactory extends Factory
         ]);
     }
 
+    public function financial(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'financial',
+        ]);
+    }
+
     /**
      * Indicate that the user is a super admin.
      */

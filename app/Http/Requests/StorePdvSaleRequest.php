@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesBrazilianCurrency;
 use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Payment;
@@ -14,9 +15,16 @@ use Illuminate\Validation\Validator;
 
 class StorePdvSaleRequest extends FormRequest
 {
+    use NormalizesBrazilianCurrency;
+
     public function authorize(): bool
     {
         return $this->user()?->company_id !== null;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->normalizeCurrencyFields(['discount', 'discount_value']);
     }
 
     /**
@@ -29,6 +37,9 @@ class StorePdvSaleRequest extends FormRequest
             'client_id' => ['nullable', 'integer'],
             'user_id' => ['nullable', 'integer'],
             'payment_method' => ['required', Rule::in(Payment::PAYMENT_METHODS)],
+            'discount_type' => ['nullable', Rule::in(['fixed', 'percent'])],
+            'discount_value' => ['nullable', 'numeric', 'min:0'],
+            'discount' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string'],
             'service_items' => ['nullable', 'array'],
             'service_items.*.service_id' => ['required', 'integer'],
@@ -73,6 +84,7 @@ class StorePdvSaleRequest extends FormRequest
             if ($this->filled('client_id')) {
                 $exists = Client::query()
                     ->where('company_id', $companyId)
+                    ->active()
                     ->whereKey($this->integer('client_id'))
                     ->exists();
                 if (! $exists) {
@@ -133,6 +145,22 @@ class StorePdvSaleRequest extends FormRequest
             if ($serviceIds->isEmpty() && $productIds->isEmpty() && ! $this->filled('appointment_id')) {
                 $validator->errors()->add('items', 'Adicione ao menos um servico ou produto.');
             }
+
+            $subtotal = $this->resolveSubtotal($companyId, $serviceIds, $productIds);
+            $discountType = (string) $this->input('discount_type', 'fixed');
+            $discountValue = round((float) ($this->input('discount_value') ?? $this->input('discount') ?? 0), 2);
+
+            if ($discountType === 'percent' && $discountValue > 100) {
+                $validator->errors()->add('discount_value', 'Percentual de desconto nao pode ser maior que 100%.');
+
+                return;
+            }
+
+            $discount = $this->resolveDiscountAmount($subtotal);
+
+            if ($discount > $subtotal) {
+                $validator->errors()->add('discount_value', 'O desconto nao pode ser maior que a soma dos subtotais.');
+            }
         });
     }
 
@@ -142,6 +170,7 @@ class StorePdvSaleRequest extends FormRequest
      *     user_id:int,
      *     appointment_id:int|null,
      *     payment_method:string,
+     *     discount:float,
      *     notes:?string,
      *     service_items:array<int,array{service_id:int}>,
      *     items:array<int,array{product_id:int,quantity:int}>
@@ -180,6 +209,7 @@ class StorePdvSaleRequest extends FormRequest
             'user_id' => $userId,
             'appointment_id' => $appointmentId,
             'payment_method' => (string) $this->input('payment_method'),
+            'discount' => round($this->resolveDiscountAmount($this->resolveSubtotalFromPayload($companyId)), 2),
             'notes' => $this->filled('notes') ? (string) $this->input('notes') : null,
             'service_items' => collect($this->input('service_items', []))
                 ->filter(fn (array $row): bool => ! empty($row['service_id']))
@@ -206,5 +236,74 @@ class StorePdvSaleRequest extends FormRequest
             );
 
         return $client->id;
+    }
+
+    private function resolveSubtotalFromPayload(int $companyId): float
+    {
+        $serviceIds = collect($this->input('service_items', []))
+            ->pluck('service_id')
+            ->filter()
+            ->map(fn (mixed $id): int => (int) $id)
+            ->values();
+
+        $productIds = collect($this->input('items', []))
+            ->pluck('product_id')
+            ->filter()
+            ->map(fn (mixed $id): int => (int) $id)
+            ->values();
+
+        return $this->resolveSubtotal($companyId, $serviceIds, $productIds);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, int>  $serviceIds
+     * @param  \Illuminate\Support\Collection<int, int>  $productIds
+     */
+    private function resolveSubtotal(int $companyId, $serviceIds, $productIds): float
+    {
+        $servicePrices = Service::query()
+            ->where('company_id', $companyId)
+            ->where('active', true)
+            ->whereIn('id', $serviceIds->all())
+            ->pluck('price', 'id');
+
+        $servicesSubtotal = $serviceIds->sum(fn (int $id): float => (float) ($servicePrices[$id] ?? 0));
+
+        $products = Product::query()
+            ->where('company_id', $companyId)
+            ->where('active', true)
+            ->whereIn('id', $productIds->all())
+            ->pluck('price', 'id');
+
+        $productsSubtotal = collect($this->input('items', []))
+            ->sum(function (array $item) use ($products): float {
+                $productId = (int) ($item['product_id'] ?? 0);
+                $quantity = max(1, (int) ($item['quantity'] ?? 1));
+
+                return (float) ($products[$productId] ?? 0) * $quantity;
+            });
+
+        return round($servicesSubtotal + $productsSubtotal, 2);
+    }
+
+    private function resolveDiscountAmount(float $subtotal): float
+    {
+        $type = (string) $this->input('discount_type', 'fixed');
+        $legacyDiscount = round((float) ($this->input('discount') ?? 0), 2);
+        $value = round((float) ($this->input('discount_value') ?? $legacyDiscount), 2);
+
+        if ($value <= 0 || $subtotal <= 0) {
+            return 0.0;
+        }
+
+        if ($type === 'percent') {
+            if ($value > 100) {
+                return $subtotal + 0.01;
+            }
+
+            return round($subtotal * ($value / 100), 2);
+        }
+
+        return $value;
     }
 }

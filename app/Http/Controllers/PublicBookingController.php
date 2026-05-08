@@ -111,7 +111,7 @@ class PublicBookingController extends Controller
             'servicesCatalog' => $services->map(fn (Service $service): array => [
                 'id' => $service->id,
                 'name' => $service->name,
-                'description' => null,
+                'description' => $service->description ? (string) $service->description : null,
                 'category' => 'Serviços',
                 'duration' => (int) $service->duration_minutes,
                 'price' => number_format((float) $service->price, 2, ',', '.'),
@@ -185,6 +185,10 @@ class PublicBookingController extends Controller
         try {
             $googleClient = $this->googleClientFromCode((string) $request->query('code'));
             $client = $this->resolveGoogleClient($company, $googleClient);
+        } catch (ValidationException $exception) {
+            return redirect()
+                ->route('public-bookings.create', ['company' => $company, ...($payload['query'] ?? [])])
+                ->withErrors($exception->errors());
         } catch (\Throwable) {
             return redirect()
                 ->route('public-bookings.create', ['company' => $company, ...($payload['query'] ?? [])])
@@ -242,6 +246,13 @@ class PublicBookingController extends Controller
             }
 
             $client = $this->resolveBookingClient($request, $company, $data);
+
+            if (! $client->isOperationallyActive()) {
+                throw ValidationException::withMessages([
+                    'client_phone' => 'Este cadastro esta desativado. Entre em contato com a barbearia.',
+                ]);
+            }
+
             $endTime = $startTime->copy()->addMinutes($totalDurationMinutes);
 
             Client::query()
@@ -404,8 +415,15 @@ class PublicBookingController extends Controller
                 ->first();
         }
 
+        if ($client && $client->exists && ! $client->isOperationallyActive()) {
+            throw ValidationException::withMessages([
+                'client_email' => 'Este cadastro esta desativado. Entre em contato com a barbearia.',
+            ]);
+        }
+
         $client ??= new Client([
             'company_id' => $company->id,
+            'active' => true,
         ]);
 
         $client->fill([
@@ -474,9 +492,16 @@ class PublicBookingController extends Controller
                 ->first();
         }
 
+        if ($client && $client->exists && ! $client->isOperationallyActive()) {
+            throw ValidationException::withMessages([
+                'client_email' => 'Este cadastro esta desativado. Entre em contato com a barbearia.',
+            ]);
+        }
+
         $client ??= new Client([
             'company_id' => $company->id,
             'phone' => '',
+            'active' => true,
         ]);
 
         $client->fill([
@@ -485,6 +510,7 @@ class PublicBookingController extends Controller
             'google_id' => $googleClient['id'],
             'avatar' => $googleClient['avatar'],
             'email_verified_at' => now(),
+            'active' => true,
         ]);
         $client->save();
 
@@ -501,6 +527,7 @@ class PublicBookingController extends Controller
 
         return Client::query()
             ->where('company_id', $company->id)
+            ->where('active', true)
             ->find($clientId);
     }
 

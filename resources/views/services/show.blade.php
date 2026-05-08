@@ -85,7 +85,11 @@
                         </div>
                         <h3 class="mt-4 text-2xl font-semibold text-white">{{ $service->name }}</h3>
                         <p class="mt-2 max-w-2xl text-sm leading-7 text-[#c7d2e3]">
-                            Use este painel para acompanhar os numeros do serviço, revisar disponibilidade comercial e agir rapidamente sobre o catalogo da empresa.
+                            @if (filled($service->description))
+                                {{ $service->description }}
+                            @else
+                                Use este painel para acompanhar os numeros do serviço, revisar disponibilidade comercial e agir rapidamente sobre o catalogo da empresa.
+                            @endif
                         </p>
                     </div>
 

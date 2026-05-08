@@ -147,7 +147,7 @@ class ServiceOrderService
             $this->ensureOpen($lockedOrder);
             $this->recalculate($lockedOrder);
 
-            if ((float) $lockedOrder->total <= 0 || $lockedOrder->items()->count() === 0) {
+            if ($lockedOrder->items()->count() === 0) {
                 throw ValidationException::withMessages([
                     'payment_method' => 'Nao e possivel fechar uma comanda vazia.',
                 ]);
@@ -177,10 +177,17 @@ class ServiceOrderService
 
             $appointment = $lockedOrder->appointment;
             $professional = $appointment?->user ?? $lockedOrder->professional;
-            $serviceSubtotal = (float) $lockedOrder->subtotal_services;
+            $discountTotal = round((float) $lockedOrder->discount, 2);
+            $serviceSubtotal = round((float) $lockedOrder->subtotal_services, 2);
+            $productSubtotal = round((float) $lockedOrder->subtotal_products, 2);
+            [$serviceChargeAmount, $productChargeAmount] = $this->applyDiscountAcrossSubtotals(
+                $discountTotal,
+                $serviceSubtotal,
+                $productSubtotal
+            );
             $payment = null;
 
-            if ($serviceSubtotal > 0) {
+            if ($serviceChargeAmount > 0) {
                 if (! $professional) {
                     throw ValidationException::withMessages([
                         'payment_method' => 'Informe um profissional para fechar servicos na comanda.',
@@ -189,7 +196,7 @@ class ServiceOrderService
 
                 /** @var ServiceOrderItem|null $firstServiceItem */
                 $firstServiceItem = $lockedOrder->items->firstWhere('type', ServiceOrderItem::TYPE_SERVICE);
-                $commissionAmount = $this->calculateCommissionAmount($professional, $serviceSubtotal);
+                $commissionAmount = $this->calculateCommissionAmount($professional, $serviceChargeAmount);
                 $commissionRate = $professional->commission_type === 'percent'
                     ? round((float) ($professional->commission_value ?? 0), 2)
                     : null;
@@ -201,12 +208,12 @@ class ServiceOrderService
                     'user_id' => $professional->id,
                     'client_id' => $lockedOrder->client_id,
                     'service_id' => $appointment?->service_id ?? $firstServiceItem?->service_id,
-                    'gross_amount' => $serviceSubtotal,
+                    'gross_amount' => $serviceChargeAmount,
                     'payment_method' => $paymentMethod,
                     'commission_type' => $professional->commission_type,
                     'commission_rate' => $commissionRate,
                     'commission_amount' => $commissionAmount,
-                    'net_amount' => round($serviceSubtotal - $commissionAmount, 2),
+                    'net_amount' => round($serviceChargeAmount - $commissionAmount, 2),
                     'paid_at' => $closedAt,
                     'notes' => $notes,
                 ]);
@@ -223,7 +230,7 @@ class ServiceOrderService
                     'appointment_id' => $appointment?->id,
                     'service_order_id' => $lockedOrder->id,
                     'user_id' => $lockedOrder->professional_id,
-                    'gross_amount' => $lockedOrder->subtotal_products,
+                    'gross_amount' => $productChargeAmount,
                     'payment_method' => $paymentMethod,
                     'sold_at' => $closedAt,
                     'notes' => $notes,
@@ -240,7 +247,9 @@ class ServiceOrderService
                     $item->product->decrement('stock_quantity', $item->quantity);
                 }
 
-                $this->cashRegisterService->recordProductSale($sale->load('client'));
+                if ($productChargeAmount > 0) {
+                    $this->cashRegisterService->recordProductSale($sale->load('client'));
+                }
             }
 
             $lockedOrder->update([
@@ -301,5 +310,22 @@ class ServiceOrderService
             'fixed' => round((float) ($professional->commission_value ?? 0), 2),
             default => 0.0,
         };
+    }
+
+    /**
+     * Apply a fixed discount to service subtotal first; remainder applies to products.
+     *
+     * @return array{0: float, 1: float} [amount charged for services, amount charged for products]
+     */
+    private function applyDiscountAcrossSubtotals(float $discount, float $services, float $products): array
+    {
+        $towardServices = round(min($services, max(0, $discount)), 2);
+        $remainder = round(max(0, $discount - $towardServices), 2);
+        $towardProducts = round(min($products, $remainder), 2);
+
+        return [
+            round(max(0, $services - $towardServices), 2),
+            round(max(0, $products - $towardProducts), 2),
+        ];
     }
 }

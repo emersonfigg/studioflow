@@ -30,7 +30,7 @@ class StoreTeamMemberRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
-            'role' => ['required', Rule::in(['admin', 'staff'])],
+            'role' => ['required', Rule::in(['admin', 'staff', 'financial'])],
             'active' => ['nullable', 'boolean'],
             'schedule_type' => ['required', Rule::in(['fixed', 'dynamic'])],
             'fixed_weekdays' => ['nullable', 'array'],

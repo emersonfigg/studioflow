@@ -2,12 +2,9 @@
     /** @var \App\Models\ServiceOrder $order */
     $company = $order->company;
     $paymentMethod = $order->payment?->payment_method ?? $order->productSale?->payment_method;
-    $paymentLabel = match ($paymentMethod) {
-        'cash' => 'Dinheiro',
-        'pix' => 'Pix',
-        'card' => 'Cartão',
-        default => $paymentMethod ? ucfirst((string) $paymentMethod) : '—',
-    };
+    $paymentLabel = $paymentMethod
+        ? \App\Models\Payment::labelForPaymentMethod((string) $paymentMethod)
+        : '—';
     $notes = $order->productSale?->notes ?? $order->payment?->notes;
 @endphp
 <!DOCTYPE html>

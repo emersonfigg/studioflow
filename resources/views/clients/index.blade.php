@@ -11,14 +11,14 @@
 
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <form method="GET" action="{{ route('clients.index') }}" class="w-full sm:w-[320px]">
-                    <label for="clients-search" class="sr-only">Buscar por nome ou telefone</label>
+                    <label for="clients-search" class="sr-only">Buscar por nome, telefone, CPF ou código</label>
                     <div class="relative">
                         <input
                             id="clients-search"
                             name="search"
                             type="text"
                             value="{{ $search }}"
-                            placeholder="Buscar por nome ou telefone"
+                            placeholder="Buscar por nome, telefone, CPF ou código"
                             class="sf-input w-full pr-12"
                         >
                         <button type="submit" class="absolute inset-y-0 right-2 my-2 inline-flex w-9 items-center justify-center rounded-xl border border-white/10 bg-[#1b335b] text-[#d4af37] transition hover:border-[#d4af37]/30 hover:bg-[#223d69]">
@@ -51,6 +51,15 @@
                     @case('client-deleted')
                         Cliente excluido com sucesso.
                         @break
+                    @case('client-deactivated')
+                        Cliente desativado. Ele deixara de aparecer em novas vendas e agendamentos.
+                        @break
+                    @case('client-reactivated')
+                        Cliente reativado com sucesso.
+                        @break
+                    @case('client-delete-blocked')
+                        Nao foi possivel excluir: o cliente possui historico operacional (agendamentos, comandas ou pagamentos). Use desativar.
+                        @break
                     @default
                         {{ session('status') }}
                 @endswitch
@@ -81,8 +90,11 @@
                 <table class="min-w-full divide-y divide-white/10">
                     <thead class="bg-[#132746]">
                         <tr>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Código</th>
                             <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Cliente</th>
                             <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Telefone</th>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">CPF</th>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Status</th>
                             <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Última visita</th>
                             <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Total gasto</th>
                             <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Visitas</th>
@@ -92,6 +104,7 @@
                     <tbody class="divide-y divide-white/10">
                         @forelse ($clients as $client)
                             <tr class="transition hover:bg-white/5">
+                                <td class="px-5 py-4 text-sm font-semibold text-white">{{ $client->client_code ?? '-' }}</td>
                                 <td class="px-5 py-4">
                                     <div>
                                         <p class="text-sm font-semibold text-white">{{ $client->name }}</p>
@@ -99,6 +112,12 @@
                                     </div>
                                 </td>
                                 <td class="px-5 py-4 text-sm text-[#c7d2e3]">{{ $client->phone }}</td>
+                                <td class="px-5 py-4 text-sm text-[#c7d2e3]">{{ $client->cpf ? preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $client->cpf) : '-' }}</td>
+                                <td class="px-5 py-4 text-sm">
+                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $client->active ? 'bg-emerald-500/20 text-emerald-100' : 'bg-rose-500/20 text-rose-100' }}">
+                                        {{ $client->active ? 'Ativo' : 'Inativo' }}
+                                    </span>
+                                </td>
                                 <td class="px-5 py-4 text-sm text-[#c7d2e3]">
                                     {{ $client->last_visit_at?->format('d/m/Y H:i') ?? '-' }}
                                 </td>
@@ -111,13 +130,31 @@
                                         <a href="{{ route('clients.show', $client) }}" class="sf-button-ghost !px-4 !py-2.5">Visualizar</a>
                                         @if (auth()->user()->isAdmin())
                                             <a href="{{ route('clients.edit', $client) }}" class="sf-button-secondary !px-4 !py-2.5">Editar</a>
+                                            @if ($client->active)
+                                                <form method="POST" action="{{ route('clients.deactivate', $client) }}" class="inline">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <button type="submit" class="sf-button-secondary !px-4 !py-2.5" onclick="return confirm('Desativar este cliente?')">Inativar</button>
+                                                </form>
+                                            @else
+                                                <form method="POST" action="{{ route('clients.reactivate', $client) }}" class="inline">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <button type="submit" class="sf-button-secondary !px-4 !py-2.5">Reativar</button>
+                                                </form>
+                                            @endif
+                                            <form method="POST" action="{{ route('clients.destroy', $client) }}" class="inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="sf-button-ghost !px-4 !py-2.5 text-rose-200" onclick="return confirm('Excluir permanentemente este cliente?')">Excluir</button>
+                                            </form>
                                         @endif
                                     </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-5 py-10 text-center text-sm text-[#c7d2e3]">
+                                <td colspan="9" class="px-5 py-10 text-center text-sm text-[#c7d2e3]">
                                     Nenhum cliente encontrado.
                                 </td>
                             </tr>
