@@ -57,7 +57,7 @@
                                 <p class="text-base font-semibold text-white">{{ $row['user']->name }}</p>
                                 <p class="mt-1 text-sm text-[#c7d2e3]">
                                     @if ($row['commission_type'] === 'percent')
-                                        Regra percentual de {{ number_format((float) $row['commission_raté'], 2, ',', '.') }}%
+                                        Regra percentual de {{ number_format((float) ($row['commission_rate'] ?? 0), 2, ',', '.') }}%
                                     @elseif ($row['commission_type'] === 'fixed')
                                         Regra fixa por atendimento
                                     @else
