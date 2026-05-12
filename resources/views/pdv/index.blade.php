@@ -12,7 +12,7 @@
         </script>
     @endif
 
-    <div class="pdv-page mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 flex-col px-0 pb-0 sm:px-0.5 lg:px-1">
+    <div class="pdv-page mx-auto flex w-full max-w-[1800px] flex-1 flex-col px-0 pb-0 max-lg:flex-none sm:px-0.5 lg:min-h-0 lg:flex-1 lg:px-1">
         @if (is_array($saleResult))
             <div
                 class="mb-2 shrink-0 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-500/40 bg-emerald-950/55 px-3 py-2 text-sm text-emerald-50 shadow-md sm:px-4"
@@ -64,7 +64,7 @@
             x-on:keydown.window="handlePdvHotkeys($event)"
             x-on:keydown.slash.prevent="$refs.searchInput.focus()"
             x-on:submit="submitting = true"
-            class="pdv-frame flex min-h-0 max-h-full flex-1 flex-col overflow-hidden rounded-2xl border border-[#d4af37]/25 bg-[#132746] shadow-[0_24px_48px_rgba(9,20,45,0.45)] ring-1 ring-[#d4af37]/10"
+            class="pdv-frame flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-visible rounded-2xl border border-[#d4af37]/25 bg-[#132746] shadow-[0_24px_48px_rgba(9,20,45,0.45)] ring-1 ring-[#d4af37]/10 lg:max-h-full lg:overflow-hidden"
         >
             @csrf
             {{-- Hook para testes e inspeção: carrinho inicial server-side (Alpine usa o mesmo dado via @js acima) --}}
@@ -109,7 +109,7 @@
                         <select
                             name="client_id"
                             x-ref="clientSelect"
-                            class="sf-select !border-white/15 !bg-[#223d69] !py-1.5 !text-xs !text-white sm:!text-sm sm:!py-2"
+                            class="pdv-touch-16 sf-select !border-white/15 !bg-[#223d69] !py-2 !text-base !text-white lg:!py-2 lg:!text-sm"
                         >
                             <option value="">— Balcão —</option>
                             @foreach ($clients as $client)
@@ -125,7 +125,7 @@
                         <select
                             name="user_id"
                             x-ref="professionalSelect"
-                            class="sf-select !border-white/15 !bg-[#223d69] !py-1.5 !text-xs !text-white sm:!text-sm sm:!py-2"
+                            class="pdv-touch-16 sf-select !border-white/15 !bg-[#223d69] !py-2 !text-base !text-white lg:!py-2 lg:!text-sm"
                         >
                             <option value="">— Sessão —</option>
                             @foreach ($professionals as $professional)
@@ -167,10 +167,10 @@
                 <p class="mt-0.5 text-center text-lg font-bold uppercase leading-tight tracking-tight text-white sm:text-xl lg:text-2xl" x-text="bannerTitle"></p>
             </div>
 
-            {{-- Corpo: 3 colunas (desktop); no mobile só o carrinho expande/resto compacto --}}
-            <div class="flex min-h-0 flex-1 flex-col overflow-hidden lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-12 lg:grid-rows-[minmax(0,1fr)] lg:divide-x lg:divide-white/10 lg:overflow-hidden">
+            {{-- Corpo: 3 colunas (desktop). Mobile: grid sem flex-1 para rolar página inteira; busca em order-1 para ficar logo após o banner; carrinho com altura máx. e rolagem interna (não “roubar” a busca). --}}
+            <div class="flex max-lg:flex-none max-lg:min-h-0 min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-visible lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-12 lg:grid-rows-[minmax(0,1fr)] lg:divide-x lg:divide-white/10 lg:overflow-hidden">
                 {{-- 4. Esquerda: imagem / ícone + VENDA --}}
-                <aside class="flex shrink-0 flex-col gap-2 border-b border-white/10 p-3 lg:col-span-3 lg:flex lg:max-h-none lg:min-h-0 lg:flex-col lg:justify-start lg:overflow-y-auto lg:border-b-0 lg:p-4">
+                <aside class="flex max-lg:order-2 shrink-0 flex-col gap-2 border-b border-white/10 p-3 lg:order-none lg:col-span-3 lg:flex lg:max-h-none lg:min-h-0 lg:flex-col lg:justify-start lg:overflow-y-auto lg:border-b-0 lg:p-4">
                     <div class="relative flex aspect-auto max-h-[120px] min-h-[92px] w-full shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#223d69] shadow-inner lg:aspect-square lg:max-h-[clamp(104px,20vh,160px)]">
                         <template x-if="visualItem && visualItem.image_url && !previewImageFailed">
                             <img
@@ -210,20 +210,45 @@
                     </div>
                 </aside>
 
-                {{-- 5. Centro: campos grandes + sugestões --}}
-                <section class="flex min-h-0 flex-col gap-2 border-b border-white/10 p-3 lg:col-span-4 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:border-b-0 lg:p-4">
-                    <label class="text-[11px] font-bold uppercase tracking-[0.16em] text-[#d4af37]">Código / SKU / Nome</label>
-                    <input
-                        x-ref="searchInput"
-                        x-model="search"
-                        x-on:keydown.arrow-down.prevent="highlightNext()"
-                        x-on:keydown.arrow-up.prevent="highlightPrev()"
-                        x-on:keydown.enter.prevent="selectHighlighted()"
-                        type="text"
-                        autocomplete="off"
-                        class="sf-input mt-2 !border-white/15 !bg-[#223d69] !py-3 !text-base !font-semibold !text-white placeholder:text-[#c7d2e3]/50 sm:!py-3.5 sm:!text-lg"
-                        placeholder="Buscar ou escanear…"
-                    >
+                {{-- 5. Centro: campos grandes + sugestões (shrink-0: nunca colapsar no flex mobile) --}}
+                <section class="flex max-lg:order-1 min-h-0 shrink-0 flex-col gap-2 border-b border-white/10 p-3 max-lg:overflow-visible lg:order-none lg:col-span-4 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:border-b-0 lg:p-4">
+                    <label class="text-[11px] font-bold uppercase tracking-[0.16em] text-[#d4af37]" for="pdv-search-input">Código / SKU / Nome</label>
+                    <div class="relative z-50">
+                        <input
+                            id="pdv-search-input"
+                            x-ref="searchInput"
+                            x-model="search"
+                            x-on:keydown.arrow-down.prevent="highlightNext()"
+                            x-on:keydown.arrow-up.prevent="highlightPrev()"
+                            x-on:keydown.enter.prevent="selectHighlighted()"
+                            type="text"
+                            autocomplete="off"
+                            class="pdv-touch-16 sf-input mt-2 !border-white/15 !bg-[#223d69] !py-3 !text-base !font-semibold !text-white placeholder:text-[#c7d2e3]/50 lg:!py-3.5 lg:!text-lg"
+                            placeholder="Buscar ou escanear…"
+                        >
+                        <div
+                            x-cloak
+                            x-show="search.trim().length > 0 && filteredCatalog.length > 0"
+                            class="absolute left-0 right-0 top-full z-50 mt-1 max-h-[min(18rem,45dvh)] overflow-y-auto overscroll-contain rounded-xl border border-white/15 bg-[#132746] py-1 shadow-[0_16px_40px_rgba(9,20,45,0.55)] ring-1 ring-[#d4af37]/15 lg:max-h-[min(22rem,50vh)]"
+                            role="listbox"
+                            aria-label="Sugestões de produtos e serviços"
+                        >
+                            <template x-for="(item, idx) in filteredCatalog" :key="`${item.type}-${item.id}`">
+                                <button
+                                    type="button"
+                                    role="option"
+                                    :aria-selected="highlightedIndex === idx ? 'true' : 'false'"
+                                    x-on:click="addCatalogItem(item)"
+                                    :class="highlightedIndex === idx ? 'border-[#d4af37]/50 bg-[#d4af37]/15' : 'border-transparent hover:bg-white/5'"
+                                    class="flex w-full flex-col rounded-lg border px-3 py-2.5 text-left transition"
+                                >
+                                    <span class="font-mono text-xs font-bold text-[#d4af37]" x-text="item.code"></span>
+                                    <span class="mt-0.5 block truncate text-sm text-white" x-text="item.name"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                    <p class="mt-1 text-[10px] text-[#c7d2e3]/85">Digite código, SKU ou nome — as sugestões aparecem logo abaixo do campo.</p>
 
                     <div class="mt-2 grid shrink-0 gap-2 sm:grid-cols-3 sm:gap-3">
                         <div>
@@ -244,27 +269,24 @@
                         </div>
                     </div>
 
-                    <div class="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#1b335b]/80">
-                        <p class="shrink-0 border-b border-white/10 bg-[#132746] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#d4af37]">Sugestões</p>
-                        <div class="max-h-[min(11rem,30svh)] min-h-0 flex-1 overflow-y-auto overscroll-contain p-1 lg:max-h-none">
-                            <template x-for="(item, idx) in filteredCatalog" :key="`${item.type}-${item.id}`">
-                                <button
-                                    type="button"
-                                    x-on:click="addCatalogItem(item)"
-                                    :class="highlightedIndex === idx ? 'border-[#d4af37]/50 bg-[#d4af37]/15' : 'border-transparent hover:bg-white/5'"
-                                    class="w-full rounded-lg border px-3 py-2 text-left transition"
-                                >
-                                    <span class="font-mono text-xs font-bold text-[#d4af37]" x-text="item.code"></span>
-                                    <span class="mt-0.5 block truncate text-sm text-white" x-text="item.name"></span>
-                                </button>
-                            </template>
-                            <p x-show="filteredCatalog.length === 0" class="px-3 py-6 text-center text-sm text-[#c7d2e3]">Digite código, SKU ou nome para buscar.</p>
-                        </div>
-                    </div>
+                    <p x-show="search.trim().length > 0 && filteredCatalog.length === 0" x-cloak class="mt-2 rounded-lg border border-white/10 bg-[#1b335b]/60 px-3 py-2 text-center text-sm text-[#c7d2e3]">
+                        Nenhum item encontrado para esta busca.
+                    </p>
+
+                    <button
+                        type="button"
+                        class="sf-button-primary mt-3 w-full lg:hidden"
+                        x-on:click="selectHighlighted()"
+                        :disabled="!previewItem"
+                        :class="!previewItem ? 'pointer-events-none opacity-40' : ''"
+                    >
+                        Adicionar item
+                    </button>
                 </section>
 
-                {{-- 6. Direita: cupom (única zona que expande e rola com muitos itens em mobile/tablet pequenos) --}}
-                <section class="flex min-h-0 flex-1 flex-col overflow-hidden p-3 lg:col-span-5 lg:min-h-0 lg:flex lg:h-auto lg:flex-1 lg:self-stretch lg:p-4">
+                {{-- 6. Direita: cupom (mobile: altura limitada + scroll; desktop: coluna flexível) --}}
+                <section class="flex max-lg:order-3 max-lg:max-h-[min(52dvh,22rem)] max-lg:shrink-0 max-lg:flex-none min-h-0 flex-1 flex-col overflow-hidden p-3 lg:order-none lg:col-span-5 lg:max-h-none lg:min-h-0 lg:flex lg:h-auto lg:flex-1 lg:self-stretch lg:p-4">
+                    <p class="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#d4af37] lg:hidden">Itens da venda</p>
                     <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#223d69] shadow-inner lg:rounded-2xl">
                         <div class="min-h-0 flex-1 overflow-x-auto overflow-y-auto overscroll-contain">
                             <table class="w-full min-w-0 border-collapse text-left text-[11px] text-[#c7d2e3] sm:min-w-[480px]">
@@ -297,7 +319,7 @@
                                                     x-model.number="item.quantity"
                                                     type="number"
                                                     min="1"
-                                                    class="w-full rounded border border-white/15 bg-[#1b335b] px-1 py-1 text-right text-[11px] font-semibold text-white tabular-nums"
+                                                    class="pdv-touch-16 w-full rounded border border-white/15 bg-[#1b335b] px-1 py-1.5 text-right text-base font-semibold text-white tabular-nums lg:py-1 lg:text-[11px]"
                                                 >
                                             </td>
                                             <td class="w-20 whitespace-nowrap px-2 py-2 text-right tabular-nums" x-text="formatMoneyBRL(item.price)"></td>
@@ -321,8 +343,8 @@
                 </section>
             </div>
 
-            {{-- 7 + 8. Rodapé totais + pagamento --}}
-            <div class="shrink-0 border-t border-white/10 bg-[#0f203b] px-3 py-2 sm:px-4 sm:py-3">
+            {{-- 7 + 8. Rodapé totais + pagamento (padding extra no mobile para barra fixa do botão finalizar) --}}
+            <div class="shrink-0 border-t border-white/10 bg-[#0f203b] px-3 py-2 max-lg:pb-[max(5.5rem,env(safe-area-inset-bottom,0px))] sm:px-4 sm:py-3 lg:pb-2">
                 <div class="grid grid-cols-2 gap-2 md:grid-cols-6 md:gap-3">
                     <div class="rounded-lg border border-white/10 bg-[#132746] p-2 sm:rounded-xl sm:p-3">
                         <p class="text-[9px] font-bold uppercase tracking-[0.14em] text-[#d4af37]">Volumes / Itens</p>
@@ -342,7 +364,7 @@
                             <select
                                 id="pdv-discount-type"
                                 name="discount_type"
-                                class="sf-select !border-white/15 !bg-[#223d69] !py-1.5 !text-xs !text-white sm:!text-sm sm:!py-2"
+                                class="pdv-touch-16 sf-select !border-white/15 !bg-[#223d69] !py-2 !text-base !text-white lg:!py-2 lg:!text-sm"
                                 x-model="discountType"
                             >
                                 <option value="fixed">R$</option>
@@ -355,7 +377,7 @@
                                 inputmode="decimal"
                                 placeholder="0,00"
                                 autocomplete="off"
-                                class="sf-input w-full !border-white/15 !bg-[#223d69] !py-2 !text-sm !text-white tabular-nums"
+                                class="pdv-touch-16 sf-input w-full !border-white/15 !bg-[#223d69] !py-2 !text-base !text-white tabular-nums lg:!py-2 lg:!text-sm"
                                 x-model="discountInput"
                             >
                         </div>
@@ -378,7 +400,7 @@
                             name="payment_method"
                             x-ref="paymentSelect"
                             required
-                            class="sf-select mt-2 !w-full !border-white/15 !bg-[#223d69] !py-2 !text-white sm:!py-2.5"
+                            class="pdv-touch-16 sf-select mt-2 !w-full !border-white/15 !bg-[#223d69] !py-2.5 !text-base !text-white lg:!py-2.5 lg:!text-sm"
                         >
                             @foreach ($paymentMethods as $value => $label)
                                 <option value="{{ $value }}" @selected(old('payment_method', 'cash') === $value)>{{ $label }}</option>
@@ -390,11 +412,11 @@
                         <textarea
                             name="notes"
                             rows="2"
-                            class="sf-input mt-2 !max-h-[3.75rem] !min-h-[2.5rem] !w-full !resize-y !border-white/15 !bg-[#223d69] !py-2 !text-sm !text-white placeholder:text-[#c7d2e3]/40"
+                            class="pdv-touch-16 sf-input mt-2 !max-h-[3.75rem] !min-h-[2.5rem] !w-full !resize-y !border-white/15 !bg-[#223d69] !py-2 !text-base !text-white placeholder:text-[#c7d2e3]/40 lg:!text-sm"
                             placeholder="Opcional"
                         >{{ old('notes') }}</textarea>
                     </label>
-                    <div class="lg:col-span-3">
+                    <div class="max-lg:sticky max-lg:bottom-0 max-lg:z-40 max-lg:-mx-3 max-lg:rounded-t-xl max-lg:border max-lg:border-white/10 max-lg:border-b-0 max-lg:bg-[#0f203b]/98 max-lg:px-3 max-lg:pt-2 max-lg:pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] max-lg:shadow-[0_-12px_32px_rgba(0,0,0,0.45)] max-lg:backdrop-blur-sm lg:col-span-3 lg:mx-0 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
                         <button
                             x-ref="submitBtn"
                             type="submit"
@@ -494,6 +516,9 @@
                     );
                     this.$nextTick(() => {
                         this.$refs.searchInput?.focus();
+                    });
+                    this.$watch('search', () => {
+                        this.highlightedIndex = 0;
                     });
                 },
                 tickClock() {

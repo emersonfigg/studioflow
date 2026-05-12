@@ -733,6 +733,7 @@ class AppointmentTest extends TestCase
             ->actingAs($staff)
             ->get('/appointments/create')
             ->assertOk()
+            ->assertSee('id="client-search"', false)
             ->assertSee('Novo cliente')
             ->assertSee('Cadastre o cliente sem sair do novo agendamento.');
     }
@@ -750,6 +751,7 @@ class AppointmentTest extends TestCase
             ->get('/appointments/create')
             ->assertOk()
             ->assertSee('Serviços do atendimento')
+            ->assertSee('Buscar serviço')
             ->assertSee('Adicionar serviço')
             ->assertSee('Extras opcionais da comanda')
             ->assertSee('Resumo da comanda')

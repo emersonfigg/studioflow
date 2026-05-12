@@ -5,6 +5,7 @@
         'duration' => (int) $service->duration_minutes,
         'price' => (float) $service->price,
         'label' => $service->name.' · '.$service->duration_minutes.' min · R$ '.number_format((float) $service->price, 2, ',', '.'),
+        'needle' => strtolower($service->name.' '.$service->duration_minutes),
     ])->values();
     $productOptions = ($products ?? collect())->map(fn ($product) => [
         'id' => $product->id,
@@ -12,6 +13,17 @@
         'stock' => (int) $product->stock_quantity,
         'price' => (float) $product->price,
         'label' => $product->name.' · R$ '.number_format((float) $product->price, 2, ',', '.').' · Estoque '.$product->stock_quantity,
+        'needle' => strtolower($product->name),
+    ])->values();
+    $clientPickerRows = $clients->map(fn ($c) => [
+        'id' => $c->id,
+        'label' => ($c->client_code ?? '-').' · '.$c->name.' · '.$c->phone.($c->cpf ? ' · CPF '.$c->cpf : ''),
+        'needle' => strtolower(trim(($c->client_code ?? '').' '.$c->name.' '.$c->phone.' '.($c->cpf ?? ''))),
+    ])->values();
+    $professionalPickerRows = $users->map(fn ($u) => [
+        'id' => $u->id,
+        'label' => $u->name,
+        'needle' => strtolower($u->name),
     ])->values();
     $initialServiceIds = collect(old('service_ids', $appointment?->bookedServices()->pluck('id')->all() ?? [$appointment?->service_id]))
         ->filter()
@@ -33,6 +45,14 @@
         selectedProducts: @js(collect(old('product_items', []))->filter(fn ($item) => ! empty($item['product_id']))->values()),
         services: @js($serviceOptions),
         products: @js($productOptions),
+        clientRows: @js($clientPickerRows),
+        professionalRows: @js($professionalPickerRows),
+        clientPickerQuery: '',
+        professionalPickerQuery: '',
+        servicePickerQuery: '',
+        productPickerQuery: '',
+        pickedClientLabel: '',
+        pickedProfessionalLabel: '',
         clientForm: {
             name: '',
             phone: '',
@@ -72,6 +92,70 @@
         get totalAmount() {
             return this.serviceSubtotal + this.productSubtotal;
         },
+        get filteredClientRows() {
+            const q = this.clientPickerQuery.trim().toLowerCase();
+            const rows = this.clientRows;
+
+            if (! q) {
+                return rows.slice(0, 50);
+            }
+
+            return rows.filter((r) => r.needle.includes(q)).slice(0, 60);
+        },
+        get filteredProfessionalRows() {
+            const q = this.professionalPickerQuery.trim().toLowerCase();
+            const rows = this.professionalRows;
+
+            if (! q) {
+                return rows.slice(0, 40);
+            }
+
+            return rows.filter((r) => r.needle.includes(q)).slice(0, 50);
+        },
+        get filteredServicesPicker() {
+            const q = this.servicePickerQuery.trim().toLowerCase();
+            const rows = this.services;
+
+            if (! q) {
+                return rows.slice(0, 40);
+            }
+
+            return rows.filter((s) => (s.needle && s.needle.includes(q)) || String(s.name || '').toLowerCase().includes(q) || String(s.label || '').toLowerCase().includes(q)).slice(0, 50);
+        },
+        get filteredProductsPicker() {
+            const q = this.productPickerQuery.trim().toLowerCase();
+            const rows = this.products;
+
+            if (! q) {
+                return rows.slice(0, 40);
+            }
+
+            return rows.filter((p) => (p.needle && p.needle.includes(q)) || String(p.name || '').toLowerCase().includes(q) || String(p.label || '').toLowerCase().includes(q)).slice(0, 50);
+        },
+        pickClient(row) {
+            const select = this.$refs.clientSelect;
+
+            if (! select) {
+                return;
+            }
+
+            select.value = String(row.id);
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            this.pickedClientLabel = row.label;
+            this.clientPickerQuery = '';
+        },
+        pickProfessional(row) {
+            const select = this.$refs.professionalSelect;
+
+            if (! select) {
+                return;
+            }
+
+            select.value = String(row.id);
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            this.pickedProfessionalLabel = row.label;
+            this.professionalPickerQuery = '';
+        },
         addService() {
             if (! this.selectedServiceId || this.selectedServiceIds.includes(Number(this.selectedServiceId))) {
                 return;
@@ -79,6 +163,7 @@
 
             this.selectedServiceIds.push(Number(this.selectedServiceId));
             this.selectedServiceId = '';
+            this.servicePickerQuery = '';
         },
         removeService(id) {
             this.selectedServiceIds = this.selectedServiceIds.filter((serviceId) => Number(serviceId) !== Number(id));
@@ -101,6 +186,7 @@
 
             this.selectedProductId = '';
             this.selectedProductQuantity = 1;
+            this.productPickerQuery = '';
         },
         removeProduct(id) {
             this.selectedProducts = this.selectedProducts.filter((item) => Number(item.product_id) !== Number(id));
@@ -154,6 +240,13 @@
             this.clientErrors = {};
         },
         syncClientOption(client) {
+            const label = `${client.client_code ?? '-'} · ${client.name}${client.phone ? ' · ' + client.phone : ''}`;
+            const needle = [client.client_code, client.name, client.phone].filter(Boolean).join(' ').toLowerCase();
+
+            if (! this.clientRows.some((r) => Number(r.id) === Number(client.id))) {
+                this.clientRows.push({ id: client.id, label, needle });
+            }
+
             const select = this.$refs.clientSelect;
 
             if (! select) {
@@ -163,14 +256,15 @@
             let option = [...select.options].find((item) => item.value === String(client.id));
 
             if (! option) {
-                option = new Option(`${client.client_code ?? '-'} · ${client.name}`, client.id, true, true);
+                option = new Option(label, client.id, true, true);
                 select.add(option);
             } else {
-                option.text = `${client.client_code ?? '-'} · ${client.name}`;
+                option.text = label;
                 option.selected = true;
             }
 
             select.value = String(client.id);
+            this.pickedClientLabel = label;
             select.dispatchEvent(new Event('change', { bubbles: true }));
         },
         async saveClient() {
@@ -221,8 +315,19 @@
             }
         },
         init() {
-            if (this.$refs.clientSelect?.value) {
-                this.loadClientHistory(this.$refs.clientSelect.value);
+            const cs = this.$refs.clientSelect;
+
+            if (cs?.value) {
+                const opt = [...cs.options].find((o) => o.value === String(cs.value));
+                this.pickedClientLabel = opt?.text?.trim() || '';
+                this.loadClientHistory(cs.value);
+            }
+
+            const ps = this.$refs.professionalSelect;
+
+            if (ps?.value) {
+                const opt = [...ps.options].find((o) => o.value === String(ps.value));
+                this.pickedProfessionalLabel = opt?.text?.trim() || '';
             }
         },
     }"
@@ -241,9 +346,48 @@
             <section class="space-y-6">
                 <section class="sf-card p-5">
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                        <div class="flex-1">
-                            <x-input-label for="client_id" value="Cliente" />
-                            <select id="client_id" x-ref="clientSelect" x-on:change="loadClientHistory($event.target.value)" name="client_id" class="sf-select mt-2 block w-full" required>
+                        <div class="min-w-0 flex-1 space-y-2">
+                            <x-input-label for="client-search" value="Cliente" />
+                            <input
+                                id="client-search"
+                                type="search"
+                                autocomplete="off"
+                                x-model="clientPickerQuery"
+                                class="sf-input mt-2 block w-full"
+                                placeholder="Digite nome, código ou telefone para buscar…"
+                            >
+                            <div
+                                x-cloak
+                                x-show="clientPickerQuery.trim().length > 0 && filteredClientRows.length > 0"
+                                class="max-h-52 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-[#132746] shadow-inner"
+                            >
+                                <template x-for="row in filteredClientRows" :key="row.id">
+                                    <button
+                                        type="button"
+                                        class="flex w-full flex-col border-b border-white/5 px-4 py-3 text-left text-sm text-white transition hover:bg-white/5 last:border-b-0"
+                                        x-on:click="pickClient(row)"
+                                    >
+                                        <span class="font-semibold" x-text="row.label"></span>
+                                    </button>
+                                </template>
+                            </div>
+                            <p x-show="clientPickerQuery.trim().length > 0 && clientRows.length > 0 && filteredClientRows.length === 0" x-cloak class="rounded-xl border border-dashed border-white/15 px-4 py-3 text-sm text-rose-100/90">
+                                Nenhum cliente encontrado para esta busca.
+                            </p>
+                            <p x-show="pickedClientLabel" class="text-sm text-[#c7d2e3]">
+                                <span class="font-semibold text-[#d4af37]">Selecionado:</span>
+                                <span x-text="pickedClientLabel" class="text-white"></span>
+                            </p>
+                            <select
+                                id="client_id"
+                                x-ref="clientSelect"
+                                x-on:change="pickedClientLabel = $event.target.value ? ([...$event.target.options].find((o) => o.value === $event.target.value)?.text?.trim() ?? '') : ''; loadClientHistory($event.target.value)"
+                                name="client_id"
+                                class="sr-only"
+                                tabindex="-1"
+                                required
+                                aria-hidden="true"
+                            >
                                 <option value="">Selecione um cliente</option>
                                 @foreach ($clients as $client)
                                     <option value="{{ $client->id }}" @selected((int) old('client_id', $appointment?->client_id) === $client->id)>
@@ -271,14 +415,43 @@
                         <h3 class="mt-2 text-lg font-semibold text-white">Serviços do atendimento</h3>
                     </div>
 
-                    <div class="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-                        <select x-model="selectedServiceId" name="_picker_service" class="sf-select block w-full" autocomplete="off">
-                            <option value="">Adicionar serviço</option>
-                            <template x-for="service in services" :key="service.id">
-                                <option x-bind:value="service.id" x-text="service.label"></option>
+                    <div class="mt-5 space-y-3">
+                        <label for="service-picker-search" class="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Buscar serviço</label>
+                        <input
+                            id="service-picker-search"
+                            type="search"
+                            autocomplete="off"
+                            x-model="servicePickerQuery"
+                            class="sf-input block w-full"
+                            placeholder="Digite para filtrar serviços…"
+                        >
+                        <div
+                            x-cloak
+                            x-show="filteredServicesPicker.length > 0"
+                            class="max-h-52 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-[#132746]"
+                        >
+                            <template x-for="service in filteredServicesPicker" :key="service.id">
+                                <button
+                                    type="button"
+                                    class="flex w-full flex-col border-b border-white/5 px-4 py-3 text-left transition last:border-b-0"
+                                    :class="String(selectedServiceId) === String(service.id) ? 'bg-[#d4af37]/15 ring-1 ring-inset ring-[#d4af37]/35' : 'hover:bg-white/5'"
+                                    x-on:click="selectedServiceId = String(service.id)"
+                                >
+                                    <span class="text-sm font-semibold text-white" x-text="service.name"></span>
+                                    <span class="mt-1 text-xs text-[#c7d2e3]" x-text="service.label"></span>
+                                </button>
                             </template>
-                        </select>
-                        <button type="button" x-on:click="addService()" class="sf-button-primary">Adicionar serviço</button>
+                        </div>
+                        <p x-show="servicePickerQuery.trim().length > 0 && services.length > 0 && filteredServicesPicker.length === 0" x-cloak class="rounded-xl border border-dashed border-white/15 px-4 py-3 text-sm text-[#c7d2e3]">
+                            Nenhum serviço encontrado para este filtro.
+                        </p>
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <p class="min-w-0 flex-1 text-sm text-[#c7d2e3]" x-show="selectedServiceId">
+                                <span class="font-semibold text-[#d4af37]">Pré-selecionado:</span>
+                                <span x-text="serviceById(selectedServiceId)?.label || ''"></span>
+                            </p>
+                            <button type="button" x-on:click="addService()" class="sf-button-primary shrink-0">Adicionar serviço</button>
+                        </div>
                     </div>
 
                     @error('service_ids')
@@ -319,15 +492,47 @@
                         <p class="mt-1 text-sm text-[#c7d2e3]">Produtos entram na comanda, mas não alteram a duração do agendamento.</p>
                     </div>
 
-                    <div class="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_110px_auto]">
-                        <select x-model="selectedProductId" class="sf-select block w-full">
-                            <option value="">Adicionar produto</option>
-                            <template x-for="product in products" :key="product.id">
-                                <option x-bind:value="product.id" x-text="product.label"></option>
+                    <div class="mt-5 space-y-3">
+                        <label for="product-picker-search" class="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Buscar produto</label>
+                        <input
+                            id="product-picker-search"
+                            type="search"
+                            autocomplete="off"
+                            x-model="productPickerQuery"
+                            class="sf-input block w-full"
+                            placeholder="Digite para filtrar produtos…"
+                        >
+                        <div
+                            x-cloak
+                            x-show="filteredProductsPicker.length > 0"
+                            class="max-h-52 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-[#132746]"
+                        >
+                            <template x-for="product in filteredProductsPicker" :key="product.id">
+                                <button
+                                    type="button"
+                                    class="flex w-full flex-col border-b border-white/5 px-4 py-3 text-left transition last:border-b-0"
+                                    :class="String(selectedProductId) === String(product.id) ? 'bg-[#d4af37]/15 ring-1 ring-inset ring-[#d4af37]/35' : 'hover:bg-white/5'"
+                                    x-on:click="selectedProductId = String(product.id)"
+                                >
+                                    <span class="text-sm font-semibold text-white" x-text="product.name"></span>
+                                    <span class="mt-1 text-xs text-[#c7d2e3]" x-text="product.label"></span>
+                                </button>
                             </template>
-                        </select>
-                        <input type="number" min="1" x-model="selectedProductQuantity" class="sf-input block w-full" aria-label="Quantidade">
-                        <button type="button" x-on:click="addProduct()" class="sf-button-primary">Adicionar produto</button>
+                        </div>
+                        <p x-show="productPickerQuery.trim().length > 0 && products.length > 0 && filteredProductsPicker.length === 0" x-cloak class="rounded-xl border border-dashed border-white/15 px-4 py-3 text-sm text-[#c7d2e3]">
+                            Nenhum produto encontrado para este filtro.
+                        </p>
+                    </div>
+
+                    <div class="mt-5 space-y-3">
+                        <p class="text-sm text-[#c7d2e3]" x-show="selectedProductId">
+                            <span class="font-semibold text-[#d4af37]">Pré-selecionado:</span>
+                            <span x-text="productById(selectedProductId)?.label || ''"></span>
+                        </p>
+                        <div class="grid gap-3 sm:grid-cols-[110px_minmax(0,1fr)]">
+                            <input type="number" min="1" x-model="selectedProductQuantity" class="sf-input block w-full" aria-label="Quantidade">
+                            <button type="button" x-on:click="addProduct()" class="sf-button-primary">Adicionar produto</button>
+                        </div>
                     </div>
                     <x-input-error class="mt-2" :messages="$errors->get('product_items')" />
 
@@ -357,8 +562,46 @@
                 <section class="sf-card p-5">
                     <div class="grid gap-5 md:grid-cols-2">
                         <div>
-                            <x-input-label for="user_id" value="Profissional" />
-                            <select id="user_id" name="user_id" class="sf-select mt-2 block w-full" required>
+                            <x-input-label for="professional-search" value="Profissional" />
+                            <input
+                                id="professional-search"
+                                type="search"
+                                autocomplete="off"
+                                x-model="professionalPickerQuery"
+                                class="sf-input mt-2 block w-full"
+                                placeholder="Digite o nome do profissional…"
+                            >
+                            <div
+                                x-cloak
+                                x-show="professionalPickerQuery.trim().length > 0 && filteredProfessionalRows.length > 0"
+                                class="mt-2 max-h-52 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-[#132746] shadow-inner"
+                            >
+                                <template x-for="row in filteredProfessionalRows" :key="row.id">
+                                    <button
+                                        type="button"
+                                        class="flex w-full border-b border-white/5 px-4 py-3 text-left text-sm font-medium text-white transition hover:bg-white/5 last:border-b-0"
+                                        x-on:click="pickProfessional(row)"
+                                        x-text="row.label"
+                                    ></button>
+                                </template>
+                            </div>
+                            <p x-show="professionalPickerQuery.trim().length > 0 && professionalRows.length > 0 && filteredProfessionalRows.length === 0" x-cloak class="mt-2 rounded-xl border border-dashed border-white/15 px-4 py-3 text-sm text-[#c7d2e3]">
+                                Nenhum profissional encontrado para esta busca.
+                            </p>
+                            <p x-show="pickedProfessionalLabel" class="mt-2 text-sm text-[#c7d2e3]">
+                                <span class="font-semibold text-[#d4af37]">Selecionado:</span>
+                                <span x-text="pickedProfessionalLabel" class="text-white"></span>
+                            </p>
+                            <select
+                                id="user_id"
+                                x-ref="professionalSelect"
+                                x-on:change="pickedProfessionalLabel = $event.target.value ? ([...$event.target.options].find((o) => o.value === $event.target.value)?.text?.trim() ?? '') : ''"
+                                name="user_id"
+                                class="sr-only"
+                                tabindex="-1"
+                                required
+                                aria-hidden="true"
+                            >
                                 <option value="">Selecione um profissional</option>
                                 @foreach ($users as $user)
                                     <option value="{{ $user->id }}" @selected((int) old('user_id', $appointment?->user_id ?? auth()->id()) === $user->id)>

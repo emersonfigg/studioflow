@@ -287,6 +287,7 @@ class PdvSaleTest extends TestCase
         $response = $this->actingAs($admin)->get(route('pdv.index', ['appointment_id' => $appointment->id], absolute: false));
 
         $response->assertOk();
+        $response->assertSee('id="pdv-search-input"', false);
         $response->assertSee('id="pdv-initial-cart-data"', false);
         $html = $response->getContent();
         $this->assertStringContainsString('"type":"service"', $html);

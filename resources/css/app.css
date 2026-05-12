@@ -142,4 +142,13 @@
     .sf-muted {
         color: #c7d2e3;
     }
+
+    /* Evita zoom automático no iOS ao focar campos com fonte menor que 16px (PDV / formulários). */
+    @media (max-width: 1023px) {
+        .pdv-touch-16,
+        .pdv-touch-16.sf-select {
+            font-size: 1rem !important;
+            line-height: 1.5rem !important;
+        }
+    }
 }

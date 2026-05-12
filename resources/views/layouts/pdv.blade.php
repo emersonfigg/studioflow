@@ -6,18 +6,36 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <title>@yield('title', 'PDV') - {{ config('app.name', 'StudioFlow') }}</title>
         <style>
+            /* Desktop: painel fixo em viewport. Mobile/tablet: rolagem natural (evita “tela congelada”). */
             html.pdv-shell,
             html.pdv-shell body {
-                height: 100%;
-                max-height: 100%;
-                overflow: hidden;
-                overscroll-behavior: none;
+                min-height: 100%;
+                min-height: 100dvh;
+            }
+            @media (max-width: 1023px) {
+                html.pdv-shell,
+                html.pdv-shell body {
+                    height: auto;
+                    max-height: none;
+                    overflow-x: hidden;
+                    overflow-y: auto;
+                    overscroll-behavior-y: auto;
+                }
+            }
+            @media (min-width: 1024px) {
+                html.pdv-shell,
+                html.pdv-shell body {
+                    height: 100%;
+                    max-height: 100%;
+                    overflow: hidden;
+                    overscroll-behavior: none;
+                }
             }
         </style>
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="pdv-shell__body bg-[#0f203b] font-sans antialiased text-white">
-        <div x-data="{ menuOpen: false }" class="flex h-full max-h-full min-h-0 flex-col overflow-hidden">
+        <div x-data="{ menuOpen: false }" class="flex min-h-[100dvh] flex-col overflow-x-hidden overflow-y-auto lg:h-[100dvh] lg:min-h-0 lg:max-h-[100dvh] lg:overflow-hidden">
             <header class="z-40 shrink-0 border-b border-white/10 bg-[#132746]/95 backdrop-blur">
                 <div class="mx-auto flex max-w-[1900px] items-center justify-between gap-3 px-3 py-2 sm:px-4">
                     <div class="flex min-w-0 items-center gap-3">
@@ -54,14 +72,13 @@
                     <a href="{{ route('clients.index') }}" class="block rounded-xl border border-white/10 px-4 py-3 hover:bg-white/5">Clientes</a>
                     <a href="{{ route('services.index') }}" class="block rounded-xl border border-white/10 px-4 py-3 hover:bg-white/5">Serviços</a>
                     <a href="{{ route('products.index') }}" class="block rounded-xl border border-white/10 px-4 py-3 hover:bg-white/5">Produtos</a>
-                    <a href="{{ route('product-sales.index') }}" class="block rounded-xl border border-white/10 px-4 py-3 hover:bg-white/5">Vendas</a>
-                    <a href="{{ route('finance.index') }}" class="block rounded-xl border border-white/10 px-4 py-3 hover:bg-white/5">Financeiro</a>
+                    <a href="{{ route('finance.index') }}" class="block rounded-xl border border-white/10 px-4 py-3 hover:bg-white/5">Relatórios</a>
                     <a href="{{ route('pdv.index') }}" class="block rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-3 text-[#d4af37]">PDV</a>
                     <a href="{{ route('pdv.sales') }}" class="block rounded-xl border border-white/10 px-4 py-3 hover:bg-white/5">Histórico de Vendas</a>
                 </nav>
             </aside>
 
-            <main class="mx-auto flex min-h-0 max-w-[1900px] flex-1 flex-col overflow-hidden px-2 py-1 sm:px-3">
+            <main class="mx-auto flex w-full max-w-[1900px] flex-1 flex-col px-2 py-1 min-h-0 sm:px-3 lg:min-h-0 lg:overflow-hidden">
                 @yield('content')
             </main>
         </div>

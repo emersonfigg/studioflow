@@ -65,8 +65,8 @@
                 </x-dropdown>
             </div>
 
-            <div class="-me-2 flex items-center sm:hidden">
-                <button @click="open = ! open" class="inline-flex items-center justify-center rounded-xl border border-white/10 bg-[#223d69] p-2.5 text-[#c7d2e3] transition duration-150 ease-in-out hover:border-[#d4af37]/30 hover:text-white focus:outline-none">
+            <div class="-me-2 flex items-center lg:hidden">
+                <button @click="open = ! open" type="button" aria-controls="sf-responsive-nav" :aria-expanded="open ? 'true' : 'false'" class="inline-flex items-center justify-center rounded-xl border border-white/10 bg-[#223d69] p-2.5 text-[#c7d2e3] transition duration-150 ease-in-out hover:border-[#d4af37]/30 hover:text-white focus:outline-none">
                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                         <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                         <path :class="{'hidden': ! open, 'inline-flex': open }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -76,7 +76,7 @@
         </div>
     </div>
 
-    <div :class="{'block': open, 'hidden': ! open}" class="hidden border-t border-white/10 sm:hidden">
+    <div id="sf-responsive-nav" :class="{'block': open, 'hidden': ! open}" class="hidden border-t border-white/10 lg:hidden">
         <div class="space-y-2 px-4 py-4">
             @if (auth()->user()->isSuperAdmin())
                 <x-responsive-nav-link :href="route('super-admin.dashboard')" :active="request()->routeIs('super-admin.dashboard')">
@@ -92,6 +92,15 @@
                 <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                     Painel
                 </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('pdv.index')" :active="request()->routeIs('pdv.*')">
+                    PDV
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('appointments.index')" :active="request()->routeIs('appointments.*')">
+                    Agendamentos
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('finance.cash')" :active="request()->routeIs('finance.cash*')">
+                    Caixa
+                </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('clients.index')" :active="request()->routeIs('clients.*')">
                     Clientes
                 </x-responsive-nav-link>
@@ -101,34 +110,19 @@
                 <x-responsive-nav-link :href="route('products.index')" :active="request()->routeIs('products.*') || request()->routeIs('product-sales.*')">
                     Produtos
                 </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('product-sales.index')" :active="request()->routeIs('product-sales.*')">
-                    Vendas
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('pdv.index')" :active="request()->routeIs('pdv.*')">
-                    PDV
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('appointments.index')" :active="request()->routeIs('appointments.*')">
-                    Agendamentos
+                @if (auth()->user()->isAdmin())
+                    <x-responsive-nav-link :href="route('team.index')" :active="request()->routeIs('team.*')">
+                        Equipe
+                    </x-responsive-nav-link>
+                @endif
+                <x-responsive-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.index') || request()->routeIs('finance.production') || request()->routeIs('finance.commissions*') || request()->routeIs('finance.report') || request()->routeIs('finance.service-report') || request()->routeIs('finance.performance') || request()->routeIs('production.*')">
+                    Relatórios
                 </x-responsive-nav-link>
                 @if (auth()->user()->isAdmin())
                     <x-responsive-nav-link :href="route('company.edit')" :active="request()->routeIs('company.*')">
                         Empresa
                     </x-responsive-nav-link>
                 @endif
-                <x-responsive-nav-link :href="route('schedule.edit')" :active="request()->routeIs('schedule.*') || request()->routeIs('team.availability.*')">
-                    Minha agenda
-                </x-responsive-nav-link>
-                @if (auth()->user()->isAdmin())
-                    <x-responsive-nav-link :href="route('team.index')" :active="request()->routeIs('team.*')">
-                        Equipe
-                    </x-responsive-nav-link>
-                @endif
-                <x-responsive-nav-link :href="route('finance.cash')" :active="request()->routeIs('finance.cash*')">
-                    Caixa
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.index') || request()->routeIs('finance.production') || request()->routeIs('finance.commissions*') || request()->routeIs('finance.report') || request()->routeIs('finance.service-report') || request()->routeIs('finance.performance') || request()->routeIs('production.*')">
-                    Financeiro
-                </x-responsive-nav-link>
             @endif
         </div>
 

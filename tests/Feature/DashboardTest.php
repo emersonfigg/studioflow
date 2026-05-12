@@ -63,6 +63,7 @@ class DashboardTest extends TestCase
             ->assertSee('Clientes')
             ->assertSee('Serviços')
             ->assertSee('Copiar link')
+            ->assertSee('id="sf-responsive-nav"', false)
             ->assertSee('Maria')
             ->assertSee('Escova')
             ->assertDontSee($otherClient->name);

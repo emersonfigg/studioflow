@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Financeiro</p>
+                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Relatórios</p>
                 <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">Relatório de serviços</h2>
                 <p class="mt-2 text-sm text-[#c7d2e3]">Faturamento por serviço em comandas pagas (sem produtos, sem canceladas).</p>
             </div>
