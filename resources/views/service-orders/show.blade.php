@@ -22,6 +22,14 @@
 
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <section class="space-y-6">
+            @if (isset($clientRecommendations) && $clientRecommendations->isNotEmpty())
+                @include('partials.client-opportunities', [
+                    'recommendations' => $clientRecommendations,
+                    'title' => 'Oportunidades para este cliente',
+                    'subtitle' => 'Use estas sugestões antes de iniciar o atendimento.',
+                ])
+            @endif
+
             <section class="sf-card overflow-hidden">
                 <div class="border-b border-white/10 px-5 py-5">
                     <h3 class="text-base font-semibold text-white">Itens da comanda</h3>
@@ -37,6 +45,9 @@
                                     {{ $item->type === 'service' ? 'Serviço' : 'Produto' }}
                                     @if ($item->professional)
                                         · {{ $item->professional->name }}
+                                    @endif
+                                    @if ($item->type === 'product' && $item->seller)
+                                        · Vendedor: {{ $item->seller->name }}
                                     @endif
                                 </p>
                             </div>
@@ -96,7 +107,9 @@
                                 <select id="product_id" name="product_id" class="sf-select mt-2 block w-full" required>
                                     <option value="">Selecione</option>
                                     @foreach ($products as $product)
-                                        <option value="{{ $product->id }}">{{ $product->name }} · R$ {{ number_format((float) $product->price, 2, ',', '.') }} · Estoque {{ $product->stock_quantity }}</option>
+                                        <option value="{{ $product->id }}" data-commission="{{ $product->hasCommission() ? '1' : '0' }}">
+                                            {{ $product->name }} · R$ {{ number_format((float) $product->price, 2, ',', '.') }} · Estoque {{ $product->stock_quantity }}{{ $product->hasCommission() ? ' · Comissão' : '' }}
+                                        </option>
                                     @endforeach
                                 </select>
                                 <x-input-error class="mt-2" :messages="$errors->get('product_id')" />
@@ -104,6 +117,17 @@
                             <div>
                                 <x-input-label for="quantity" value="Quantidade" />
                                 <x-text-input id="quantity" name="quantity" type="number" min="1" value="1" class="mt-2 block w-full" required />
+                            </div>
+                            <div>
+                                <x-input-label for="seller_id" value="Vendedor responsável" />
+                                <select id="seller_id" name="seller_id" class="sf-select mt-2 block w-full">
+                                    <option value="">— Profissional do atendimento —</option>
+                                    @foreach ($professionals as $professional)
+                                        <option value="{{ $professional->id }}" @selected(old('seller_id', $order->professional_id) == $professional->id)>{{ $professional->name }}</option>
+                                    @endforeach
+                                </select>
+                                <p class="mt-2 text-xs text-[#c7d2e3]">Obrigatório quando o produto tem comissão configurada.</p>
+                                <x-input-error class="mt-2" :messages="$errors->get('seller_id')" />
                             </div>
                             <x-primary-button>Adicionar produto</x-primary-button>
                         </form>

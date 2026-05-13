@@ -67,6 +67,16 @@
         </div>
     @endif
 
+    @if (isset($clientRecommendations) && $clientRecommendations->isNotEmpty())
+        <div class="mx-auto mb-4 max-w-5xl">
+            @include('partials.client-opportunities', [
+                'recommendations' => $clientRecommendations,
+                'title' => 'Oportunidades para este cliente',
+                'subtitle' => 'Use estas sugestões para conversar com o cliente no início do atendimento.',
+            ])
+        </div>
+    @endif
+
     <div class="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div class="sf-card p-6 sm:p-7">
             <dl class="grid gap-6 sm:grid-cols-2">

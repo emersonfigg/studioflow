@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Payment;
+use App\Models\ProductSaleItem;
 use App\Models\Service;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -41,6 +42,9 @@ class DashboardController extends Controller
         $completedToday = 0;
         $todayAppointments = new Collection();
         $publicBookingUrl = null;
+        $sellerRanking = new Collection();
+        $monthStart = $now->copy()->startOfMonth();
+        $monthEnd = $now->copy()->endOfMonth();
 
         if ($companyId !== null) {
             $publicBookingUrl = route('public-bookings.create', $companyId);
@@ -85,6 +89,27 @@ class DashboardController extends Controller
             $commissionsToday = (float) (clone $paymentsQuery)->sum('commission_amount');
             $netToday = (float) (clone $paymentsQuery)->sum('net_amount');
             $completedToday = (clone $paymentsQuery)->count();
+
+            $rankingQuery = ProductSaleItem::query()
+                ->join('product_sales', 'product_sales.id', '=', 'product_sale_items.product_sale_id')
+                ->join('users', 'users.id', '=', 'product_sale_items.seller_id')
+                ->where('product_sales.company_id', $companyId)
+                ->whereBetween('product_sales.sold_at', [$monthStart, $monthEnd])
+                ->where('product_sale_items.commission_amount', '>', 0);
+
+            if (! $request->user()->isAdmin()) {
+                $rankingQuery->where('product_sale_items.seller_id', $request->user()->id);
+            }
+
+            $sellerRanking = $rankingQuery
+                ->selectRaw('users.id as user_id, users.name as user_name')
+                ->selectRaw('SUM(product_sale_items.total_price) as gross_total')
+                ->selectRaw('SUM(product_sale_items.commission_amount) as commission_total')
+                ->selectRaw('SUM(product_sale_items.quantity) as items_total')
+                ->groupBy('users.id', 'users.name')
+                ->orderByDesc('commission_total')
+                ->limit(5)
+                ->get();
         }
 
         return view('dashboard', [
@@ -98,6 +123,8 @@ class DashboardController extends Controller
             'completedToday' => $completedToday,
             'todayAppointments' => $todayAppointments,
             'publicBookingUrl' => $publicBookingUrl,
+            'sellerRanking' => $sellerRanking,
+            'rankingMonthLabel' => $monthStart->format('m/Y'),
         ]);
     }
 }

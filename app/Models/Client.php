@@ -180,4 +180,14 @@ class Client extends Model
     {
         return $this->hasMany(ServiceOrder::class);
     }
+
+    /**
+     * Get the commercial history entries for the client.
+     *
+     * @return HasMany<ClientCommercialHistory>
+     */
+    public function commercialHistories(): HasMany
+    {
+        return $this->hasMany(ClientCommercialHistory::class);
+    }
 }

@@ -96,14 +96,14 @@ class PdvController extends Controller
             ->orderBy('name')
             ->get(['id', 'client_code', 'name', 'phone', 'cpf']);
         $products = Product::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get([
-            'id', 'name', 'sku', 'price', 'stock_quantity', 'image_path',
+            'id', 'name', 'sku', 'price', 'stock_quantity', 'image_path', 'commission_type', 'commission_value',
         ]);
         $services = Service::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get([
             'id', 'name', 'price', 'duration_minutes', 'image_path',
         ]);
         $professionals = User::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(['id', 'name']);
         $catalog = [
-            'products' => $products->map(function ($product) {
+            'products' => $products->map(function (Product $product) {
                 $code = $product->sku ? (string) $product->sku : 'P'.$product->id;
 
                 return [
@@ -115,6 +115,9 @@ class PdvController extends Controller
                     'stock' => $product->stock_quantity,
                     'type' => 'product',
                     'image_url' => $product->image_url,
+                    'commission' => $product->hasCommission(),
+                    'commission_type' => $product->commission_type,
+                    'commission_value' => $product->commission_value !== null ? (float) $product->commission_value : null,
                 ];
             })->values(),
             'services' => $services->map(function ($service) {

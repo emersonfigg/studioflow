@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\Service;
 use App\Models\User;
 use App\Services\AvailabilityService;
+use App\Services\ClientRecommendationService;
 use App\Services\ServiceOrderService;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
@@ -117,12 +118,20 @@ class AppointmentController extends Controller
     /**
      * Display the specified appointment.
      */
-    public function show(Request $request, Appointment $appointment): View
+    public function show(Request $request, Appointment $appointment, ClientRecommendationService $recommendations): View
     {
         $this->ensureAppointmentBelongsToUserCompany($request, $appointment);
 
+        $recommendationList = $appointment->client_id
+            ? $recommendations->getRecommendationsForClient(
+                (int) $appointment->company_id,
+                (int) $appointment->client_id,
+            )
+            : collect();
+
         return view('appointments.show', [
             'appointment' => $appointment->load(['client', 'service', 'services', 'user', 'payment', 'serviceOrder.items']),
+            'clientRecommendations' => $recommendationList,
         ]);
     }
 

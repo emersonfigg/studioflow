@@ -28,6 +28,106 @@
                 <x-input-error :messages="$errors->get('stock_quantity')" class="mt-2" />
             </div>
 
+            @php($currentCommissionType = old('commission_type', $productData?->commission_type ?? ''))
+            @php($currentCommissionValue = old('commission_value', $productData?->commission_value !== null ? \App\Support\BrazilianCurrency::input((float) $productData->commission_value) : ''))
+
+            <div
+                class="md:col-span-2"
+                x-data="{
+                    type: @js((string) $currentCommissionType),
+                    value: @js((string) $currentCommissionValue),
+                    get isPercentage() { return this.type === 'percentage' },
+                    get isFixed() { return this.type === 'fixed' },
+                    get isNone() { return this.type === '' || this.type === 'none' || this.type === null },
+                    get hint() {
+                        if (this.isPercentage) {
+                            return 'Percentual sobre o subtotal de cada item vendido.';
+                        }
+                        if (this.isFixed) {
+                            return 'Valor fixo em reais por unidade vendida.';
+                        }
+                        return 'Selecione \"Sem comissão\" para não pagar comissão neste produto.';
+                    },
+                }"
+                x-init="$watch('type', () => { if (isNone) { value = ''; } })"
+            >
+                <div class="rounded-2xl border border-white/10 bg-[#132746] p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Comissão por venda</p>
+                            <p class="mt-1 text-sm text-[#c7d2e3]">Defina se o profissional ganha comissão ao vender este produto.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 grid gap-3 md:grid-cols-[200px_minmax(0,1fr)]">
+                        <div>
+                            <x-input-label for="commission_type" value="Tipo de comissão" />
+                            <select id="commission_type" name="commission_type" class="sf-select mt-2 block w-full" x-model="type">
+                                <option value="">Sem comissão</option>
+                                <option value="fixed">Valor fixo (R$)</option>
+                                <option value="percentage">Percentual (%)</option>
+                            </select>
+                            <x-input-error :messages="$errors->get('commission_type')" class="mt-2" />
+                        </div>
+
+                        <div>
+                            <x-input-label for="commission_value" value="Valor da comissão" />
+                            <div class="relative mt-2">
+                                <span
+                                    class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-semibold text-[#c7d2e3]"
+                                    x-text="isPercentage ? '%' : (isFixed ? 'R$' : '')"
+                                ></span>
+                                <input
+                                    id="commission_value"
+                                    name="commission_value"
+                                    type="text"
+                                    inputmode="decimal"
+                                    placeholder="0,00"
+                                    class="sf-input block w-full pl-10"
+                                    :disabled="isNone"
+                                    :class="isNone ? 'opacity-50 cursor-not-allowed' : ''"
+                                    x-model="value"
+                                >
+                            </div>
+                            <p class="mt-2 text-xs text-[#c7d2e3]" x-text="hint"></p>
+                            <x-input-error :messages="$errors->get('commission_value')" class="mt-2" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="md:col-span-2">
+                <div class="rounded-2xl border border-white/10 bg-[#132746] p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Recompra inteligente</p>
+                            <p class="mt-1 text-sm text-[#c7d2e3]">Use o prazo para o sistema sugerir este produto novamente no próximo atendimento.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 grid gap-3 md:grid-cols-[200px_minmax(0,1fr)]">
+                        <div>
+                            <x-input-label for="recommended_repurchase_days" value="Prazo sugerido para recompra (dias)" />
+                            <x-text-input
+                                id="recommended_repurchase_days"
+                                name="recommended_repurchase_days"
+                                type="number"
+                                min="1"
+                                max="730"
+                                step="1"
+                                placeholder="Ex: 120"
+                                class="mt-2 block w-full"
+                                :value="old('recommended_repurchase_days', $productData?->recommended_repurchase_days ?? '')"
+                            />
+                            <x-input-error :messages="$errors->get('recommended_repurchase_days')" class="mt-2" />
+                        </div>
+                        <div class="flex items-center">
+                            <p class="text-xs text-[#c7d2e3]">Após esse prazo, o sistema poderá sugerir este produto novamente ao cliente. Deixe em branco para nao gerar previsão de recompra.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="md:col-span-2">
                 <x-input-label for="description" value="Descrição" />
                 <textarea id="description" name="description" rows="4" class="sf-input mt-2 block w-full">{{ old('description', $productData?->description ?? '') }}</textarea>

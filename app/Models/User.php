@@ -123,6 +123,16 @@ class User extends Authenticatable
     }
 
     /**
+     * Get product sale items credited to this user as a seller (for commission).
+     *
+     * @return HasMany<ProductSaleItem>
+     */
+    public function productSaleItemsAsSeller(): HasMany
+    {
+        return $this->hasMany(ProductSaleItem::class, 'seller_id');
+    }
+
+    /**
      * Get the commission settlements received by the professional.
      *
      * @return HasMany<CommissionSettlement>

@@ -45,6 +45,7 @@ class PublicBookingTest extends TestCase
 
         $firstService = Service::factory()->for($company)->create([
             'name' => 'Corte Completo',
+            'description' => 'Corte premium com finalizacao detalhada e cuidados de acabamento.',
             'duration_minutes' => 60,
             'active' => true,
             'price' => 120.00,
@@ -80,6 +81,8 @@ class PublicBookingTest extends TestCase
         $response
             ->assertOk()
             ->assertSee('Corte Completo')
+            ->assertSee('Corte premium com finalizacao detalhada e cuidados de acabamento.')
+            ->assertSee('line-clamp-2', false)
             ->assertSee('Barba Relax')
             ->assertSee('120,00')
             ->assertSee('55,00')

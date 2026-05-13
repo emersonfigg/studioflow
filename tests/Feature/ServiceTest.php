@@ -230,6 +230,116 @@ class ServiceTest extends TestCase
         );
     }
 
+    public function test_service_description_is_optional_on_create_and_update(): void
+    {
+        Storage::fake('public');
+
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+
+        $this
+            ->actingAs($admin)
+            ->post('/services', [
+                'name' => 'Servico sem descricao',
+                'duration_minutes' => 30,
+                'price' => '40.00',
+                'active' => '1',
+            ])
+            ->assertSessionDoesntHaveErrors('description')
+            ->assertRedirect();
+
+        $service = Service::where('name', 'Servico sem descricao')->firstOrFail();
+
+        $this->assertNull($service->description);
+
+        $this
+            ->actingAs($admin)
+            ->patch("/services/{$service->id}", [
+                'name' => 'Servico sem descricao',
+                'duration_minutes' => 30,
+                'price' => '40.00',
+                'active' => '1',
+            ])
+            ->assertSessionDoesntHaveErrors('description')
+            ->assertRedirect();
+
+        $service->refresh();
+        $this->assertNull($service->description);
+    }
+
+    public function test_service_description_rejects_payloads_longer_than_500_characters(): void
+    {
+        Storage::fake('public');
+
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $service = Service::factory()->for($company)->create();
+
+        $oversized = str_repeat('a', 501);
+
+        $this
+            ->actingAs($admin)
+            ->from('/services/create')
+            ->post('/services', [
+                'name' => 'Servico longo',
+                'description' => $oversized,
+                'duration_minutes' => 30,
+                'price' => '50.00',
+                'active' => '1',
+            ])
+            ->assertRedirect('/services/create')
+            ->assertSessionHasErrors('description');
+
+        $this->assertDatabaseMissing('services', [
+            'company_id' => $company->id,
+            'name' => 'Servico longo',
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->from("/services/{$service->id}/edit")
+            ->patch("/services/{$service->id}", [
+                'name' => $service->name,
+                'description' => $oversized,
+                'duration_minutes' => $service->duration_minutes,
+                'price' => number_format((float) $service->price, 2, '.', ''),
+                'active' => '1',
+            ])
+            ->assertRedirect("/services/{$service->id}/edit")
+            ->assertSessionHasErrors('description');
+
+        $service->refresh();
+        $this->assertNotSame($oversized, $service->description);
+    }
+
+    public function test_service_description_accepts_exactly_500_characters(): void
+    {
+        Storage::fake('public');
+
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+
+        $description = str_repeat('a', 500);
+
+        $this
+            ->actingAs($admin)
+            ->post('/services', [
+                'name' => 'Servico no limite',
+                'description' => $description,
+                'duration_minutes' => 30,
+                'price' => '50.00',
+                'active' => '1',
+            ])
+            ->assertSessionDoesntHaveErrors('description')
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('services', [
+            'company_id' => $company->id,
+            'name' => 'Servico no limite',
+            'description' => $description,
+        ]);
+    }
+
     public function test_user_cannot_access_services_from_another_company(): void
     {
         $company = Company::factory()->create();

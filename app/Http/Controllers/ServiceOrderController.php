@@ -9,6 +9,7 @@ use App\Models\Service;
 use App\Models\ServiceOrder;
 use App\Models\ServiceOrderItem;
 use App\Models\User;
+use App\Services\ClientRecommendationService;
 use App\Services\ServiceOrderService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -17,20 +18,32 @@ use Illuminate\Validation\Rule;
 
 class ServiceOrderController extends Controller
 {
-    public function show(Request $request, Appointment $appointment, ServiceOrderService $orders): View
-    {
+    public function show(
+        Request $request,
+        Appointment $appointment,
+        ServiceOrderService $orders,
+        ClientRecommendationService $recommendations,
+    ): View {
         $this->ensureAppointmentAccess($request, $appointment);
 
         $order = $orders->ensureForAppointment($appointment);
         $companyId = $request->user()->company_id;
 
+        $clientRecommendations = $appointment->client_id
+            ? $recommendations->getRecommendationsForClient(
+                (int) $appointment->company_id,
+                (int) $appointment->client_id,
+            )
+            : collect();
+
         return view('service-orders.show', [
             'appointment' => $appointment->load(['client', 'user', 'service', 'services', 'payment']),
-            'order' => $order->load(['items.service', 'items.product', 'items.professional', 'client', 'professional']),
+            'order' => $order->load(['items.service', 'items.product', 'items.professional', 'items.seller', 'client', 'professional']),
             'services' => Service::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
             'products' => Product::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
             'professionals' => User::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
             'paymentMethods' => Payment::paymentMethodOptions(),
+            'clientRecommendations' => $clientRecommendations,
         ]);
     }
 
@@ -60,10 +73,24 @@ class ServiceOrderController extends Controller
         $data = $request->validate([
             'product_id' => ['required', Rule::exists('products', 'id')->where('company_id', $order->company_id)->where('active', true)],
             'quantity' => ['required', 'integer', 'min:1'],
+            'seller_id' => ['nullable', Rule::exists('users', 'id')->where('company_id', $order->company_id)->where('active', true)],
         ]);
 
         $product = Product::query()->where('company_id', $order->company_id)->findOrFail($data['product_id']);
-        $orders->addProduct($order, $product, (int) $data['quantity']);
+
+        $seller = null;
+        if (! empty($data['seller_id'])) {
+            $seller = User::query()->where('company_id', $order->company_id)->findOrFail($data['seller_id']);
+        }
+
+        if ($product->hasCommission() && ! $seller) {
+            $seller = User::query()
+                ->where('company_id', $order->company_id)
+                ->where('active', true)
+                ->find($order->professional_id);
+        }
+
+        $orders->addProduct($order, $product, (int) $data['quantity'], $seller);
 
         return back()->with('status', 'order-product-added');
     }

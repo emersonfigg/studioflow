@@ -34,15 +34,21 @@
                 'formatted_price' => number_format((float) $product->price, 2, ',', '.'),
                 'image_url' => $product->image_url,
                 'stock_quantity' => $product->stock_quantity,
+                'commission' => $product->hasCommission(),
             ]])) }},
+            defaultSellerId: {{ (int) old('user_id', auth()->id()) }},
             productSearch: '',
             formatMoney(value) {
                 return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             },
             addService() { this.serviceItems.push({ service_id: '' }) },
             removeService(index) { this.serviceItems.splice(index, 1) },
-            addProduct(productId = '') { this.productItems.push({ product_id: productId, quantity: 1 }) },
+            addProduct(productId = '') { this.productItems.push({ product_id: productId, quantity: 1, seller_id: this.defaultSellerId || '' }) },
             removeProduct(index) { this.productItems.splice(index, 1) },
+            productHasCommission(productId) {
+                const product = this.products[productId];
+                return product ? Boolean(product.commission) : false;
+            },
             get filteredProducts() {
                 const term = this.productSearch.trim().toLowerCase();
 
@@ -60,6 +66,7 @@
                 if (emptyItem) {
                     emptyItem.product_id = productId;
                     emptyItem.quantity = emptyItem.quantity || 1;
+                    emptyItem.seller_id = emptyItem.seller_id || this.defaultSellerId || '';
                 } else {
                     this.addProduct(productId);
                 }
@@ -209,15 +216,32 @@
 
                 <div class="mt-4 space-y-3">
                     <template x-for="(item, index) in productItems" :key="index">
-                        <div class="grid gap-3 rounded-2xl border border-white/10 bg-[#132746] p-3 lg:grid-cols-[minmax(0,1fr)_96px_120px_96px]">
+                        <div class="grid gap-3 rounded-2xl border border-white/10 bg-[#132746] p-3 lg:grid-cols-[minmax(0,1fr)_140px_96px_120px_96px]">
                             <div>
                                 <label class="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Produto</label>
                                 <select class="sf-select mt-2 block w-full" :name="`items[${index}][product_id]`" x-model="item.product_id" required>
                                     <option value="">Selecione</option>
                                     @foreach ($products as $product)
-                                        <option value="{{ $product->id }}">{{ $product->sku ?: 'Sem SKU' }} - {{ $product->name }} - R$ {{ number_format((float) $product->price, 2, ',', '.') }} - Estoque {{ $product->stock_quantity }}</option>
+                                        <option value="{{ $product->id }}">{{ $product->sku ?: 'Sem SKU' }} - {{ $product->name }} - R$ {{ number_format((float) $product->price, 2, ',', '.') }} - Estoque {{ $product->stock_quantity }}{{ $product->hasCommission() ? ' · Comissão' : '' }}</option>
                                     @endforeach
                                 </select>
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Vendedor</label>
+                                <select
+                                    class="sf-select mt-2 block w-full"
+                                    :name="`items[${index}][seller_id]`"
+                                    x-model="item.seller_id"
+                                    :class="productHasCommission(item.product_id) && !item.seller_id ? '!border-amber-400/60' : ''"
+                                >
+                                    <option value="">— Sessão —</option>
+                                    @foreach ($professionals as $professional)
+                                        <option value="{{ $professional->id }}">{{ $professional->name }}</option>
+                                    @endforeach
+                                </select>
+                                <p class="mt-1 text-[10px] font-semibold uppercase tracking-wide" x-show="productHasCommission(item.product_id) && !item.seller_id" x-cloak>
+                                    <span class="text-amber-300">Obrigatório (comissão)</span>
+                                </p>
                             </div>
                             <div>
                                 <label class="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Qtd.</label>

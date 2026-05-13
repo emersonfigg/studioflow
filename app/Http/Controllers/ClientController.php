@@ -6,6 +6,8 @@ use App\Http\Requests\StoreClientRequest;
 use App\Http\Requests\UpdateClientRequest;
 use App\Models\Appointment;
 use App\Models\Client;
+use App\Models\ClientCommercialHistory;
+use App\Services\ClientRecommendationService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -157,7 +159,7 @@ class ClientController extends Controller
     /**
      * Display the specified client.
      */
-    public function show(Request $request, Client $client): View
+    public function show(Request $request, Client $client, ClientRecommendationService $recommendations): View
     {
         $this->ensureClientBelongsToUserCompany($request, $client);
 
@@ -189,6 +191,19 @@ class ClientController extends Controller
             ? $totalSpent / $interactionsCount
             : 0.0;
 
+        $commercialHistories = ClientCommercialHistory::query()
+            ->where('company_id', $client->company_id)
+            ->where('client_id', $client->id)
+            ->with('professional')
+            ->orderByDesc('occurred_at')
+            ->limit(50)
+            ->get();
+
+        $clientRecommendations = $recommendations->getRecommendationsForClient(
+            (int) $client->company_id,
+            (int) $client->id,
+        );
+
         return view('clients.show', [
             'client' => $client,
             'appointments' => $appointments,
@@ -205,6 +220,8 @@ class ClientController extends Controller
             'productSalesThisMonth' => $productSales
                 ->whereBetween('sold_at', [$monthStart, $monthEnd])
                 ->count(),
+            'commercialHistories' => $commercialHistories,
+            'clientRecommendations' => $clientRecommendations,
         ]);
     }
 

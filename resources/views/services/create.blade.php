@@ -25,6 +25,8 @@
     <div
         x-data="{
             name: @js(old('name', '')),
+            description: @js(old('description', '')),
+            descriptionLimit: 500,
             duration: @js((string) old('duration_minutes', '60')),
             price: @js((string) old('price', '0,00')),
             active: @js((bool) old('active', true)),
@@ -85,6 +87,26 @@
                         <x-input-error class="mt-2" :messages="$errors->get('name')" />
                     </div>
 
+                    <div class="lg:col-span-2">
+                        <div class="flex items-center justify-between gap-3">
+                            <label for="description" class="text-sm font-medium text-white">Descrição</label>
+                            <span class="text-xs text-[#c7d2e3]">
+                                <span x-text="description.length">0</span>/<span x-text="descriptionLimit">500</span>
+                            </span>
+                        </div>
+                        <textarea
+                            id="description"
+                            name="description"
+                            rows="3"
+                            maxlength="500"
+                            placeholder="Ex: Modelagem completa da barba com acabamento na navalha e aplicação de óleo hidratante."
+                            x-model="description"
+                            class="sf-input mt-2 block w-full resize-y leading-relaxed"
+                        >{{ old('description') }}</textarea>
+                        <p class="mt-2 text-xs text-[#c7d2e3]">Opcional. Aparece no agendamento online para o cliente entender o que está contratando.</p>
+                        <x-input-error class="mt-2" :messages="$errors->get('description')" />
+                    </div>
+
                     <div>
                         <label for="duration_minutes" class="text-sm font-medium text-white">Duração (min)</label>
                         <input
@@ -114,6 +136,37 @@
                             required
                         >
                         <x-input-error class="mt-2" :messages="$errors->get('price')" />
+                    </div>
+
+                    <div class="lg:col-span-2">
+                        <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Retorno inteligente</p>
+                                    <p class="mt-1 text-sm text-[#c7d2e3]">Use o prazo sugerido para que o sistema lembre o cliente de repetir esse atendimento.</p>
+                                </div>
+                            </div>
+                            <div class="mt-4 grid gap-3 md:grid-cols-[200px_minmax(0,1fr)]">
+                                <div>
+                                    <label for="recommended_return_days" class="text-sm font-medium text-white">Prazo sugerido para retorno (dias)</label>
+                                    <input
+                                        id="recommended_return_days"
+                                        name="recommended_return_days"
+                                        type="number"
+                                        min="1"
+                                        max="730"
+                                        step="1"
+                                        placeholder="Ex: 30"
+                                        value="{{ old('recommended_return_days', '') }}"
+                                        class="sf-input mt-2 block w-full"
+                                    >
+                                    <x-input-error class="mt-2" :messages="$errors->get('recommended_return_days')" />
+                                </div>
+                                <div class="flex items-center">
+                                    <p class="text-xs text-[#c7d2e3]">Após esse prazo, o sistema poderá sugerir este serviço novamente ao cliente. Deixe em branco para não gerar recomendação.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="lg:col-span-2">
@@ -203,6 +256,15 @@
                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
                         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Nome</p>
                         <p class="mt-2 text-lg font-semibold text-white" x-text="name || 'Novo serviço completo'"></p>
+                    </div>
+
+                    <div
+                        x-show="description.trim().length > 0"
+                        x-cloak
+                        class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4"
+                    >
+                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Descrição</p>
+                        <p class="mt-2 whitespace-pre-line text-sm leading-relaxed text-[#c7d2e3]" x-text="description"></p>
                     </div>
 
                     <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">

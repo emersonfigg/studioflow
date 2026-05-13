@@ -313,6 +313,29 @@
                                             <td class="w-20 px-1 py-2 font-mono text-[#d4af37]" x-text="item.code"></td>
                                             <td class="max-w-[1px] px-2 py-2">
                                                 <span class="block truncate text-white" x-text="item.name"></span>
+                                                <template x-if="item.type === 'product'">
+                                                    <div class="mt-1 flex flex-wrap items-center gap-2">
+                                                        <label class="flex w-full flex-col gap-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#c7d2e3] sm:w-auto sm:flex-row sm:items-center sm:gap-2">
+                                                            <span>Vendedor</span>
+                                                            <select
+                                                                x-model.number="item.seller_id"
+                                                                class="pdv-touch-16 rounded border border-white/15 bg-[#1b335b] px-2 py-1 text-[12px] font-semibold text-white sm:w-44"
+                                                                :class="item.commission && !item.seller_id ? '!border-amber-400/60 !text-amber-200' : ''"
+                                                            >
+                                                                <option value="">— Selecione —</option>
+                                                                @foreach ($professionals as $professional)
+                                                                    <option value="{{ $professional->id }}">{{ $professional->name }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </label>
+                                                        <template x-if="item.commission && !item.seller_id">
+                                                            <span class="text-[10px] font-semibold uppercase tracking-wide text-amber-300">Obrigatório</span>
+                                                        </template>
+                                                        <template x-if="item.commission && item.seller_id">
+                                                            <span class="text-[10px] font-semibold uppercase tracking-wide text-emerald-300">Comissão configurada</span>
+                                                        </template>
+                                                    </div>
+                                                </template>
                                             </td>
                                             <td class="w-16 px-1 py-2">
                                                 <input
@@ -421,9 +444,10 @@
                             x-ref="submitBtn"
                             type="submit"
                             class="sf-button-primary w-full !py-3 !text-sm !font-black !uppercase !tracking-wider sm:!py-3.5 sm:!text-base disabled:opacity-40"
-                            :disabled="cart.length === 0 || submitting"
+                            :disabled="cart.length === 0 || submitting || hasMissingSeller"
+                            :title="hasMissingSeller ? 'Selecione o vendedor responsável para produtos com comissão.' : ''"
                         >
-                            <span x-text="submitting ? 'Finalizando…' : 'Concluir venda'"></span>
+                            <span x-text="submitting ? 'Finalizando…' : (hasMissingSeller ? 'Selecione vendedor com comissão' : 'Concluir venda')"></span>
                         </button>
                     </div>
                 </div>
@@ -444,6 +468,9 @@
                 <div>
                     <input type="hidden" :name="`items[${idx}][product_id]`" :value="item.product_id">
                     <input type="hidden" :name="`items[${idx}][quantity]`" :value="item.quantity">
+                    <template x-if="item.seller_id">
+                        <input type="hidden" :name="`items[${idx}][seller_id]`" :value="item.seller_id">
+                    </template>
                 </div>
             </template>
 
@@ -470,6 +497,11 @@
             const products = Array.isArray(root.products) ? root.products : [];
             const services = Array.isArray(root.services) ? root.services : [];
 
+            const productCommissionMap = new Map();
+            products.forEach((p) => {
+                productCommissionMap.set(Number(p.id), Boolean(p.commission));
+            });
+
             const bootCart = Array.isArray(initialCartData) && initialCartData.length
                 ? initialCartData.map((row) => {
                     const id = row.id != null && row.id !== '' ? Number(row.id) : 0;
@@ -487,6 +519,8 @@
                         service_id: serviceId,
                         code: row.code || (isProduct ? 'P' + id : 'S' + (serviceId || id)),
                         image_url: row.image_url ?? null,
+                        seller_id: isProduct && row.seller_id ? Number(row.seller_id) : '',
+                        commission: isProduct ? Boolean(productCommissionMap.get(id) ?? row.commission) : false,
                     };
                 })
                 : [];
@@ -617,6 +651,10 @@
                 },
                 addCatalogItem(item) {
                     const isService = item.type === 'service';
+                    const defaultSellerId = this.$refs.professionalSelect?.value
+                        ? Number(this.$refs.professionalSelect.value)
+                        : '';
+
                     this.cart.push({
                         id: item.id,
                         service_id: isService ? item.id : undefined,
@@ -627,6 +665,8 @@
                         quantity: 1,
                         source: null,
                         image_url: item.image_url ?? null,
+                        seller_id: !isService ? defaultSellerId : '',
+                        commission: !isService && Boolean(item.commission),
                     });
                     this.search = '';
                     this.highlightedIndex = 0;
@@ -756,7 +796,14 @@
                 get productPayload() {
                     return this.cart
                         .filter((item) => String(item.type) === 'product')
-                        .map((item) => ({ product_id: item.id, quantity: Math.max(1, Number(item.quantity || 1)) }));
+                        .map((item) => ({
+                            product_id: item.id,
+                            quantity: Math.max(1, Number(item.quantity || 1)),
+                            seller_id: item.seller_id ? Number(item.seller_id) : '',
+                        }));
+                },
+                get hasMissingSeller() {
+                    return this.cart.some((item) => String(item.type) === 'product' && Boolean(item.commission) && !item.seller_id);
                 },
             };
         }

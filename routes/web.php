@@ -107,6 +107,8 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
         ->name('finance.production');
     Route::get('finance/commissions', [FinanceController::class, 'commissions'])
         ->name('finance.commissions');
+    Route::get('finance/product-commissions', [FinanceController::class, 'productCommissions'])
+        ->name('finance.product-commissions');
     Route::get('finance/cash', [FinanceController::class, 'cash'])
         ->name('finance.cash');
     Route::post('finance/cash/open', [FinanceController::class, 'openCash'])

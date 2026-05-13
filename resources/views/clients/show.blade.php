@@ -56,6 +56,64 @@
             </article>
         </section>
 
+        @if (isset($clientRecommendations) && $clientRecommendations->isNotEmpty())
+            @include('partials.client-opportunities', [
+                'recommendations' => $clientRecommendations,
+                'title' => 'Oportunidades ativas',
+                'subtitle' => 'Itens que entraram no prazo de recompra ou retorno.',
+            ])
+        @endif
+
+        @if (isset($commercialHistories) && $commercialHistories->isNotEmpty())
+            <article class="sf-card overflow-hidden">
+                <div class="border-b border-white/10 px-5 py-4">
+                    <h3 class="text-lg font-semibold text-white">Histórico comercial</h3>
+                    <p class="mt-1 text-sm text-[#c7d2e3]">Produtos comprados e serviços realizados pelo cliente.</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-white/10">
+                        <thead class="bg-[#132746]">
+                            <tr>
+                                <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Data</th>
+                                <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Item</th>
+                                <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Tipo</th>
+                                <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Profissional</th>
+                                <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Próxima previsão</th>
+                                <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/10">
+                            @foreach ($commercialHistories as $history)
+                                @php
+                                    $typeLabel = $history->item_type === 'product' ? 'Produto' : 'Serviço';
+                                    $isCanceled = $history->isCanceled();
+                                @endphp
+                                <tr class="transition hover:bg-white/5">
+                                    <td class="px-5 py-3 text-sm text-white">{{ $history->occurred_at?->format('d/m/Y H:i') ?? '-' }}</td>
+                                    <td class="px-5 py-3 text-sm text-[#c7d2e3]">
+                                        {{ $history->item_name_snapshot }}
+                                        @if ($isCanceled)
+                                            <span class="ml-2 inline-flex rounded-full border border-rose-400/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-200">Cancelado</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-5 py-3 text-sm text-[#c7d2e3]">{{ $typeLabel }}</td>
+                                    <td class="px-5 py-3 text-sm text-[#c7d2e3]">{{ $history->professional?->name ?? '-' }}</td>
+                                    <td class="px-5 py-3 text-sm text-[#c7d2e3]">
+                                        {{ $history->next_recommendation_date?->format('d/m/Y') ?? '-' }}
+                                    </td>
+                                    <td class="px-5 py-3 text-sm font-semibold text-white">
+                                        {{ $history->total_amount_snapshot !== null
+                                            ? 'R$ '.number_format((float) $history->total_amount_snapshot, 2, ',', '.')
+                                            : '-' }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        @endif
+
         <section class="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
             <div class="space-y-6">
                 <article class="sf-card overflow-hidden">

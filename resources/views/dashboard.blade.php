@@ -148,6 +148,49 @@
             <section class="sf-card overflow-hidden">
                 <div class="flex flex-col gap-2 border-b border-white/10 px-6 py-5 sm:flex-row sm:items-end sm:justify-between">
                     <div>
+                        <h3 class="text-base font-semibold text-white">Ranking de vendas de produtos · {{ $rankingMonthLabel }}</h3>
+                        <p class="mt-1 text-sm text-[#c7d2e3]">Top vendedores do mês com comissões acumuladas.</p>
+                    </div>
+                    <a href="{{ route('finance.product-commissions') }}" class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37] hover:text-[#e3bf4a]">Ver relatório completo</a>
+                </div>
+
+                @if ($sellerRanking->isEmpty())
+                    <div class="px-6 py-10 text-sm text-[#c7d2e3]">
+                        Nenhuma venda comissionada registrada no mês corrente.
+                    </div>
+                @else
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-white/10">
+                            <thead class="bg-[#132746]">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">#</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Vendedor</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Itens</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Vendido</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Comissão</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white/8 bg-[#223d69]">
+                                @foreach ($sellerRanking as $index => $row)
+                                    <tr class="transition hover:bg-white/[0.03]">
+                                        <td class="px-6 py-3 text-sm font-mono text-[#d4af37]">{{ $index + 1 }}º</td>
+                                        <td class="px-6 py-3 text-sm font-semibold text-white">{{ $row->user_name }}</td>
+                                        <td class="px-6 py-3 text-right text-sm tabular-nums text-[#c7d2e3]">{{ (int) $row->items_total }}</td>
+                                        <td class="px-6 py-3 text-right text-sm tabular-nums text-white">R$ {{ number_format((float) $row->gross_total, 2, ',', '.') }}</td>
+                                        <td class="px-6 py-3 text-right text-sm font-semibold text-emerald-200">R$ {{ number_format((float) $row->commission_total, 2, ',', '.') }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </section>
+        </section>
+
+        <section class="grid gap-6 xl:grid-cols-[minmax(0,1fr)]">
+            <section class="sf-card overflow-hidden">
+                <div class="flex flex-col gap-2 border-b border-white/10 px-6 py-5 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
                         <h3 class="text-base font-semibold text-white">Últimos agendamentos do dia</h3>
                         <p class="mt-1 text-sm text-[#c7d2e3]">Acompanhe a movimentação mais recente da agenda de hoje.</p>
                     </div>

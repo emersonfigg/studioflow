@@ -17,6 +17,20 @@ class Product extends Model
      *
      * @var list<string>
      */
+    public const COMMISSION_TYPE_FIXED = 'fixed';
+
+    public const COMMISSION_TYPE_PERCENTAGE = 'percentage';
+
+    /**
+     * Allowed commission type values.
+     *
+     * @var list<string>
+     */
+    public const COMMISSION_TYPES = [
+        self::COMMISSION_TYPE_FIXED,
+        self::COMMISSION_TYPE_PERCENTAGE,
+    ];
+
     protected $fillable = [
         'company_id',
         'name',
@@ -26,6 +40,9 @@ class Product extends Model
         'price',
         'stock_quantity',
         'active',
+        'commission_type',
+        'commission_value',
+        'recommended_repurchase_days',
     ];
 
     /**
@@ -39,7 +56,21 @@ class Product extends Model
             'price' => 'decimal:2',
             'stock_quantity' => 'integer',
             'active' => 'boolean',
+            'commission_value' => 'decimal:2',
+            'recommended_repurchase_days' => 'integer',
         ];
+    }
+
+    /**
+     * Determine whether the product is configured to generate commissions for sellers.
+     */
+    public function hasCommission(): bool
+    {
+        if (! in_array($this->commission_type, self::COMMISSION_TYPES, true)) {
+            return false;
+        }
+
+        return $this->commission_value !== null && (float) $this->commission_value > 0;
     }
 
     /**

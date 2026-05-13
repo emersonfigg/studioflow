@@ -7,7 +7,9 @@ use App\Models\CashMovement;
 use App\Models\CashRegister;
 use App\Models\CommissionSettlement;
 use App\Models\Payment;
+use App\Models\Product;
 use App\Models\ProductSale;
+use App\Models\ProductSaleItem;
 use App\Models\ServiceOrder;
 use App\Models\ServiceOrderItem;
 use App\Models\User;
@@ -398,6 +400,92 @@ class FinanceController extends Controller
             'periodLabel' => $periodLabel,
             'metrics' => $metrics,
             'page' => 'performance',
+        ]);
+    }
+
+    /**
+     * Display product commissions per seller, with filters and grouping options.
+     */
+    public function productCommissions(Request $request): View
+    {
+        [$from, $to, $selectedUserId, $users] = $this->baseFilters($request);
+        $companyId = (int) $request->user()->company_id;
+        $selectedProductId = $request->integer('product_id') ?: null;
+        $groupBy = in_array($request->string('group_by')->value(), ['seller', 'product'], true)
+            ? $request->string('group_by')->value()
+            : 'detail';
+
+        $items = ProductSaleItem::query()
+            ->with(['product', 'seller', 'sale.client'])
+            ->select('product_sale_items.*')
+            ->join('product_sales', 'product_sales.id', '=', 'product_sale_items.product_sale_id')
+            ->where('product_sales.company_id', $companyId)
+            ->whereBetween('product_sales.sold_at', [$from, $to])
+            ->when($selectedUserId !== null, fn ($query) => $query->where('product_sale_items.seller_id', $selectedUserId))
+            ->when($selectedProductId !== null, fn ($query) => $query->where('product_sale_items.product_id', $selectedProductId))
+            ->orderByDesc('product_sales.sold_at')
+            ->orderBy('product_sale_items.id')
+            ->get();
+
+        $commissionItems = $items->filter(fn (ProductSaleItem $item): bool => (float) $item->commission_amount > 0)->values();
+
+        $totalGrossCommissioned = (float) $commissionItems->sum(fn (ProductSaleItem $item) => (float) $item->total_price);
+        $totalCommission = (float) $commissionItems->sum(fn (ProductSaleItem $item) => (float) $item->commission_amount);
+        $totalQuantity = (int) $commissionItems->sum(fn (ProductSaleItem $item) => (int) $item->quantity);
+
+        $byUserTotals = $commissionItems
+            ->groupBy('seller_id')
+            ->map(function (\Illuminate\Support\Collection $group): array {
+                $first = $group->first();
+
+                return [
+                    'seller' => $first?->seller,
+                    'quantity' => (int) $group->sum(fn (ProductSaleItem $item) => (int) $item->quantity),
+                    'gross' => (float) $group->sum(fn (ProductSaleItem $item) => (float) $item->total_price),
+                    'commission' => (float) $group->sum(fn (ProductSaleItem $item) => (float) $item->commission_amount),
+                ];
+            })
+            ->values();
+
+        $topSellerRow = $byUserTotals->sortByDesc('commission')->first();
+
+        $byProductTotals = $commissionItems
+            ->groupBy('product_id')
+            ->map(function (\Illuminate\Support\Collection $group): array {
+                $first = $group->first();
+
+                return [
+                    'product' => $first?->product,
+                    'quantity' => (int) $group->sum(fn (ProductSaleItem $item) => (int) $item->quantity),
+                    'gross' => (float) $group->sum(fn (ProductSaleItem $item) => (float) $item->total_price),
+                    'commission' => (float) $group->sum(fn (ProductSaleItem $item) => (float) $item->commission_amount),
+                ];
+            })
+            ->sortByDesc('commission')
+            ->values();
+
+        $products = Product::query()
+            ->where('company_id', $companyId)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('finance.product-commissions', [
+            'from' => $from,
+            'to' => $to,
+            'users' => $users,
+            'selectedUserId' => $selectedUserId,
+            'canFilterProfessionals' => $request->user()->isAdmin(),
+            'products' => $products,
+            'selectedProductId' => $selectedProductId,
+            'groupBy' => $groupBy,
+            'items' => $commissionItems,
+            'totalGrossCommissioned' => $totalGrossCommissioned,
+            'totalCommission' => $totalCommission,
+            'totalQuantity' => $totalQuantity,
+            'byUserTotals' => $byUserTotals->sortByDesc('commission')->values(),
+            'byProductTotals' => $byProductTotals,
+            'topSeller' => $topSellerRow,
+            'page' => 'product-commissions',
         ]);
     }
 

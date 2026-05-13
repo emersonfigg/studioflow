@@ -28,18 +28,24 @@ class StoreServiceRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:5000'],
+            'description' => ['nullable', 'string', 'max:500'],
             'duration_minutes' => ['required', 'integer', 'min:1'],
             'price' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
             'active' => ['nullable', 'boolean'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'library_image' => ['nullable', 'string', Rule::in($this->availableLibraryImages())],
+            'recommended_return_days' => ['nullable', 'integer', 'min:1', 'max:730'],
         ];
     }
 
     protected function prepareForValidation(): void
     {
         $this->normalizeCurrencyFields(['price']);
+
+        $returnDays = $this->input('recommended_return_days');
+        if ($returnDays === '' || $returnDays === '0' || $returnDays === 0) {
+            $this->merge(['recommended_return_days' => null]);
+        }
     }
 
     /**

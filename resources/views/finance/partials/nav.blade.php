@@ -9,6 +9,9 @@
         <a href="{{ route('finance.commissions', request()->query()) }}" class="{{ $page === 'commissions' ? 'border-[#d4af37]/25 bg-[#d4af37]/12 text-white' : 'border-transparent text-[#c7d2e3] hover:border-white/10 hover:bg-white/5 hover:text-white' }} inline-flex items-center rounded-2xl border px-4 py-3 text-sm font-medium transition">
             Comissões
         </a>
+        <a href="{{ route('finance.product-commissions', request()->query()) }}" class="{{ $page === 'product-commissions' ? 'border-[#d4af37]/25 bg-[#d4af37]/12 text-white' : 'border-transparent text-[#c7d2e3] hover:border-white/10 hover:bg-white/5 hover:text-white' }} inline-flex items-center rounded-2xl border px-4 py-3 text-sm font-medium transition">
+            Comissões de produtos
+        </a>
         <a href="{{ route('finance.cash', request()->query()) }}" class="{{ $page === 'cash' ? 'border-[#d4af37]/25 bg-[#d4af37]/12 text-white' : 'border-transparent text-[#c7d2e3] hover:border-white/10 hover:bg-white/5 hover:text-white' }} inline-flex items-center rounded-2xl border px-4 py-3 text-sm font-medium transition">
             Caixa diário
         </a>

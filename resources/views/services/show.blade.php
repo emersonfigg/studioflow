@@ -84,7 +84,7 @@
                             Serviço completo
                         </div>
                         <h3 class="mt-4 text-2xl font-semibold text-white">{{ $service->name }}</h3>
-                        <p class="mt-2 max-w-2xl text-sm leading-7 text-[#c7d2e3]">
+                        <p class="mt-2 max-w-2xl whitespace-pre-line text-sm leading-7 text-[#c7d2e3]">
                             @if (filled($service->description))
                                 {{ $service->description }}
                             @else

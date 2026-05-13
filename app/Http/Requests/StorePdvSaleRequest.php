@@ -46,6 +46,7 @@ class StorePdvSaleRequest extends FormRequest
             'items' => ['nullable', 'array'],
             'items.*.product_id' => ['required', 'integer'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.seller_id' => ['nullable', 'integer'],
         ];
     }
 
@@ -142,6 +143,44 @@ class StorePdvSaleRequest extends FormRequest
                 }
             }
 
+            $rawItems = collect($this->input('items', []));
+            $sellerIds = $rawItems->pluck('seller_id')->filter()->unique()->values();
+            if ($sellerIds->isNotEmpty()) {
+                $validSellerIds = \App\Models\User::query()
+                    ->where('company_id', $companyId)
+                    ->where('active', true)
+                    ->whereIn('id', $sellerIds)
+                    ->pluck('id');
+
+                if ($validSellerIds->count() !== $sellerIds->count()) {
+                    $validator->errors()->add('items', 'Um ou mais vendedores sao invalidos para sua empresa.');
+                }
+            }
+
+            if ($productIds->isNotEmpty()) {
+                $commissionProducts = Product::query()
+                    ->where('company_id', $companyId)
+                    ->whereIn('id', $productIds)
+                    ->whereNotNull('commission_type')
+                    ->where('commission_value', '>', 0)
+                    ->pluck('id')
+                    ->all();
+
+                if ($commissionProducts !== []) {
+                    foreach ($rawItems as $item) {
+                        $productId = (int) ($item['product_id'] ?? 0);
+                        if ($productId === 0 || ! in_array($productId, $commissionProducts, true)) {
+                            continue;
+                        }
+
+                        if (empty($item['seller_id'])) {
+                            $validator->errors()->add('items', 'Selecione o vendedor responsavel para produtos com comissao.');
+                            break;
+                        }
+                    }
+                }
+            }
+
             if ($serviceIds->isEmpty() && $productIds->isEmpty() && ! $this->filled('appointment_id')) {
                 $validator->errors()->add('items', 'Adicione ao menos um servico ou produto.');
             }
@@ -221,6 +260,7 @@ class StorePdvSaleRequest extends FormRequest
                 ->map(fn (array $row): array => [
                     'product_id' => (int) $row['product_id'],
                     'quantity' => max(1, (int) $row['quantity']),
+                    'seller_id' => ! empty($row['seller_id']) ? (int) $row['seller_id'] : null,
                 ])
                 ->values()
                 ->all(),

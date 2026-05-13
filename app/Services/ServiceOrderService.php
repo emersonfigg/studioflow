@@ -18,6 +18,8 @@ class ServiceOrderService
 {
     public function __construct(
         private readonly CashRegisterService $cashRegisterService,
+        private readonly ProductCommissionCalculator $productCommissionCalculator,
+        private readonly ClientCommercialHistoryService $commercialHistoryService,
     ) {}
 
     public function ensureForAppointment(Appointment $appointment): ServiceOrder
@@ -68,10 +70,20 @@ class ServiceOrderService
         return $this->recalculate($order);
     }
 
-    public function addProduct(ServiceOrder $order, Product $product, int $quantity): ServiceOrder
+    public function addProduct(ServiceOrder $order, Product $product, int $quantity, ?User $seller = null): ServiceOrder
     {
         $this->ensureOpen($order);
         abort_unless($product->company_id === $order->company_id, 404);
+
+        if ($seller) {
+            abort_unless($seller->company_id === $order->company_id, 404);
+        }
+
+        if (! $seller && $product->hasCommission()) {
+            throw ValidationException::withMessages([
+                'seller_id' => 'Informe o vendedor responsavel para produtos com comissao.',
+            ]);
+        }
 
         $quantity = max(1, $quantity);
         $alreadyInOrder = (int) $order->items()
@@ -88,6 +100,7 @@ class ServiceOrderService
         $order->items()->create([
             'type' => ServiceOrderItem::TYPE_PRODUCT,
             'product_id' => $product->id,
+            'seller_id' => $seller?->id,
             'description' => $product->name,
             'quantity' => $quantity,
             'unit_price' => $product->price,
@@ -224,6 +237,14 @@ class ServiceOrderService
             $appointment?->update(['status' => 'completed']);
 
             if ($productItems->isNotEmpty()) {
+                foreach ($productItems as $item) {
+                    if ($item->product && $item->product->hasCommission() && empty($item->seller_id)) {
+                        throw ValidationException::withMessages([
+                            'seller_id' => 'Informe o vendedor responsavel pelos produtos com comissao antes de fechar a venda.',
+                        ]);
+                    }
+                }
+
                 $sale = ProductSale::create([
                     'company_id' => $lockedOrder->company_id,
                     'client_id' => $lockedOrder->client_id,
@@ -236,12 +257,36 @@ class ServiceOrderService
                     'notes' => $notes,
                 ]);
 
+                $productEffectiveRatio = $productSubtotal > 0
+                    ? ($productChargeAmount / $productSubtotal)
+                    : 0.0;
+
                 foreach ($productItems as $item) {
+                    $effectiveSubtotal = round((float) $item->total_price * $productEffectiveRatio, 2);
+
+                    $commission = $item->product
+                        ? $this->productCommissionCalculator->calculate(
+                            $item->product,
+                            (int) $item->quantity,
+                            $effectiveSubtotal,
+                        )
+                        : ['type' => null, 'value' => null, 'amount' => 0.0];
+
+                    if ($commission['amount'] > 0 && empty($item->seller_id)) {
+                        throw ValidationException::withMessages([
+                            'seller_id' => 'Informe o vendedor responsavel pelos produtos com comissao antes de fechar a venda.',
+                        ]);
+                    }
+
                     $sale->items()->create([
                         'product_id' => $item->product_id,
+                        'seller_id' => $item->seller_id,
                         'quantity' => $item->quantity,
                         'unit_price' => $item->unit_price,
                         'total_price' => $item->total_price,
+                        'commission_type_snapshot' => $commission['type'],
+                        'commission_value_snapshot' => $commission['value'],
+                        'commission_amount' => $commission['amount'],
                     ]);
 
                     $item->product->decrement('stock_quantity', $item->quantity);
@@ -250,6 +295,8 @@ class ServiceOrderService
                 if ($productChargeAmount > 0) {
                     $this->cashRegisterService->recordProductSale($sale->load('client'));
                 }
+
+                $this->commercialHistoryService->recordProductSale($sale, $lockedOrder);
             }
 
             $lockedOrder->update([
@@ -260,6 +307,11 @@ class ServiceOrderService
             $lockedOrder->client?->update([
                 'last_visit_at' => $closedAt,
             ]);
+
+            $this->commercialHistoryService->recordServiceOrderServices(
+                $lockedOrder->loadMissing(['items.service', 'appointment']),
+                $closedAt,
+            );
 
             return $payment;
         });

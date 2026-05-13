@@ -3,7 +3,10 @@
 namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\NormalizesBrazilianCurrency;
+use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreProductRequest extends FormRequest
 {
@@ -28,11 +31,49 @@ class StoreProductRequest extends FormRequest
             'price' => ['required', 'numeric', 'min:0.01'],
             'stock_quantity' => ['required', 'integer', 'min:0', 'max:999999'],
             'active' => ['nullable', 'boolean'],
+            'commission_type' => ['nullable', Rule::in(Product::COMMISSION_TYPES)],
+            'commission_value' => ['nullable', 'numeric', 'min:0'],
+            'recommended_repurchase_days' => ['nullable', 'integer', 'min:1', 'max:730'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $type = $this->input('commission_type');
+            $rawValue = $this->input('commission_value');
+            $value = $rawValue === null || $rawValue === '' ? null : (float) $rawValue;
+
+            if ($type === Product::COMMISSION_TYPE_PERCENTAGE && $value !== null && $value > 100) {
+                $validator->errors()->add('commission_value', 'O percentual de comissao nao pode ser maior que 100%.');
+            }
+
+            if ($type !== null && $type !== '' && ($value === null || $value <= 0)) {
+                $validator->errors()->add('commission_value', 'Informe um valor de comissao maior que zero ou selecione "Sem comissao".');
+            }
+        });
     }
 
     protected function prepareForValidation(): void
     {
-        $this->normalizeCurrencyFields(['price']);
+        $this->normalizeCurrencyFields(['price', 'commission_value']);
+
+        $type = $this->input('commission_type');
+        if ($type === '' || $type === 'none') {
+            $this->merge([
+                'commission_type' => null,
+                'commission_value' => null,
+            ]);
+        }
+
+        $value = $this->input('commission_value');
+        if ($this->input('commission_type') === null && ($value === '' || $value === null)) {
+            $this->merge(['commission_value' => null]);
+        }
+
+        $repurchase = $this->input('recommended_repurchase_days');
+        if ($repurchase === '' || $repurchase === '0' || $repurchase === 0) {
+            $this->merge(['recommended_repurchase_days' => null]);
+        }
     }
 }

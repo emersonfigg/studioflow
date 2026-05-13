@@ -19,6 +19,8 @@ class ProductSaleService
     public function __construct(
         private readonly CashRegisterService $cashRegisterService,
         private readonly ServiceOrderService $serviceOrderService,
+        private readonly ProductCommissionCalculator $productCommissionCalculator,
+        private readonly ClientCommercialHistoryService $commercialHistoryService,
     ) {}
 
     /**
@@ -79,6 +81,40 @@ class ProductSaleService
                 }
             }
 
+            $sellerCache = [];
+            $resolveSeller = function (?int $sellerId) use (&$sellerCache, $companyId): ?User {
+                if (! $sellerId) {
+                    return null;
+                }
+                if (! array_key_exists($sellerId, $sellerCache)) {
+                    $sellerCache[$sellerId] = User::query()
+                        ->where('company_id', $companyId)
+                        ->where('active', true)
+                        ->find($sellerId);
+                }
+
+                if (! $sellerCache[$sellerId]) {
+                    throw ValidationException::withMessages([
+                        'items' => 'Vendedor invalido para sua empresa.',
+                    ]);
+                }
+
+                return $sellerCache[$sellerId];
+            };
+
+            foreach ($data['items'] as $item) {
+                /** @var Product|null $product */
+                $product = $products->get($item['product_id']);
+                if ($product && $product->hasCommission() && empty($item['seller_id'])) {
+                    throw ValidationException::withMessages([
+                        'items' => 'Selecione o vendedor responsavel para produtos com comissao.',
+                    ]);
+                }
+                if (! empty($item['seller_id'])) {
+                    $resolveSeller((int) $item['seller_id']);
+                }
+            }
+
             $sale = ProductSale::create([
                 'company_id' => $companyId,
                 'client_id' => $client->id,
@@ -93,15 +129,23 @@ class ProductSaleService
             foreach ($data['items'] as $index => $item) {
                 /** @var Product $product */
                 $product = $products->get($item['product_id']);
+                $quantity = (int) $item['quantity'];
+                $totalPrice = round((float) $product->price * $quantity, 2);
+                $sellerId = ! empty($item['seller_id']) ? (int) $item['seller_id'] : null;
+                $commission = $this->productCommissionCalculator->calculate($product, $quantity, $totalPrice);
 
                 $sale->items()->create([
                     'product_id' => $product->id,
-                    'quantity' => (int) $item['quantity'],
+                    'seller_id' => $sellerId,
+                    'quantity' => $quantity,
                     'unit_price' => $product->price,
-                    'total_price' => round((float) $product->price * (int) $item['quantity'], 2),
+                    'total_price' => $totalPrice,
+                    'commission_type_snapshot' => $commission['type'],
+                    'commission_value_snapshot' => $commission['value'],
+                    'commission_amount' => $commission['amount'],
                 ]);
 
-                $product->decrement('stock_quantity', (int) $item['quantity']);
+                $product->decrement('stock_quantity', $quantity);
             }
 
             $client->update([
@@ -109,6 +153,8 @@ class ProductSaleService
             ]);
 
             $this->cashRegisterService->recordProductSale($sale->load('client'));
+
+            $this->commercialHistoryService->recordProductSale($sale->load(['items.product']));
 
             return $sale->load(['client', 'user', 'items.product']);
         });
@@ -237,7 +283,25 @@ class ProductSaleService
                     ->where('active', true)
                     ->findOrFail($item['product_id']);
 
-                $this->serviceOrderService->addProduct($order, $product, (int) $item['quantity']);
+                $seller = null;
+                if (! empty($item['seller_id'])) {
+                    $seller = User::query()
+                        ->where('company_id', $companyId)
+                        ->where('active', true)
+                        ->find((int) $item['seller_id']);
+
+                    if (! $seller) {
+                        throw ValidationException::withMessages([
+                            'items' => 'Vendedor invalido para sua empresa.',
+                        ]);
+                    }
+                }
+
+                if (! $seller && $product->hasCommission()) {
+                    $seller = $professional;
+                }
+
+                $this->serviceOrderService->addProduct($order, $product, (int) $item['quantity'], $seller);
             }
 
             $order = $order->fresh(['items.service', 'items.product']);
@@ -264,7 +328,7 @@ class ProductSaleService
     /**
      * Register a product sale during appointment conclusion.
      *
-     * @param  array<int, array{product_id:int, quantity:int}>  $items
+     * @param  array<int, array{product_id:int, quantity:int, seller_id?:int|null}>  $items
      */
     public function registerForAppointment(
         User $actor,
@@ -273,6 +337,13 @@ class ProductSaleService
         string $paymentMethod,
         ?string $notes = null,
     ): ProductSale {
+        $defaultSellerId = $appointment->user_id;
+        $items = collect($items)->map(function (array $item) use ($defaultSellerId): array {
+            $item['seller_id'] = $item['seller_id'] ?? $defaultSellerId;
+
+            return $item;
+        })->all();
+
         return $this->register($actor, [
             'client_id' => $appointment->client_id,
             'appointment_id' => $appointment->id,

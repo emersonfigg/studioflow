@@ -35,6 +35,7 @@ class StoreProductSaleRequest extends FormRequest
             'items' => ['nullable', 'array'],
             'items.*.product_id' => ['required', 'integer'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.seller_id' => ['nullable', 'integer'],
         ];
     }
 
@@ -118,7 +119,7 @@ class StoreProductSaleRequest extends FormRequest
                 ->where('company_id', $companyId)
                 ->where('active', true)
                 ->whereIn('id', $productIds)
-                ->get(['id', 'stock_quantity'])
+                ->get(['id', 'stock_quantity', 'commission_type', 'commission_value'])
                 ->keyBy('id');
 
             collect($this->input('items', []))
@@ -131,6 +132,28 @@ class StoreProductSaleRequest extends FormRequest
                         $validator->errors()->add('items', 'Estoque insuficiente para um ou mais produtos selecionados.');
                     }
                 });
+
+            $rawItems = collect($this->input('items', []));
+            $sellerIds = $rawItems->pluck('seller_id')->filter()->unique()->values();
+            if ($sellerIds->isNotEmpty()) {
+                $validSellers = \App\Models\User::query()
+                    ->where('company_id', $companyId)
+                    ->where('active', true)
+                    ->whereIn('id', $sellerIds)
+                    ->pluck('id');
+                if ($validSellers->count() !== $sellerIds->count()) {
+                    $validator->errors()->add('items', 'Um ou mais vendedores sao invalidos para sua empresa.');
+                }
+            }
+
+            foreach ($rawItems as $item) {
+                $productId = (int) ($item['product_id'] ?? 0);
+                $product = $products->get($productId);
+                if ($product && $product->hasCommission() && empty($item['seller_id'])) {
+                    $validator->errors()->add('items', 'Selecione o vendedor responsavel para produtos com comissao.');
+                    break;
+                }
+            }
         });
     }
 }

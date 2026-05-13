@@ -20,6 +20,7 @@ class ServiceOrderItem extends Model
         'service_id',
         'product_id',
         'professional_id',
+        'seller_id',
         'description',
         'quantity',
         'unit_price',
@@ -53,5 +54,10 @@ class ServiceOrderItem extends Model
     public function professional(): BelongsTo
     {
         return $this->belongsTo(User::class, 'professional_id');
+    }
+
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'seller_id');
     }
 }

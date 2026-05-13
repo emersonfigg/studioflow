@@ -89,7 +89,7 @@
                             </div>
                             <h3 class="mt-4 truncate text-xl font-semibold text-white">{{ $service->name }}</h3>
                             @if (filled($service->description))
-                                <p class="mt-2 line-clamp-3 text-sm leading-relaxed text-[#c7d2e3]">{{ $service->description }}</p>
+                                <p class="mt-2 line-clamp-3 whitespace-pre-line text-sm leading-relaxed text-[#c7d2e3]">{{ $service->description }}</p>
                             @else
                                 <p class="mt-2 text-sm text-[#c7d2e3]">Duração operacional e valor comercial sempre visíveis para sua equipe.</p>
                             @endif

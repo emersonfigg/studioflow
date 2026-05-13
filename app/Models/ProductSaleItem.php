@@ -18,9 +18,13 @@ class ProductSaleItem extends Model
     protected $fillable = [
         'product_sale_id',
         'product_id',
+        'seller_id',
         'quantity',
         'unit_price',
         'total_price',
+        'commission_type_snapshot',
+        'commission_value_snapshot',
+        'commission_amount',
     ];
 
     /**
@@ -31,6 +35,8 @@ class ProductSaleItem extends Model
         return [
             'unit_price' => 'decimal:2',
             'total_price' => 'decimal:2',
+            'commission_value_snapshot' => 'decimal:2',
+            'commission_amount' => 'decimal:2',
         ];
     }
 
@@ -48,5 +54,15 @@ class ProductSaleItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * The team member credited with the sale for commission purposes.
+     *
+     * @return BelongsTo<User, ProductSaleItem>
+     */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'seller_id');
     }
 }

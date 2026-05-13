@@ -28,6 +28,7 @@ class Service extends Model
         'price',
         'active',
         'image_path',
+        'recommended_return_days',
     ];
 
     /**
@@ -40,6 +41,7 @@ class Service extends Model
         return [
             'price' => 'decimal:2',
             'active' => 'boolean',
+            'recommended_return_days' => 'integer',
         ];
     }
 
