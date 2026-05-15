@@ -2,17 +2,25 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\AdjustProductStockRequest;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
 use App\Models\Product;
 use App\Models\ProductSaleItem;
+use App\Models\StockMovement;
+use App\Services\StockService;
 use App\Support\MediaStorage;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
+    public function __construct(
+        private readonly StockService $stockService,
+    ) {}
+
     /**
      * Display company products and recent sales highlights.
      */
@@ -25,6 +33,8 @@ class ProductController extends Controller
             ->orderBy('name')
             ->paginate(12);
 
+        $lowStockProducts = $this->stockService->getLowStockProducts((int) $companyId);
+
         $recentSaleItems = ProductSaleItem::query()
             ->with(['sale.client', 'product'])
             ->whereHas('sale', fn ($query) => $query->where('company_id', $companyId))
@@ -34,17 +44,64 @@ class ProductController extends Controller
 
         return view('products.index', [
             'products' => $products,
+            'lowStockProducts' => $lowStockProducts,
             'activeProductsCount' => Product::query()->where('company_id', $companyId)->where('active', true)->count(),
             'averagePrice' => (float) (Product::query()->where('company_id', $companyId)->avg('price') ?? 0),
             'soldItemsCount' => (int) ProductSaleItem::query()
                 ->whereHas('sale', fn ($query) => $query->where('company_id', $companyId))
                 ->sum('quantity'),
-            'stockTotal' => (int) Product::query()->where('company_id', $companyId)->sum('stock_quantity'),
+            'stockTotal' => (float) Product::query()->where('company_id', $companyId)->sum('stock_quantity'),
             'inventoryRevenue' => (float) (ProductSaleItem::query()
                 ->whereHas('sale', fn ($query) => $query->where('company_id', $companyId))
                 ->sum('total_price') ?? 0),
             'recentSaleItems' => $recentSaleItems,
         ]);
+    }
+
+    /**
+     * Display product detail, stock movements and adjustment form.
+     */
+    public function show(Request $request, Product $product): View
+    {
+        $this->ensureProductBelongsToCompany($request, $product);
+
+        $movements = StockMovement::query()
+            ->where('company_id', $product->company_id)
+            ->where('product_id', $product->id)
+            ->with('user')
+            ->latest('occurred_at')
+            ->latest('id')
+            ->paginate(25);
+
+        return view('products.show', [
+            'product' => $product,
+            'movements' => $movements,
+        ]);
+    }
+
+    /**
+     * Adjust stock to an absolute quantity (recorded as adjustment movement).
+     */
+    public function adjustStock(AdjustProductStockRequest $request, Product $product): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $this->ensureProductBelongsToCompany($request, $product);
+
+        $data = $request->validated();
+        $reason = trim((string) ($data['reason'] ?? '')) ?: 'Ajuste manual de estoque';
+
+        DB::transaction(function () use ($product, $data, $reason, $request): void {
+            $this->stockService->adjust(
+                $product,
+                (float) $data['stock_quantity'],
+                $reason,
+                $request->user(),
+            );
+        });
+
+        return redirect()
+            ->route('products.show', $product)
+            ->with('status', 'stock-adjusted');
     }
 
     /**

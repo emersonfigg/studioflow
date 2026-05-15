@@ -9,7 +9,9 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Service;
 use App\Models\ServiceOrder;
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -127,6 +129,8 @@ class StorePdvSaleRequest extends FormRequest
                 }
             }
 
+            $rawItems = collect($this->input('items', []));
+
             $productIds = collect($this->input('items', []))
                 ->pluck('product_id')
                 ->filter()
@@ -140,13 +144,36 @@ class StorePdvSaleRequest extends FormRequest
                     ->count();
                 if ($valid !== $productIds->count()) {
                     $validator->errors()->add('items', 'Um ou mais produtos sao invalidos.');
+                } else {
+                    $productsForStock = Product::query()
+                        ->where('company_id', $companyId)
+                        ->whereIn('id', $productIds)
+                        ->get()
+                        ->keyBy('id');
+
+                    $grouped = $rawItems->groupBy('product_id');
+
+                    foreach ($grouped as $productId => $lines) {
+                        /** @var Product|null $product */
+                        $product = $productsForStock->get((int) $productId);
+
+                        if (! $product || ! $product->tracksStock()) {
+                            continue;
+                        }
+
+                        $needed = $lines->sum(fn (array $row): int => max(1, (int) ($row['quantity'] ?? 1)));
+
+                        if (round((float) $product->stock_quantity, 2) + 1e-6 < $needed) {
+                            $validator->errors()->add('items', 'Estoque insuficiente para um ou mais produtos selecionados.');
+                            break;
+                        }
+                    }
                 }
             }
 
-            $rawItems = collect($this->input('items', []));
             $sellerIds = $rawItems->pluck('seller_id')->filter()->unique()->values();
             if ($sellerIds->isNotEmpty()) {
-                $validSellerIds = \App\Models\User::query()
+                $validSellerIds = User::query()
                     ->where('company_id', $companyId)
                     ->where('active', true)
                     ->whereIn('id', $sellerIds)
@@ -296,8 +323,8 @@ class StorePdvSaleRequest extends FormRequest
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, int>  $serviceIds
-     * @param  \Illuminate\Support\Collection<int, int>  $productIds
+     * @param  Collection<int, int>  $serviceIds
+     * @param  Collection<int, int>  $productIds
      */
     private function resolveSubtotal(int $companyId, $serviceIds, $productIds): float
     {

@@ -2,9 +2,9 @@
     <x-slot name="header">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Produtos</p>
-                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">Editar produto</h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Ajuste preço, descrição e status comercial do item.</p>
+                <p class="text-sm font-semibold uppercase tracking-[0.18em] brand-text">Produtos</p>
+                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-[var(--text-main)]">Editar produto</h2>
+                <p class="mt-2 text-sm sf-text-muted">Ajuste preço, descrição e status comercial do item.</p>
             </div>
 
             <div class="flex flex-wrap gap-3">

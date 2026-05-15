@@ -10,7 +10,8 @@
     $productOptions = ($products ?? collect())->map(fn ($product) => [
         'id' => $product->id,
         'name' => $product->name,
-        'stock' => (int) $product->stock_quantity,
+        'stock' => (float) $product->stock_quantity,
+        'track_stock' => (bool) $product->track_stock,
         'price' => (float) $product->price,
         'label' => $product->name.' · R$ '.number_format((float) $product->price, 2, ',', '.').' · Estoque '.$product->stock_quantity,
         'needle' => strtolower($product->name),
@@ -38,6 +39,11 @@
         clientMessage: '',
         clientHistory: null,
         loadingHistory: false,
+        smartSlots: [],
+        smartSlotsLoading: false,
+        smartSlotsError: '',
+        smartSlotsUrl: @js($smartSlotsUrl ?? route('appointments.smart-slots')),
+        ignoreAppointmentId: @js($appointment->id ?? null),
         selectedServiceId: '',
         selectedProductId: '',
         selectedProductQuantity: 1,
@@ -61,6 +67,60 @@
         },
         money(value) {
             return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
+        },
+        async fetchSmartSlots() {
+            const startInput = document.getElementById('start_time');
+            const startVal = startInput?.value || '';
+            const userId = this.$refs.professionalSelect?.value || '';
+
+            if (! startVal || ! userId || this.selectedServiceIds.length === 0) {
+                this.smartSlots = [];
+                this.smartSlotsError = '';
+
+                return;
+            }
+
+            const date = startVal.slice(0, 10);
+            const params = new URLSearchParams();
+            params.set('user_id', userId);
+            params.set('date', date);
+            this.selectedServiceIds.forEach((id) => params.append('service_ids[]', String(id)));
+            if (this.ignoreAppointmentId) {
+                params.set('ignore_appointment_id', String(this.ignoreAppointmentId));
+            }
+
+            this.smartSlotsLoading = true;
+            this.smartSlotsError = '';
+
+            try {
+                const res = await fetch(`${this.smartSlotsUrl}?${params.toString()}`, {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+                if (! res.ok) {
+                    throw new Error('bad status');
+                }
+                const body = await res.json();
+                this.smartSlots = Array.isArray(body.slots) ? body.slots : [];
+            } catch (e) {
+                this.smartSlots = [];
+                this.smartSlotsError = 'Não foi possível carregar sugestões de horário.';
+            } finally {
+                this.smartSlotsLoading = false;
+            }
+        },
+        applySmartSlot(time) {
+            const startInput = document.getElementById('start_time');
+            if (! startInput) {
+                return;
+            }
+            const day = (startInput.value || '').slice(0, 10);
+            if (! day) {
+                return;
+            }
+            startInput.value = `${day}T${time}`;
+            startInput.dispatchEvent(new Event('input', { bubbles: true }));
+            startInput.dispatchEvent(new Event('change', { bubbles: true }));
         },
         serviceById(id) {
             return this.services.find((service) => String(service.id) === String(id));
@@ -155,6 +215,7 @@
             select.dispatchEvent(new Event('change', { bubbles: true }));
             this.pickedProfessionalLabel = row.label;
             this.professionalPickerQuery = '';
+            this.$nextTick(() => this.fetchSmartSlots());
         },
         addService() {
             if (! this.selectedServiceId || this.selectedServiceIds.includes(Number(this.selectedServiceId))) {
@@ -164,9 +225,11 @@
             this.selectedServiceIds.push(Number(this.selectedServiceId));
             this.selectedServiceId = '';
             this.servicePickerQuery = '';
+            this.$nextTick(() => this.fetchSmartSlots());
         },
         removeService(id) {
             this.selectedServiceIds = this.selectedServiceIds.filter((serviceId) => Number(serviceId) !== Number(id));
+            this.$nextTick(() => this.fetchSmartSlots());
         },
         addProduct() {
             const product = this.productById(this.selectedProductId);
@@ -179,9 +242,11 @@
             const existing = this.selectedProducts.find((item) => Number(item.product_id) === Number(product.id));
 
             if (existing) {
-                existing.quantity = Math.min(product.stock, Number(existing.quantity || 0) + quantity);
+                const maxQty = existing.product.track_stock ? Number(existing.product.stock || 0) : 999999;
+                existing.quantity = Math.min(maxQty, Number(existing.quantity || 0) + quantity);
             } else {
-                this.selectedProducts.push({ product_id: Number(product.id), quantity: Math.min(product.stock, quantity) });
+                const maxQty = product.track_stock ? Number(product.stock || 0) : 999999;
+                this.selectedProducts.push({ product_id: Number(product.id), quantity: Math.min(maxQty, quantity) });
             }
 
             this.selectedProductId = '';
@@ -331,6 +396,7 @@
             }
         },
     }"
+    x-init="$watch('selectedServiceIds', () => $nextTick(() => fetchSmartSlots())); $nextTick(() => fetchSmartSlots())"
     class="space-y-6"
 >
     <form method="POST" action="{{ $action }}" class="space-y-6">
@@ -359,12 +425,12 @@
                             <div
                                 x-cloak
                                 x-show="clientPickerQuery.trim().length > 0 && filteredClientRows.length > 0"
-                                class="max-h-52 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-[#132746] shadow-inner"
+                                class="max-h-52 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-[var(--input-bg)] shadow-inner"
                             >
                                 <template x-for="row in filteredClientRows" :key="row.id">
                                     <button
                                         type="button"
-                                        class="flex w-full flex-col border-b border-white/5 px-4 py-3 text-left text-sm text-white transition hover:bg-white/5 last:border-b-0"
+                                        class="flex w-full flex-col border-b border-white/5 px-4 py-3 text-left text-sm text-[var(--text-main)] transition hover:bg-white/5 last:border-b-0"
                                         x-on:click="pickClient(row)"
                                     >
                                         <span class="font-semibold" x-text="row.label"></span>
@@ -374,9 +440,9 @@
                             <p x-show="clientPickerQuery.trim().length > 0 && clientRows.length > 0 && filteredClientRows.length === 0" x-cloak class="rounded-xl border border-dashed border-white/15 px-4 py-3 text-sm text-rose-100/90">
                                 Nenhum cliente encontrado para esta busca.
                             </p>
-                            <p x-show="pickedClientLabel" class="text-sm text-[#c7d2e3]">
-                                <span class="font-semibold text-[#d4af37]">Selecionado:</span>
-                                <span x-text="pickedClientLabel" class="text-white"></span>
+                            <p x-show="pickedClientLabel" class="text-sm sf-text-muted">
+                                <span class="font-semibold brand-text">Selecionado:</span>
+                                <span x-text="pickedClientLabel" class="text-[var(--text-main)]"></span>
                             </p>
                             <select
                                 id="client_id"
@@ -396,27 +462,27 @@
                                 @endforeach
                             </select>
                             <x-input-error class="mt-2" :messages="$errors->get('client_id')" />
-                            <p x-show="clientMessage" x-text="clientMessage" class="mt-2 text-sm font-medium text-[#d4af37]"></p>
+                            <p x-show="clientMessage" x-text="clientMessage" class="mt-2 text-sm font-medium brand-text"></p>
                         </div>
 
                         <button
                             type="button"
                             x-on:click="openClientModal()"
-                            class="inline-flex items-center justify-center rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#f6e7b3] transition duration-150 hover:border-[#d4af37]/50 hover:bg-[#d4af37]/16"
+                            class="inline-flex items-center justify-center rounded-xl border border-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)] bg-[var(--brand-primary)]/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-main)] transition duration-150 hover:border-[color-mix(in_srgb,var(--brand-primary)_50%,transparent)] hover:bg-[var(--brand-primary)]/16"
                         >
                             + Novo cliente
                         </button>
                     </div>
                 </section>
 
-                <section class="sf-card p-5 transition @error('service_ids') ring-2 ring-rose-400/60 ring-offset-2 ring-offset-[#0f203b] @enderror">
+                <section class="sf-card p-5 transition @error('service_ids') ring-2 ring-rose-400/60 ring-offset-2 ring-offset-[var(--app-shell-bg)] @enderror">
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Serviços</p>
-                        <h3 class="mt-2 text-lg font-semibold text-white">Serviços do atendimento</h3>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Serviços</p>
+                        <h3 class="mt-2 text-lg font-semibold text-[var(--text-main)]">Serviços do atendimento</h3>
                     </div>
 
                     <div class="mt-5 space-y-3">
-                        <label for="service-picker-search" class="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Buscar serviço</label>
+                        <label for="service-picker-search" class="text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Buscar serviço</label>
                         <input
                             id="service-picker-search"
                             type="search"
@@ -428,26 +494,26 @@
                         <div
                             x-cloak
                             x-show="filteredServicesPicker.length > 0"
-                            class="max-h-52 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-[#132746]"
+                            class="max-h-52 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-[var(--input-bg)]"
                         >
                             <template x-for="service in filteredServicesPicker" :key="service.id">
                                 <button
                                     type="button"
                                     class="flex w-full flex-col border-b border-white/5 px-4 py-3 text-left transition last:border-b-0"
-                                    :class="String(selectedServiceId) === String(service.id) ? 'bg-[#d4af37]/15 ring-1 ring-inset ring-[#d4af37]/35' : 'hover:bg-white/5'"
+                                    :class="String(selectedServiceId) === String(service.id) ? 'bg-[var(--brand-primary)]/15 ring-1 ring-inset ring-[color-mix(in_srgb,var(--brand-primary)_35%,transparent)]' : 'hover:bg-white/5'"
                                     x-on:click="selectedServiceId = String(service.id)"
                                 >
-                                    <span class="text-sm font-semibold text-white" x-text="service.name"></span>
-                                    <span class="mt-1 text-xs text-[#c7d2e3]" x-text="service.label"></span>
+                                    <span class="text-sm font-semibold text-[var(--text-main)]" x-text="service.name"></span>
+                                    <span class="mt-1 text-xs sf-text-muted" x-text="service.label"></span>
                                 </button>
                             </template>
                         </div>
-                        <p x-show="servicePickerQuery.trim().length > 0 && services.length > 0 && filteredServicesPicker.length === 0" x-cloak class="rounded-xl border border-dashed border-white/15 px-4 py-3 text-sm text-[#c7d2e3]">
+                        <p x-show="servicePickerQuery.trim().length > 0 && services.length > 0 && filteredServicesPicker.length === 0" x-cloak class="rounded-xl border border-dashed border-white/15 px-4 py-3 text-sm sf-text-muted">
                             Nenhum serviço encontrado para este filtro.
                         </p>
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <p class="min-w-0 flex-1 text-sm text-[#c7d2e3]" x-show="selectedServiceId">
-                                <span class="font-semibold text-[#d4af37]">Pré-selecionado:</span>
+                            <p class="min-w-0 flex-1 text-sm sf-text-muted" x-show="selectedServiceId">
+                                <span class="font-semibold brand-text">Pré-selecionado:</span>
                                 <span x-text="serviceById(selectedServiceId)?.label || ''"></span>
                             </p>
                             <button type="button" x-on:click="addService()" class="sf-button-primary shrink-0">Adicionar serviço</button>
@@ -462,12 +528,12 @@
 
                     <div class="mt-4 space-y-3">
                         <template x-for="sid in selectedServiceIds" :key="String(sid)">
-                            <div class="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#132746] px-4 py-3">
+                            <div class="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[var(--input-bg)] px-4 py-3">
                                 <input type="hidden" name="service_ids[]" x-bind:value="sid">
                                 <div class="min-w-0 flex-1">
                                     <div x-show="serviceById(sid)">
-                                        <p class="text-sm font-semibold text-white" x-text="serviceById(sid) ? serviceById(sid).name : ''"></p>
-                                        <p class="mt-1 text-xs text-[#c7d2e3]">
+                                        <p class="text-sm font-semibold text-[var(--text-main)]" x-text="serviceById(sid) ? serviceById(sid).name : ''"></p>
+                                        <p class="mt-1 text-xs sf-text-muted">
                                             <span x-text="serviceById(sid) ? `${serviceById(sid).duration} min` : ''"></span>
                                             <span> · </span>
                                             <span x-text="serviceById(sid) ? money(serviceById(sid).price) : ''"></span>
@@ -479,7 +545,7 @@
                             </div>
                         </template>
 
-                        <div x-show="selectedServiceIds.length === 0" class="rounded-2xl border border-dashed border-white/15 px-4 py-5 text-sm text-[#c7d2e3]">
+                        <div x-show="selectedServiceIds.length === 0" class="rounded-2xl border border-dashed border-white/15 px-4 py-5 text-sm sf-text-muted">
                             Adicione pelo menos um serviço para calcular duração, valor e disponibilidade.
                         </div>
                     </div>
@@ -487,13 +553,13 @@
 
                 <section class="sf-card p-5">
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Produtos</p>
-                        <h3 class="mt-2 text-lg font-semibold text-white">Extras opcionais da comanda</h3>
-                        <p class="mt-1 text-sm text-[#c7d2e3]">Produtos entram na comanda, mas não alteram a duração do agendamento.</p>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Produtos</p>
+                        <h3 class="mt-2 text-lg font-semibold text-[var(--text-main)]">Extras opcionais da comanda</h3>
+                        <p class="mt-1 text-sm sf-text-muted">Produtos entram na comanda, mas não alteram a duração do agendamento.</p>
                     </div>
 
                     <div class="mt-5 space-y-3">
-                        <label for="product-picker-search" class="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Buscar produto</label>
+                        <label for="product-picker-search" class="text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Buscar produto</label>
                         <input
                             id="product-picker-search"
                             type="search"
@@ -505,28 +571,28 @@
                         <div
                             x-cloak
                             x-show="filteredProductsPicker.length > 0"
-                            class="max-h-52 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-[#132746]"
+                            class="max-h-52 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-[var(--input-bg)]"
                         >
                             <template x-for="product in filteredProductsPicker" :key="product.id">
                                 <button
                                     type="button"
                                     class="flex w-full flex-col border-b border-white/5 px-4 py-3 text-left transition last:border-b-0"
-                                    :class="String(selectedProductId) === String(product.id) ? 'bg-[#d4af37]/15 ring-1 ring-inset ring-[#d4af37]/35' : 'hover:bg-white/5'"
+                                    :class="String(selectedProductId) === String(product.id) ? 'bg-[var(--brand-primary)]/15 ring-1 ring-inset ring-[color-mix(in_srgb,var(--brand-primary)_35%,transparent)]' : 'hover:bg-white/5'"
                                     x-on:click="selectedProductId = String(product.id)"
                                 >
-                                    <span class="text-sm font-semibold text-white" x-text="product.name"></span>
-                                    <span class="mt-1 text-xs text-[#c7d2e3]" x-text="product.label"></span>
+                                    <span class="text-sm font-semibold text-[var(--text-main)]" x-text="product.name"></span>
+                                    <span class="mt-1 text-xs sf-text-muted" x-text="product.label"></span>
                                 </button>
                             </template>
                         </div>
-                        <p x-show="productPickerQuery.trim().length > 0 && products.length > 0 && filteredProductsPicker.length === 0" x-cloak class="rounded-xl border border-dashed border-white/15 px-4 py-3 text-sm text-[#c7d2e3]">
+                        <p x-show="productPickerQuery.trim().length > 0 && products.length > 0 && filteredProductsPicker.length === 0" x-cloak class="rounded-xl border border-dashed border-white/15 px-4 py-3 text-sm sf-text-muted">
                             Nenhum produto encontrado para este filtro.
                         </p>
                     </div>
 
                     <div class="mt-5 space-y-3">
-                        <p class="text-sm text-[#c7d2e3]" x-show="selectedProductId">
-                            <span class="font-semibold text-[#d4af37]">Pré-selecionado:</span>
+                        <p class="text-sm sf-text-muted" x-show="selectedProductId">
+                            <span class="font-semibold brand-text">Pré-selecionado:</span>
                             <span x-text="productById(selectedProductId)?.label || ''"></span>
                         </p>
                         <div class="grid gap-3 sm:grid-cols-[110px_minmax(0,1fr)]">
@@ -538,12 +604,12 @@
 
                     <div class="mt-4 space-y-3">
                         <template x-for="(item, index) in normalizedProducts" :key="item.product.id">
-                            <div class="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#132746] px-4 py-3">
+                            <div class="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[var(--input-bg)] px-4 py-3">
                                 <div>
                                     <input type="hidden" x-bind:name="`product_items[${index}][product_id]`" x-bind:value="item.product.id">
                                     <input type="hidden" x-bind:name="`product_items[${index}][quantity]`" x-bind:value="item.quantity">
-                                    <p class="text-sm font-semibold text-white" x-text="item.product.name"></p>
-                                    <p class="mt-1 text-xs text-[#c7d2e3]">
+                                    <p class="text-sm font-semibold text-[var(--text-main)]" x-text="item.product.name"></p>
+                                    <p class="mt-1 text-xs sf-text-muted">
                                         <span x-text="`Qtd. ${item.quantity}`"></span>
                                         <span> · </span>
                                         <span x-text="money(item.product.price * item.quantity)"></span>
@@ -553,7 +619,7 @@
                             </div>
                         </template>
 
-                        <div x-show="normalizedProducts.length === 0" class="rounded-2xl border border-dashed border-white/15 px-4 py-5 text-sm text-[#c7d2e3]">
+                        <div x-show="normalizedProducts.length === 0" class="rounded-2xl border border-dashed border-white/15 px-4 py-5 text-sm sf-text-muted">
                             Nenhum produto adicionado na comanda inicial.
                         </div>
                     </div>
@@ -574,28 +640,28 @@
                             <div
                                 x-cloak
                                 x-show="professionalPickerQuery.trim().length > 0 && filteredProfessionalRows.length > 0"
-                                class="mt-2 max-h-52 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-[#132746] shadow-inner"
+                                class="mt-2 max-h-52 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-[var(--input-bg)] shadow-inner"
                             >
                                 <template x-for="row in filteredProfessionalRows" :key="row.id">
                                     <button
                                         type="button"
-                                        class="flex w-full border-b border-white/5 px-4 py-3 text-left text-sm font-medium text-white transition hover:bg-white/5 last:border-b-0"
+                                        class="flex w-full border-b border-white/5 px-4 py-3 text-left text-sm font-medium text-[var(--text-main)] transition hover:bg-white/5 last:border-b-0"
                                         x-on:click="pickProfessional(row)"
                                         x-text="row.label"
                                     ></button>
                                 </template>
                             </div>
-                            <p x-show="professionalPickerQuery.trim().length > 0 && professionalRows.length > 0 && filteredProfessionalRows.length === 0" x-cloak class="mt-2 rounded-xl border border-dashed border-white/15 px-4 py-3 text-sm text-[#c7d2e3]">
+                            <p x-show="professionalPickerQuery.trim().length > 0 && professionalRows.length > 0 && filteredProfessionalRows.length === 0" x-cloak class="mt-2 rounded-xl border border-dashed border-white/15 px-4 py-3 text-sm sf-text-muted">
                                 Nenhum profissional encontrado para esta busca.
                             </p>
-                            <p x-show="pickedProfessionalLabel" class="mt-2 text-sm text-[#c7d2e3]">
-                                <span class="font-semibold text-[#d4af37]">Selecionado:</span>
-                                <span x-text="pickedProfessionalLabel" class="text-white"></span>
+                            <p x-show="pickedProfessionalLabel" class="mt-2 text-sm sf-text-muted">
+                                <span class="font-semibold brand-text">Selecionado:</span>
+                                <span x-text="pickedProfessionalLabel" class="text-[var(--text-main)]"></span>
                             </p>
                             <select
                                 id="user_id"
                                 x-ref="professionalSelect"
-                                x-on:change="pickedProfessionalLabel = $event.target.value ? ([...$event.target.options].find((o) => o.value === $event.target.value)?.text?.trim() ?? '') : ''"
+                                x-on:change="pickedProfessionalLabel = $event.target.value ? ([...$event.target.options].find((o) => o.value === $event.target.value)?.text?.trim() ?? '') : ''; fetchSmartSlots()"
                                 name="user_id"
                                 class="sr-only"
                                 tabindex="-1"
@@ -614,8 +680,32 @@
 
                         <div>
                             <x-input-label for="start_time" value="Data e hora" />
-                            <x-text-input id="start_time" name="start_time" type="datetime-local" class="mt-2 block w-full" :value="old('start_time', optional($appointment?->start_time)->format('Y-m-d\TH:i'))" required />
-                            <p class="mt-2 text-sm text-[#c7d2e3]">A disponibilidade será validada pela duração total dos serviços.</p>
+                            <x-text-input id="start_time" name="start_time" type="datetime-local" class="mt-2 block w-full" :value="old('start_time', optional($appointment?->start_time)->format('Y-m-d\TH:i'))" required x-on:change="fetchSmartSlots()" />
+                            <div class="mt-3 space-y-2" x-show="smartSlots.length > 0 || smartSlotsLoading || smartSlotsError" x-cloak>
+                                <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Sugestões de horário</p>
+                                <p class="text-xs sf-text-muted" x-show="! smartSlotsLoading && smartSlots.length === 0 && ! smartSlotsError">Escolha profissional, data e serviços para ver encaixes recomendados.</p>
+                                <p class="text-xs text-amber-200" x-show="smartSlotsError" x-text="smartSlotsError"></p>
+                                <p class="text-xs sf-text-muted" x-show="smartSlotsLoading">Carregando sugestões…</p>
+                                <div class="flex flex-wrap gap-2" x-show="! smartSlotsLoading && smartSlots.length > 0">
+                                    <template x-for="slot in smartSlots.slice(0, 12)" :key="slot.time">
+                                        <button
+                                            type="button"
+                                            class="rounded-full border px-3 py-1.5 text-left text-xs font-semibold transition"
+                                            :class="slot.label === 'Melhor encaixe' ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-100' : (slot.warnings && slot.warnings.length ? 'border-amber-400/40 bg-amber-500/10 text-amber-50' : 'border-white/10 bg-[var(--input-bg)] text-[var(--text-main)]')"
+                                            @click="applySmartSlot(slot.time)"
+                                        >
+                                            <span x-text="slot.time"></span>
+                                            <template x-if="slot.label">
+                                                <span class="ml-1 rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-emerald-100" x-text="slot.label"></span>
+                                            </template>
+                                            <template x-if="slot.warnings && slot.warnings.length">
+                                                <span class="ml-1 block text-[10px] font-normal text-amber-100" x-text="slot.warnings[0]"></span>
+                                            </template>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+                            <p class="mt-2 text-sm sf-text-muted">A disponibilidade será validada pela duração total dos serviços.</p>
                             <x-input-error class="mt-2" :messages="$errors->get('start_time')" />
                         </div>
                     </div>
@@ -668,73 +758,83 @@
 
             <aside class="space-y-6">
                 <section class="sf-card p-5">
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Resumo da comanda</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Resumo da comanda</p>
                     <dl class="mt-5 space-y-3 text-sm">
                         <div class="flex justify-between gap-4">
-                            <dt class="text-[#c7d2e3]">Duração</dt>
-                            <dd class="font-semibold text-white" x-text="`${totalDuration} min`"></dd>
+                            <dt class="sf-text-muted">Duração</dt>
+                            <dd class="font-semibold text-[var(--text-main)]" x-text="`${totalDuration} min`"></dd>
                         </div>
                         <div class="flex justify-between gap-4">
-                            <dt class="text-[#c7d2e3]">Serviços</dt>
-                            <dd class="font-semibold text-white" x-text="money(serviceSubtotal)"></dd>
+                            <dt class="sf-text-muted">Serviços</dt>
+                            <dd class="font-semibold text-[var(--text-main)]" x-text="money(serviceSubtotal)"></dd>
                         </div>
                         <div class="flex justify-between gap-4">
-                            <dt class="text-[#c7d2e3]">Produtos</dt>
-                            <dd class="font-semibold text-white" x-text="money(productSubtotal)"></dd>
+                            <dt class="sf-text-muted">Produtos</dt>
+                            <dd class="font-semibold text-[var(--text-main)]" x-text="money(productSubtotal)"></dd>
                         </div>
                         <div class="border-t border-white/10 pt-3">
                             <div class="flex justify-between gap-4">
-                                <dt class="font-semibold text-white">Total geral</dt>
-                                <dd class="text-xl font-semibold text-[#d4af37]" x-text="money(totalAmount)"></dd>
+                                <dt class="font-semibold text-[var(--text-main)]">Total geral</dt>
+                                <dd class="text-xl font-semibold brand-text" x-text="money(totalAmount)"></dd>
                             </div>
                         </div>
                     </dl>
                 </section>
 
                 <section class="sf-card p-5">
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Histórico do cliente</p>
-                    <div x-show="loadingHistory" class="mt-4 text-sm text-[#c7d2e3]">Carregando histórico...</div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Histórico do cliente</p>
+                    <div x-show="loadingHistory" class="mt-4 text-sm sf-text-muted">Carregando histórico...</div>
                     <div x-show="clientHistory && clientHistory.has_history" class="mt-4 space-y-4 text-sm">
                         <div>
-                            <p class="text-[#c7d2e3]">Última visita</p>
-                            <p class="font-semibold text-white" x-text="clientHistory?.last_visit || 'Sem visita concluída'"></p>
+                            <p class="sf-text-muted">Última visita</p>
+                            <p class="font-semibold text-[var(--text-main)]" x-text="clientHistory?.last_visit || 'Sem visita concluída'"></p>
                         </div>
                         <div>
-                            <p class="text-[#c7d2e3]">Últimos serviços</p>
-                            <p class="font-semibold text-white" x-text="clientHistory?.last_services?.join(', ') || 'Nenhum serviço registrado'"></p>
+                            <p class="sf-text-muted">Últimos serviços</p>
+                            <p class="font-semibold text-[var(--text-main)]" x-text="clientHistory?.last_services?.join(', ') || 'Nenhum serviço registrado'"></p>
                         </div>
                         <div>
-                            <p class="text-[#c7d2e3]">Últimos produtos</p>
-                            <p class="font-semibold text-white" x-text="clientHistory?.last_products?.join(', ') || 'Nenhum produto registrado'"></p>
+                            <p class="sf-text-muted">Últimos produtos</p>
+                            <p class="font-semibold text-[var(--text-main)]" x-text="clientHistory?.last_products?.join(', ') || 'Nenhum produto registrado'"></p>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
-                            <div class="rounded-2xl border border-white/10 bg-[#132746] px-3 py-3">
-                                <p class="text-xs text-[#c7d2e3]">Total gasto</p>
-                                <p class="mt-1 font-semibold text-white" x-text="money(clientHistory?.total_spent)"></p>
+                            <div class="rounded-2xl border border-white/10 bg-[var(--input-bg)] px-3 py-3">
+                                <p class="text-xs sf-text-muted">Total gasto</p>
+                                <p class="mt-1 font-semibold text-[var(--text-main)]" x-text="money(clientHistory?.total_spent)"></p>
                             </div>
-                            <div class="rounded-2xl border border-white/10 bg-[#132746] px-3 py-3">
-                                <p class="text-xs text-[#c7d2e3]">Ticket médio</p>
-                                <p class="mt-1 font-semibold text-white" x-text="money(clientHistory?.average_ticket)"></p>
+                            <div class="rounded-2xl border border-white/10 bg-[var(--input-bg)] px-3 py-3">
+                                <p class="text-xs sf-text-muted">Ticket médio</p>
+                                <p class="mt-1 font-semibold text-[var(--text-main)]" x-text="money(clientHistory?.average_ticket)"></p>
                             </div>
                         </div>
                         <div x-show="clientHistory?.notes">
-                            <p class="text-[#c7d2e3]">Observações</p>
-                            <p class="font-semibold text-white" x-text="clientHistory?.notes"></p>
+                            <p class="sf-text-muted">Observações</p>
+                            <p class="font-semibold text-[var(--text-main)]" x-text="clientHistory?.notes"></p>
                         </div>
                         <button type="button" x-on:click="repeatLastAppointment()" class="sf-button-ghost w-full">Repetir último atendimento</button>
                     </div>
-                    <div x-show="clientHistory && ! clientHistory.has_history" class="mt-4 rounded-2xl border border-dashed border-white/15 px-4 py-5 text-sm text-[#c7d2e3]">
+                    <div x-show="clientHistory && ! clientHistory.has_history" class="mt-4 rounded-2xl border border-dashed border-white/15 px-4 py-5 text-sm sf-text-muted">
                         Este cliente ainda não possui histórico de atendimento.
                     </div>
-                    <div x-show="! clientHistory && ! loadingHistory" class="mt-4 text-sm text-[#c7d2e3]">
+                    <div x-show="! clientHistory && ! loadingHistory" class="mt-4 text-sm sf-text-muted">
                         Selecione um cliente para ver histórico, consumo e sugestões.
                     </div>
                 </section>
             </aside>
         </div>
 
-        <div class="flex items-center justify-between gap-4">
-            <a href="{{ route('appointments.index') }}" class="text-sm font-medium text-[#c7d2e3] transition hover:text-white">Cancelar</a>
+        @if (auth()->user()->hasFinancialPrivileges())
+            <div class="mt-6 rounded-xl border border-amber-400/20 bg-amber-500/5 px-4 py-3">
+                <label class="flex items-start gap-2 text-sm sf-text-muted">
+                    <input type="hidden" name="force_blocked_client" value="0">
+                    <input type="checkbox" name="force_blocked_client" value="1" class="mt-1 rounded border-white/20 bg-[var(--card-bg)] brand-text" @checked(old('force_blocked_client'))>
+                    <span>Permitir agendamento para cliente bloqueado (confirmacao de gestor/financeiro).</span>
+                </label>
+            </div>
+        @endif
+
+        <div class="mt-6 flex items-center justify-between gap-4">
+            <a href="{{ route('appointments.index') }}" class="text-sm font-medium sf-text-muted transition hover:text-[var(--text-main)]">Cancelar</a>
             <x-primary-button>Salvar agendamento</x-primary-button>
         </div>
     </form>
@@ -743,15 +843,15 @@
         <div class="p-6 sm:p-7">
             <div class="flex items-start justify-between gap-4">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-[#d4af37]">Clientes</p>
-                    <h3 class="mt-2 text-2xl font-semibold text-white">Novo cliente</h3>
-                    <p class="mt-2 text-sm text-[#c7d2e3]">Cadastre o cliente sem sair do novo agendamento.</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.24em] brand-text">Clientes</p>
+                    <h3 class="mt-2 text-2xl font-semibold text-[var(--text-main)]">Novo cliente</h3>
+                    <p class="mt-2 text-sm sf-text-muted">Cadastre o cliente sem sair do novo agendamento.</p>
                 </div>
 
                 <button
                     type="button"
                     x-on:click="closeClientModal()"
-                    class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#132746] text-[#c7d2e3] transition hover:border-[#d4af37]/30 hover:text-white"
+                    class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[var(--input-bg)] sf-text-muted transition hover:border-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)] hover:text-[var(--text-main)]"
                     aria-label="Fechar modal"
                 >
                     <span class="text-lg leading-none">&times;</span>
@@ -789,7 +889,7 @@
                     </div>
                 </div>
 
-                <div class="rounded-2xl border border-white/8 bg-[#132746] px-4 py-4 text-sm text-[#c7d2e3]">
+                <div class="rounded-2xl border border-white/8 bg-[var(--input-bg)] px-4 py-4 text-sm sf-text-muted">
                     Se o telefone já existir nesta empresa, o StudioFlow reaproveita o cliente automaticamente.
                 </div>
 

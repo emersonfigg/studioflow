@@ -2,8 +2,8 @@
     <x-slot name="header">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Financeiro</p>
-                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
+                <p class="text-sm font-semibold uppercase tracking-[0.18em] brand-text">Financeiro</p>
+                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-[var(--text-main)]">
                     Comissões
                 </h2>
             </div>
@@ -39,23 +39,23 @@
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section class="sf-card overflow-hidden">
             <div class="border-b border-white/10 px-6 py-5">
-                <h3 class="text-base font-semibold text-white">Resumo de comissões por profissional</h3>
-                <p class="mt-1 text-sm text-[#c7d2e3]">
+                <h3 class="text-base font-semibold text-[var(--text-main)]">Resumo de comissões por profissional</h3>
+                <p class="mt-1 text-sm sf-text-muted">
                     Veja pendências, repasses já pagos e total produzido no período filtrado.
                 </p>
             </div>
 
             @if ($rows->isEmpty())
-                <div class="px-6 py-10 text-sm text-[#c7d2e3]">
+                <div class="px-6 py-10 text-sm sf-text-muted">
                     Nenhuma comissão encontrada no período selecionado.
                 </div>
             @else
-                <div class="divide-y divide-white/10 bg-[#223d69]">
+                <div class="divide-y divide-white/10 bg-[var(--card-bg)]">
                     @foreach ($rows as $row)
                         <article class="grid gap-4 px-6 py-5 transition hover:bg-white/[0.03] lg:grid-cols-[minmax(0,1.2fr)_repeat(4,minmax(0,0.7fr))_auto] lg:items-center">
                             <div>
-                                <p class="text-base font-semibold text-white">{{ $row['user']->name }}</p>
-                                <p class="mt-1 text-sm text-[#c7d2e3]">
+                                <p class="text-base font-semibold text-[var(--text-main)]">{{ $row['user']->name }}</p>
+                                <p class="mt-1 text-sm sf-text-muted">
                                     @if ($row['commission_type'] === 'percent')
                                         Regra percentual de {{ number_format((float) ($row['commission_rate'] ?? 0), 2, ',', '.') }}%
                                     @elseif ($row['commission_type'] === 'fixed')
@@ -67,23 +67,23 @@
                             </div>
 
                             <div>
-                                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Pendente</p>
-                                <p class="mt-2 text-sm font-semibold text-[#d4af37]">R$ {{ number_format($row['pending_commission_amount'], 2, ',', '.') }}</p>
+                                <p class="text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Pendente</p>
+                                <p class="mt-2 text-sm font-semibold brand-text">R$ {{ number_format($row['pending_commission_amount'], 2, ',', '.') }}</p>
                             </div>
 
                             <div>
-                                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Já pago</p>
-                                <p class="mt-2 text-sm font-semibold text-white">R$ {{ number_format($row['paid_commission_amount'], 2, ',', '.') }}</p>
+                                <p class="text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Já pago</p>
+                                <p class="mt-2 text-sm font-semibold text-[var(--text-main)]">R$ {{ number_format($row['paid_commission_amount'], 2, ',', '.') }}</p>
                             </div>
 
                             <div>
-                                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Produzido</p>
-                                <p class="mt-2 text-sm font-semibold text-white">R$ {{ number_format($row['gross_amount'], 2, ',', '.') }}</p>
+                                <p class="text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Produzido</p>
+                                <p class="mt-2 text-sm font-semibold text-[var(--text-main)]">R$ {{ number_format($row['gross_amount'], 2, ',', '.') }}</p>
                             </div>
 
                             <div>
-                                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Serviços</p>
-                                <p class="mt-2 text-sm font-semibold text-white">{{ $row['services_count'] }}</p>
+                                <p class="text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Serviços</p>
+                                <p class="mt-2 text-sm font-semibold text-[var(--text-main)]">{{ $row['services_count'] }}</p>
                             </div>
 
                             <div class="lg:text-right">
@@ -95,7 +95,7 @@
                                         Fazer acerto
                                     </a>
                                 @elseif ($row['pending_commission_amount'] <= 0)
-                                    <span class="inline-flex rounded-full border border-white/10 bg-[#132746] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">
+                                    <span class="inline-flex rounded-full border border-white/10 bg-[var(--input-bg)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">
                                         Em dia
                                     </span>
                                 @endif
@@ -107,21 +107,21 @@
         </section>
 
         <aside class="sf-card p-5">
-            <h3 class="text-base font-semibold text-white">Últimos repasses</h3>
+            <h3 class="text-base font-semibold text-[var(--text-main)]">Últimos repasses</h3>
             <div class="mt-5 space-y-3">
                 @forelse ($recentSettlements as $settlement)
-                    <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
+                    <div class="rounded-2xl border border-white/10 bg-[var(--input-bg)] px-4 py-4">
                         <div class="flex items-start justify-between gap-4">
                             <div>
-                                <p class="text-sm font-semibold text-white">{{ $settlement->user->name }}</p>
-                                <p class="mt-1 text-sm text-[#c7d2e3]">
+                                <p class="text-sm font-semibold text-[var(--text-main)]">{{ $settlement->user->name }}</p>
+                                <p class="mt-1 text-sm sf-text-muted">
                                     {{ $settlement->start_date->format('d/m/Y') }} até {{ $settlement->end_date->format('d/m/Y') }}
                                 </p>
-                                <p class="mt-1 text-xs uppercase tracking-[0.18em] text-[#c7d2e3]">{{ $settlement->paid_at->format('d/m/Y H:i') }}</p>
+                                <p class="mt-1 text-xs uppercase tracking-[0.18em] sf-text-muted">{{ $settlement->paid_at->format('d/m/Y H:i') }}</p>
                             </div>
                             <div class="text-right">
-                                <p class="text-sm font-semibold text-[#d4af37]">R$ {{ number_format((float) $settlement->commission_amount, 2, ',', '.') }}</p>
-                                <p class="mt-1 text-xs text-[#c7d2e3]">
+                                <p class="text-sm font-semibold brand-text">R$ {{ number_format((float) $settlement->commission_amount, 2, ',', '.') }}</p>
+                                <p class="mt-1 text-xs sf-text-muted">
                                     {{ match ($settlement->payment_method) {
                                         'cash' => 'Dinheiro',
                                         'pix' => 'Pix',
@@ -133,7 +133,7 @@
                         </div>
                     </div>
                 @empty
-                    <div class="rounded-2xl border border-dashed border-white/10 bg-[#132746] px-4 py-4 text-sm text-[#c7d2e3]">
+                    <div class="rounded-2xl border border-dashed border-white/10 bg-[var(--input-bg)] px-4 py-4 text-sm sf-text-muted">
                         Nenhum repasse encontrado no período.
                     </div>
                 @endforelse

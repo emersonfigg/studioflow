@@ -41,4 +41,12 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    'mercado_pago' => [
+        'client_id' => env('MERCADO_PAGO_CLIENT_ID'),
+        'client_secret' => env('MERCADO_PAGO_CLIENT_SECRET'),
+        'oauth_redirect_uri' => env('MERCADO_PAGO_OAUTH_REDIRECT_URI'),
+        'api_base_url' => env('MERCADO_PAGO_API_BASE_URL', 'https://api.mercadopago.com'),
+        'auth_base_url' => env('MERCADO_PAGO_AUTH_BASE_URL', 'https://auth.mercadopago.com.br'),
+    ],
+
 ];

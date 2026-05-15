@@ -92,6 +92,16 @@ class Service extends Model
     }
 
     /**
+     * Products consumed when this service is performed.
+     *
+     * @return HasMany<ServiceProductConsumption>
+     */
+    public function productConsumptions(): HasMany
+    {
+        return $this->hasMany(ServiceProductConsumption::class);
+    }
+
+    /**
      * Get the public URL for the service image.
      */
     public function getImageUrlAttribute(): ?string

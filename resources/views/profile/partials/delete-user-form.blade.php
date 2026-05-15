@@ -1,10 +1,10 @@
 <section class="space-y-6">
     <header>
-        <h2 class="text-xl font-semibold text-white">
+        <h2 class="text-xl font-semibold text-[var(--text-main)]">
             Excluir conta
         </h2>
 
-        <p class="mt-2 text-sm leading-6 text-[#c7d2e3]">
+        <p class="mt-2 text-sm leading-6 sf-text-muted">
             Ao excluir sua conta, seus dados de acessó seráo removidos permanentemente. Confirme somente se tiver certeza.
         </p>
     </header>
@@ -26,11 +26,11 @@
             @method('delete')
 
             <div>
-                <h2 class="text-xl font-semibold text-white">
+                <h2 class="text-xl font-semibold text-[var(--text-main)]">
                     Confirmar exclusao da conta
                 </h2>
 
-                <p class="mt-2 text-sm leading-6 text-[#c7d2e3]">
+                <p class="mt-2 text-sm leading-6 sf-text-muted">
                     Para excluir sua conta permanentemente, informe sua senha atual.
                 </p>
             </div>

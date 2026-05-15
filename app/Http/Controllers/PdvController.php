@@ -15,6 +15,7 @@ use App\Models\ServiceOrder;
 use App\Models\ServiceOrderItem;
 use App\Models\User;
 use App\Services\CashRegisterService;
+use App\Services\MembershipService;
 use App\Services\ProductSaleService;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -27,7 +28,7 @@ class PdvController extends Controller
     /**
      * Display the POS quick sale screen.
      */
-    public function index(Request $request, CashRegisterService $cashRegisterService): View
+    public function index(Request $request, CashRegisterService $cashRegisterService, MembershipService $membershipService): View
     {
         $companyId = $request->user()->company_id;
 
@@ -36,7 +37,7 @@ class PdvController extends Controller
             $pdvAppointment = Appointment::query()
                 ->where('company_id', $companyId)
                 ->whereKey($request->integer('appointment_id'))
-                ->whereNotIn('status', ['completed', 'cancelled'])
+                ->whereNotIn('status', ['completed', 'cancelled', 'no_show'])
                 ->with(['client', 'service', 'services', 'user'])
                 ->first();
         }
@@ -76,6 +77,10 @@ class PdvController extends Controller
                 };
             }
 
+            $ms = $pdvAppointment->client_id
+                ? $membershipService->membershipSummaryForClient($companyId, (int) $pdvAppointment->client_id)
+                : ['active' => false];
+
             $appointmentSummary = [
                 'id' => $pdvAppointment->id,
                 'client_name' => $pdvAppointment->client?->name,
@@ -86,6 +91,7 @@ class PdvController extends Controller
                 'services_total_formatted' => number_format($servicesTotal, 2, ',', '.'),
                 'service_labels' => $pdvAppointment->bookedServices()->map(fn (Service $s): string => $s->name)->values()->all(),
                 'commission_reference' => $commissionReference,
+                'membership' => $ms,
             ];
         }
 

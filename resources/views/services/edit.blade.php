@@ -4,11 +4,11 @@
     <x-slot name="header">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">SERVIÇOS</p>
-                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
+                <p class="text-sm font-semibold uppercase tracking-[0.18em] brand-text">SERVIÇOS</p>
+                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-[var(--text-main)]">
                     Editar serviço
                 </h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Atualize imagem, preço, duração e disponibilidade</p>
+                <p class="mt-2 text-sm sf-text-muted">Atualize imagem, preço, duração e disponibilidade</p>
             </div>
 
             <div class="flex flex-wrap items-center gap-3">
@@ -75,7 +75,7 @@
 
                 <div class="grid gap-5 lg:grid-cols-2">
                     <div class="lg:col-span-2">
-                        <label for="name" class="text-sm font-medium text-white">Nome</label>
+                        <label for="name" class="text-sm font-medium text-[var(--text-main)]">Nome</label>
                         <input
                             id="name"
                             name="name"
@@ -91,8 +91,8 @@
 
                     <div class="lg:col-span-2">
                         <div class="flex items-center justify-between gap-3">
-                            <label for="description" class="text-sm font-medium text-white">Descrição</label>
-                            <span class="text-xs text-[#c7d2e3]">
+                            <label for="description" class="text-sm font-medium text-[var(--text-main)]">Descrição</label>
+                            <span class="text-xs sf-text-muted">
                                 <span x-text="description.length">0</span>/<span x-text="descriptionLimit">500</span>
                             </span>
                         </div>
@@ -105,12 +105,12 @@
                             x-model="description"
                             class="sf-input mt-2 block w-full resize-y leading-relaxed"
                         >{{ old('description', $service->description) }}</textarea>
-                        <p class="mt-2 text-xs text-[#c7d2e3]">Opcional. Aparece no agendamento online para o cliente entender o que está contratando.</p>
+                        <p class="mt-2 text-xs sf-text-muted">Opcional. Aparece no agendamento online para o cliente entender o que está contratando.</p>
                         <x-input-error class="mt-2" :messages="$errors->get('description')" />
                     </div>
 
                     <div>
-                        <label for="duration_minutes" class="text-sm font-medium text-white">Duração (min)</label>
+                        <label for="duration_minutes" class="text-sm font-medium text-[var(--text-main)]">Duração (min)</label>
                         <input
                             id="duration_minutes"
                             name="duration_minutes"
@@ -125,7 +125,7 @@
                     </div>
 
                     <div>
-                        <label for="price" class="text-sm font-medium text-white">Preço</label>
+                        <label for="price" class="text-sm font-medium text-[var(--text-main)]">Preço</label>
                         <input
                             id="price"
                             name="price"
@@ -141,16 +141,16 @@
                     </div>
 
                     <div class="lg:col-span-2">
-                        <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
+                        <div class="rounded-2xl border border-white/10 bg-[var(--input-bg)] px-4 py-4">
                             <div class="flex flex-wrap items-center justify-between gap-3">
                                 <div>
-                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Retorno inteligente</p>
-                                    <p class="mt-1 text-sm text-[#c7d2e3]">Use o prazo sugerido para que o sistema lembre o cliente de repetir esse atendimento.</p>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Retorno inteligente</p>
+                                    <p class="mt-1 text-sm sf-text-muted">Use o prazo sugerido para que o sistema lembre o cliente de repetir esse atendimento.</p>
                                 </div>
                             </div>
                             <div class="mt-4 grid gap-3 md:grid-cols-[200px_minmax(0,1fr)]">
                                 <div>
-                                    <label for="recommended_return_days" class="text-sm font-medium text-white">Prazo sugerido para retorno (dias)</label>
+                                    <label for="recommended_return_days" class="text-sm font-medium text-[var(--text-main)]">Prazo sugerido para retorno (dias)</label>
                                     <input
                                         id="recommended_return_days"
                                         name="recommended_return_days"
@@ -165,17 +165,17 @@
                                     <x-input-error class="mt-2" :messages="$errors->get('recommended_return_days')" />
                                 </div>
                                 <div class="flex items-center">
-                                    <p class="text-xs text-[#c7d2e3]">Após esse prazo, o sistema poderá sugerir este serviço novamente ao cliente. Deixe em branco para não gerar recomendação.</p>
+                                    <p class="text-xs sf-text-muted">Após esse prazo, o sistema poderá sugerir este serviço novamente ao cliente. Deixe em branco para não gerar recomendação.</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div class="lg:col-span-2">
-                        <div class="space-y-5 rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
+                        <div class="space-y-5 rounded-2xl border border-white/10 bg-[var(--input-bg)] px-4 py-4">
                             <div>
-                                <p class="text-sm font-medium text-white">Biblioteca StudioFlow</p>
-                                <p class="mt-2 text-sm text-[#c7d2e3]">
+                                <p class="text-sm font-medium text-[var(--text-main)]">Biblioteca StudioFlow</p>
+                                <p class="mt-2 text-sm sf-text-muted">
                                     Troque a imagem atual por uma arte pronta da base ou envie uma nova do seu dispositivo.
                                 </p>
                             </div>
@@ -185,18 +185,18 @@
                                     <button
                                         type="button"
                                         @click='chooseLibraryImage(@js($libraryImage))'
-                                        :class="selectedLibraryImage === @js($libraryImage['path']) ? 'border-[#d4af37] bg-[#1b335b] ring-2 ring-[#d4af37]/30' : 'border-white/10 bg-[#1b335b]/60 hover:border-[#d4af37]/60 hover:bg-[#1b335b]'"
+                                        :class="selectedLibraryImage === @js($libraryImage['path']) ? 'border-[var(--brand-primary)] bg-[var(--app-shell-bg)] ring-2 ring-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)]' : 'border-white/10 bg-[var(--app-shell-bg)]/60 hover:border-[color-mix(in_srgb,var(--brand-primary)_60%,transparent)] hover:bg-[var(--app-shell-bg)]'"
                                         class="overflow-hidden rounded-2xl border text-left transition"
                                     >
-                                        <div class="aspect-[4/3] overflow-hidden bg-[#10213b]">
+                                        <div class="aspect-[4/3] overflow-hidden bg-[var(--input-bg)]">
                                             <img src="{{ $libraryImage['url'] }}" alt="{{ $libraryImage['label'] }}" class="h-full w-full object-cover">
                                         </div>
                                         <div class="flex items-center justify-between gap-3 px-3 py-3">
-                                            <p class="text-sm font-semibold text-white">{{ $libraryImage['label'] }}</p>
+                                            <p class="text-sm font-semibold text-[var(--text-main)]">{{ $libraryImage['label'] }}</p>
                                             <span
                                                 x-show="selectedLibraryImage === @js($libraryImage['path'])"
                                                 x-cloak
-                                                class="rounded-full bg-[#d4af37] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#132746]"
+                                                class="rounded-full bg-[var(--brand-primary)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--brand-on-primary)]"
                                             >
                                                 Escolhida
                                             </span>
@@ -205,8 +205,8 @@
                                 @endforeach
                             </div>
 
-                            <div class="rounded-2xl border border-dashed border-white/10 bg-[#1b335b]/70 px-4 py-4">
-                                <label for="image" class="text-sm font-medium text-white">Ou envie uma nova imagem</label>
+                            <div class="rounded-2xl border border-dashed border-white/10 bg-[var(--app-shell-bg)]/70 px-4 py-4">
+                                <label for="image" class="text-sm font-medium text-[var(--text-main)]">Ou envie uma nova imagem</label>
                                 <input
                                     id="image"
                                     x-ref="imageInput"
@@ -216,7 +216,7 @@
                                     class="sf-input mt-2 block w-full px-3 py-3"
                                     @change="handleUploadChange($event)"
                                 >
-                                <p class="mt-2 text-xs text-[#c7d2e3]">Envie uma nova imagem para substituir a miniatura atual do catalogo.</p>
+                                <p class="mt-2 text-xs sf-text-muted">Envie uma nova imagem para substituir a miniatura atual do catalogo.</p>
                             </div>
 
                             <x-input-error class="mt-2" :messages="$errors->get('image')" />
@@ -225,7 +225,9 @@
                     </div>
                 </div>
 
-                <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
+                @include('services._consumptions', ['products' => $products, 'consumptionRows' => $consumptionRows])
+
+                <div class="rounded-2xl border border-white/10 bg-[var(--input-bg)] px-4 py-4">
                     <div class="flex items-start gap-3">
                         <input name="active" type="hidden" value="0">
                         <input
@@ -234,12 +236,12 @@
                             type="checkbox"
                             value="1"
                             x-model="active"
-                            class="mt-1 h-4 w-4 rounded border-white/20 bg-[#1b335b] text-[#d4af37] focus:ring-[#d4af37]"
+                            class="mt-1 h-4 w-4 rounded border-white/20 bg-[var(--app-shell-bg)] brand-text focus:ring-[var(--brand-primary)]"
                             @checked(old('active', $service->active))
                         >
                         <div>
-                            <label for="active" class="text-sm font-medium text-white">Status ativo</label>
-                            <p class="mt-1 text-sm text-[#c7d2e3]">Serviços ativos aparecem na agenda interna e podem ser usados no agendamento online.</p>
+                            <label for="active" class="text-sm font-medium text-[var(--text-main)]">Status ativo</label>
+                            <p class="mt-1 text-sm sf-text-muted">Serviços ativos aparecem na agenda interna e podem ser usados no agendamento online.</p>
                         </div>
                     </div>
                     <x-input-error class="mt-2" :messages="$errors->get('active')" />
@@ -250,14 +252,14 @@
         <aside class="space-y-6">
             <section class="sf-card overflow-hidden">
                 <div class="border-b border-white/10 px-5 py-5">
-                    <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Pré-visualização</p>
-                    <h3 class="mt-2 text-xl font-semibold text-white">Como o serviço vai aparecer</h3>
+                    <p class="text-sm font-semibold uppercase tracking-[0.18em] brand-text">Pré-visualização</p>
+                    <h3 class="mt-2 text-xl font-semibold text-[var(--text-main)]">Como o serviço vai aparecer</h3>
                 </div>
 
                 <div class="space-y-4 px-5 py-5">
-                    <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Imagem</p>
-                        <div class="mt-3 flex h-32 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-white/10 bg-[#1b335b]">
+                    <div class="rounded-2xl border border-white/10 bg-[var(--input-bg)] px-4 py-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.16em] brand-text">Imagem</p>
+                        <div class="mt-3 flex h-32 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-white/10 bg-[var(--app-shell-bg)]">
                             <template x-if="uploadPreview">
                                 <img :src="uploadPreview" alt="Preview da nova imagem" class="h-full w-full object-cover">
                             </template>
@@ -269,18 +271,18 @@
                             </template>
                             <template x-if="!currentImage && !uploadPreview && !selectedLibraryPreview">
                                 <div class="flex flex-col items-center gap-3 text-center">
-                                    <div class="flex h-12 w-12 items-center justify-center rounded-full bg-[#d4af37]/12 text-[#d4af37]">
+                                    <div class="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--brand-primary)]/12 brand-text">
                                         <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2 1.586-1.586a2 2 0 012.828 0L20 14m-9-5h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                         </svg>
                                     </div>
-                                    <p class="text-sm font-medium text-[#c7d2e3]">Sem imagem enviada</p>
+                                    <p class="text-sm font-medium sf-text-muted">Sem imagem enviada</p>
                                 </div>
                             </template>
                         </div>
-                        <div class="mt-3 rounded-2xl border border-white/10 bg-[#1b335b]/60 px-3 py-3 text-xs text-[#c7d2e3]">
+                        <div class="mt-3 rounded-2xl border border-white/10 bg-[var(--app-shell-bg)]/60 px-3 py-3 text-xs sf-text-muted">
                             <template x-if="imageName">
-                                <p><span class="font-semibold text-white" x-text="imageName"></span> pronta para substituir a imagem atual.</p>
+                                <p><span class="font-semibold text-[var(--text-main)]" x-text="imageName"></span> pronta para substituir a imagem atual.</p>
                             </template>
                             <template x-if="!imageName && selectedLibraryImage">
                                 <p>Uma imagem da biblioteca foi escolhida para substituir a atual.</p>
@@ -294,35 +296,35 @@
                         </div>
                     </div>
 
-                    <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Nome</p>
-                        <p class="mt-2 text-lg font-semibold text-white" x-text="name || 'Serviço completo'"></p>
+                    <div class="rounded-2xl border border-white/10 bg-[var(--input-bg)] px-4 py-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.16em] brand-text">Nome</p>
+                        <p class="mt-2 text-lg font-semibold text-[var(--text-main)]" x-text="name || 'Serviço completo'"></p>
                     </div>
 
                     <div
                         x-show="description.trim().length > 0"
                         x-cloak
-                        class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4"
+                        class="rounded-2xl border border-white/10 bg-[var(--input-bg)] px-4 py-4"
                     >
-                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Descrição</p>
-                        <p class="mt-2 whitespace-pre-line text-sm leading-relaxed text-[#c7d2e3]" x-text="description"></p>
+                        <p class="text-xs font-semibold uppercase tracking-[0.16em] brand-text">Descrição</p>
+                        <p class="mt-2 whitespace-pre-line text-sm leading-relaxed sf-text-muted" x-text="description"></p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
-                        <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Preço</p>
-                            <p class="mt-2 text-lg font-semibold text-white" x-text="new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(`${price || '0'}`.replace(/[R$\s.]/g, '').replace(',', '.')) || 0)"></p>
+                        <div class="rounded-2xl border border-white/10 bg-[var(--input-bg)] px-4 py-4">
+                            <p class="text-xs font-semibold uppercase tracking-[0.16em] brand-text">Preço</p>
+                            <p class="mt-2 text-lg font-semibold text-[var(--text-main)]" x-text="new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(`${price || '0'}`.replace(/[R$\s.]/g, '').replace(',', '.')) || 0)"></p>
                         </div>
-                        <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Duração</p>
-                            <p class="mt-2 text-lg font-semibold text-white" x-text="(duration || '0') + ' min'"></p>
+                        <div class="rounded-2xl border border-white/10 bg-[var(--input-bg)] px-4 py-4">
+                            <p class="text-xs font-semibold uppercase tracking-[0.16em] brand-text">Duração</p>
+                            <p class="mt-2 text-lg font-semibold text-[var(--text-main)]" x-text="(duration || '0') + ' min'"></p>
                         </div>
                     </div>
 
-                    <div class="rounded-2xl border border-white/10 bg-[#132746] px-4 py-4">
-                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#d4af37]">Disponibilidade</p>
-                        <p class="mt-2 text-sm font-medium text-white">Aparecerá no agendamento online</p>
-                        <p class="mt-2 text-sm" :class="active ? 'text-emerald-200' : 'text-[#c7d2e3]'" x-text="active ? 'Ativo e pronto para a agenda.' : 'Inativo até nova ativacao.'"></p>
+                    <div class="rounded-2xl border border-white/10 bg-[var(--input-bg)] px-4 py-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.16em] brand-text">Disponibilidade</p>
+                        <p class="mt-2 text-sm font-medium text-[var(--text-main)]">Aparecerá no agendamento online</p>
+                        <p class="mt-2 text-sm" :class="active ? 'text-emerald-200' : 'sf-text-muted'" x-text="active ? 'Ativo e pronto para a agenda.' : 'Inativo até nova ativacao.'"></p>
                     </div>
                 </div>
             </section>

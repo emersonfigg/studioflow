@@ -56,6 +56,7 @@ class Client extends Model
         'email_verified_at',
         'birthday',
         'notes',
+        'gateway_customer_refs',
         'last_visit_at',
     ];
 
@@ -71,6 +72,7 @@ class Client extends Model
             'birthday' => 'date',
             'email_verified_at' => 'datetime',
             'last_visit_at' => 'datetime',
+            'gateway_customer_refs' => 'array',
         ];
     }
 
@@ -189,5 +191,45 @@ class Client extends Model
     public function commercialHistories(): HasMany
     {
         return $this->hasMany(ClientCommercialHistory::class);
+    }
+
+    /**
+     * @return HasMany<CustomerMembership>
+     */
+    public function customerMemberships(): HasMany
+    {
+        return $this->hasMany(CustomerMembership::class);
+    }
+
+    /**
+     * @return HasMany<CustomerNoShow>
+     */
+    public function noShows(): HasMany
+    {
+        return $this->hasMany(CustomerNoShow::class);
+    }
+
+    /**
+     * @return HasMany<CustomerBlock>
+     */
+    public function blocks(): HasMany
+    {
+        return $this->hasMany(CustomerBlock::class);
+    }
+
+    /**
+     * @return HasMany<MembershipUsage>
+     */
+    public function membershipUsages(): HasMany
+    {
+        return $this->hasMany(MembershipUsage::class);
+    }
+
+    /**
+     * @return HasMany<AppointmentReview>
+     */
+    public function appointmentReviews(): HasMany
+    {
+        return $this->hasMany(AppointmentReview::class);
     }
 }

@@ -29,7 +29,12 @@ class StoreProductRequest extends FormRequest
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'remove_image' => ['nullable', 'boolean'],
             'price' => ['required', 'numeric', 'min:0.01'],
-            'stock_quantity' => ['required', 'integer', 'min:0', 'max:999999'],
+            'stock_quantity' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
+            'minimum_stock' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'cost_price' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'unit' => ['nullable', 'string', 'max:32'],
+            'track_stock' => ['nullable', 'boolean'],
+            'low_stock_alert' => ['nullable', 'boolean'],
             'active' => ['nullable', 'boolean'],
             'commission_type' => ['nullable', Rule::in(Product::COMMISSION_TYPES)],
             'commission_value' => ['nullable', 'numeric', 'min:0'],
@@ -56,7 +61,18 @@ class StoreProductRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->normalizeCurrencyFields(['price', 'commission_value']);
+        $this->normalizeCurrencyFields(['price', 'commission_value', 'cost_price']);
+
+        $this->merge([
+            'track_stock' => (int) $this->input('track_stock', 1) === 1,
+            'low_stock_alert' => (int) $this->input('low_stock_alert', 1) === 1,
+        ]);
+
+        foreach (['minimum_stock', 'cost_price'] as $field) {
+            if ($this->input($field) === '' || $this->input($field) === null) {
+                $this->merge([$field => null]);
+            }
+        }
 
         $type = $this->input('commission_type');
         if ($type === '' || $type === 'none') {

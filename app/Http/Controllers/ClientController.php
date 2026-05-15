@@ -2,12 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\MembershipPaymentStatus;
 use App\Http\Requests\StoreClientRequest;
 use App\Http\Requests\UpdateClientRequest;
 use App\Models\Appointment;
+use App\Models\AppointmentReview;
 use App\Models\Client;
 use App\Models\ClientCommercialHistory;
+use App\Models\CompanyPaymentIntegration;
+use App\Models\MembershipPayment;
+use App\Models\MembershipPlan;
+use App\Models\MembershipUsage;
 use App\Services\ClientRecommendationService;
+use App\Services\CustomerBlockService;
+use App\Services\MembershipService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -204,6 +212,53 @@ class ClientController extends Controller
             (int) $client->id,
         );
 
+        $activeBlock = app(CustomerBlockService::class)->getActiveBlock($client);
+        $noShows = $client->noShows()
+            ->where('company_id', $client->company_id)
+            ->with(['appointment', 'recordedBy'])
+            ->latest('occurred_at')
+            ->limit(15)
+            ->get();
+        $membershipSummary = app(MembershipService::class)->membershipSummaryForClient((int) $client->company_id, (int) $client->id);
+        $memberships = $client->customerMemberships()
+            ->with('plan')
+            ->orderByDesc('starts_at')
+            ->limit(20)
+            ->get();
+        $membershipUsages = MembershipUsage::query()
+            ->where('company_id', $client->company_id)
+            ->where('client_id', $client->id)
+            ->with(['membership.plan', 'service', 'appointment'])
+            ->latest('used_at')
+            ->limit(30)
+            ->get();
+        $clientReviews = AppointmentReview::query()
+            ->where('company_id', $client->company_id)
+            ->where('client_id', $client->id)
+            ->whereNotNull('submitted_at')
+            ->with(['appointment.services', 'appointment.service'])
+            ->latest('submitted_at')
+            ->limit(15)
+            ->get();
+        $membershipPlans = MembershipPlan::query()
+            ->where('company_id', $client->company_id)
+            ->where('active', true)
+            ->orderBy('name')
+            ->get();
+
+        $hasMembershipPaymentGateway = CompanyPaymentIntegration::query()
+            ->where('company_id', $client->company_id)
+            ->where('active', true)
+            ->exists();
+
+        $pendingMembershipPayment = MembershipPayment::query()
+            ->where('company_id', $client->company_id)
+            ->where('client_id', $client->id)
+            ->where('status', MembershipPaymentStatus::Pending)
+            ->with(['membership.plan'])
+            ->orderByDesc('id')
+            ->first();
+
         return view('clients.show', [
             'client' => $client,
             'appointments' => $appointments,
@@ -222,6 +277,15 @@ class ClientController extends Controller
                 ->count(),
             'commercialHistories' => $commercialHistories,
             'clientRecommendations' => $clientRecommendations,
+            'activeBlock' => $activeBlock,
+            'noShows' => $noShows,
+            'membershipSummary' => $membershipSummary,
+            'memberships' => $memberships,
+            'membershipUsages' => $membershipUsages,
+            'clientReviews' => $clientReviews,
+            'membershipPlans' => $membershipPlans,
+            'hasMembershipPaymentGateway' => $hasMembershipPaymentGateway,
+            'pendingMembershipPayment' => $pendingMembershipPayment,
         ]);
     }
 
@@ -289,6 +353,22 @@ class ClientController extends Controller
         return redirect()
             ->route('clients.show', $client)
             ->with('status', 'client-reactivated');
+    }
+
+    public function unblock(Request $request, Client $client, CustomerBlockService $customerBlockService): RedirectResponse
+    {
+        abort_unless($request->user()->hasFinancialPrivileges(), 403);
+        $this->ensureClientBelongsToUserCompany($request, $client);
+
+        $active = $customerBlockService->getActiveBlock($client);
+
+        if ($active) {
+            $customerBlockService->unblock($active, $request->user());
+        }
+
+        return redirect()
+            ->route('clients.show', $client)
+            ->with('status', 'client-unblocked');
     }
 
     /**

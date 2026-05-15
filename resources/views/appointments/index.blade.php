@@ -2,11 +2,11 @@
     <x-slot name="header">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">{{ __('Appointments') }}</p>
-                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
+                <p class="text-sm font-semibold uppercase tracking-[0.18em] brand-text">{{ __('Appointments') }}</p>
+                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-[var(--text-main)]">
                     Agenda diaria
                 </h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">
+                <p class="mt-2 text-sm sf-text-muted">
                     Visual operacional com apenas os agendamentos existentes na data selecionada.
                 </p>
             </div>
@@ -58,13 +58,13 @@
         @if ($appointments->isEmpty())
             <section class="sf-card px-6 py-16 text-center">
                 <div class="mx-auto max-w-xl">
-                    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl border border-[#d4af37]/20 bg-[#d4af37]/10 text-[#d4af37]">
+                    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl border border-[color-mix(in_srgb,var(--brand-primary)_20%,transparent)] bg-[var(--brand-primary)]/10 brand-text">
                         <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v11a2 2 0 002 2z" />
                         </svg>
                     </div>
-                    <h3 class="mt-6 text-2xl font-semibold text-white">Nenhum agendamento para está data.</h3>
-                    <p class="mt-3 text-sm leading-7 text-[#c7d2e3]">
+                    <h3 class="mt-6 text-2xl font-semibold text-[var(--text-main)]">Nenhum agendamento para está data.</h3>
+                    <p class="mt-3 text-sm leading-7 sf-text-muted">
                         Ajuste a data, filtre por profissional ou crie um novo atendimento para preencher a agenda.
                     </p>
                     <div class="mt-6">
@@ -78,13 +78,13 @@
             <section class="space-y-4">
                 @foreach ($appointmentsByTime as $time => $groupedAppointments)
                     <section class="sf-card overflow-hidden">
-                        <div class="border-b border-white/10 bg-[#132746] px-5 py-4">
+                        <div class="border-b border-white/10 bg-[var(--input-bg)] px-5 py-4">
                             <div class="flex items-center justify-between gap-4">
                                 <div>
-                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Horário</p>
-                                    <h3 class="mt-1 text-2xl font-semibold text-white">{{ $time }}</h3>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Horário</p>
+                                    <h3 class="mt-1 text-2xl font-semibold text-[var(--text-main)]">{{ $time }}</h3>
                                 </div>
-                                <p class="text-sm text-[#c7d2e3]">{{ $groupedAppointments->count() }} agendamento(s)</p>
+                                <p class="text-sm sf-text-muted">{{ $groupedAppointments->count() }} agendamento(s)</p>
                             </div>
                         </div>
 
@@ -97,14 +97,14 @@
                                     <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                                         <div class="min-w-0">
                                             <div class="flex flex-wrap items-center gap-2">
-                                                <p class="text-sm font-semibold text-white">
+                                                <p class="text-sm font-semibold text-[var(--text-main)]">
                                                     {{ $appointment->start_time->format('H:i') }} - {{ $appointment->end_time->format('H:i') }}
                                                 </p>
                                                 <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset {{ $appointment->statusBadgeClasses() }}">
                                                     {{ $appointment->statusLabel() }}
                                                 </span>
                                                 @if ($appointment->payment)
-                                                    <span class="inline-flex items-center rounded-full border border-[#d4af37]/20 bg-[#d4af37]/10 px-2.5 py-1 text-xs font-medium text-[#d4af37]">
+                                                    <span class="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--brand-primary)_20%,transparent)] bg-[var(--brand-primary)]/10 px-2.5 py-1 text-xs font-medium brand-text">
                                                         Pago
                                                     </span>
                                                 @endif
@@ -112,16 +112,16 @@
 
                                             <div class="mt-3 grid gap-3 lg:grid-cols-2">
                                                 <div>
-                                                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#c7d2e3]">Cliente</p>
-                                                    <p class="mt-1 text-sm font-semibold text-white">{{ $appointment->client->name }}</p>
+                                                    <p class="text-xs font-semibold uppercase tracking-[0.16em] sf-text-muted">Cliente</p>
+                                                    <p class="mt-1 text-sm font-semibold text-[var(--text-main)]">{{ $appointment->client->name }}</p>
                                                 </div>
                                                 <div>
-                                                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#c7d2e3]">Profissional</p>
-                                                    <p class="mt-1 text-sm font-semibold text-white">{{ $appointment->user->name }}</p>
+                                                    <p class="text-xs font-semibold uppercase tracking-[0.16em] sf-text-muted">Profissional</p>
+                                                    <p class="mt-1 text-sm font-semibold text-[var(--text-main)]">{{ $appointment->user->name }}</p>
                                                 </div>
                                                 <div class="lg:col-span-2">
-                                                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#c7d2e3]">Serviço(s)</p>
-                                                    <p class="mt-1 text-sm text-white">{{ $servicesLabel !== '' ? $servicesLabel : $appointment->service->name }}</p>
+                                                    <p class="text-xs font-semibold uppercase tracking-[0.16em] sf-text-muted">Serviço(s)</p>
+                                                    <p class="mt-1 text-sm text-[var(--text-main)]">{{ $servicesLabel !== '' ? $servicesLabel : $appointment->service->name }}</p>
                                                 </div>
                                             </div>
                                         </div>

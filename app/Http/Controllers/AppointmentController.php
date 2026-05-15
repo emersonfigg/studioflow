@@ -8,9 +8,13 @@ use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Product;
 use App\Models\Service;
+use App\Models\ServiceOrder;
 use App\Models\User;
 use App\Services\AvailabilityService;
 use App\Services\ClientRecommendationService;
+use App\Services\CustomerBlockService;
+use App\Services\MembershipService;
+use App\Services\Scheduling\SmartSlotService;
 use App\Services\ServiceOrderService;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
@@ -20,6 +24,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class AppointmentController extends Controller
@@ -129,9 +134,18 @@ class AppointmentController extends Controller
             )
             : collect();
 
+        $activeBlock = $appointment->client
+            ? app(CustomerBlockService::class)->getActiveBlock($appointment->client)
+            : null;
+        $membershipSummary = $appointment->client_id
+            ? app(MembershipService::class)->membershipSummaryForClient((int) $appointment->company_id, (int) $appointment->client_id)
+            : ['active' => false];
+
         return view('appointments.show', [
-            'appointment' => $appointment->load(['client', 'service', 'services', 'user', 'payment', 'serviceOrder.items']),
+            'appointment' => $appointment->load(['client', 'service', 'services', 'user', 'payment', 'serviceOrder.items', 'appointmentReview']),
             'clientRecommendations' => $recommendationList,
+            'activeBlock' => $activeBlock,
+            'membershipSummary' => $membershipSummary,
         ]);
     }
 
@@ -205,6 +219,28 @@ class AppointmentController extends Controller
         return back()->with('status', 'appointment-status-updated');
     }
 
+    public function markNoShow(Request $request, Appointment $appointment, CustomerBlockService $customerBlockService): RedirectResponse
+    {
+        $this->ensureAppointmentBelongsToUserCompany($request, $appointment);
+
+        abort_unless(in_array($appointment->status, ['scheduled', 'confirmed', 'in_progress'], true), 422);
+        abort_if($appointment->payment()->exists(), 422);
+
+        $appointment->loadMissing('serviceOrder');
+        abort_if($appointment->serviceOrder && $appointment->serviceOrder->status === ServiceOrder::STATUS_PAID, 422);
+
+        $data = $request->validate([
+            'reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        DB::transaction(function () use ($appointment, $customerBlockService, $request, $data): void {
+            $customerBlockService->recordNoShow($appointment, $request->user(), $data['reason'] ?? null);
+            $appointment->update(['status' => 'no_show']);
+        });
+
+        return back()->with('status', 'appointment-no-show');
+    }
+
     public function clientHistory(Request $request, Client $client): JsonResponse
     {
         abort_unless($client->company_id === $request->user()->company_id, 404);
@@ -263,6 +299,56 @@ class AppointmentController extends Controller
     }
 
     /**
+     * Smart-ranked available slots for internal scheduling (does not replace availability rules).
+     */
+    public function smartSlots(Request $request, SmartSlotService $smartSlotService): JsonResponse
+    {
+        abort_unless($request->user()->company_id !== null, 403);
+
+        $companyId = (int) $request->user()->company_id;
+
+        $data = $request->validate([
+            'user_id' => ['required', 'integer', Rule::exists('users', 'id')->where('company_id', $companyId)],
+            'date' => ['required', 'date_format:Y-m-d'],
+            'service_ids' => ['required', 'array', 'min:1'],
+            'service_ids.*' => ['integer', Rule::exists('services', 'id')->where('company_id', $companyId)],
+            'ignore_appointment_id' => ['nullable', 'integer', Rule::exists('appointments', 'id')->where('company_id', $companyId)],
+        ]);
+
+        $company = $request->user()->company;
+        abort_unless($company !== null, 404);
+
+        /** @var User $professional */
+        $professional = User::query()
+            ->where('company_id', $companyId)
+            ->whereKey((int) $data['user_id'])
+            ->firstOrFail();
+
+        $serviceIds = array_map('intval', (array) $data['service_ids']);
+
+        $durationMinutes = (int) Service::query()
+            ->where('company_id', $companyId)
+            ->where('active', true)
+            ->whereIn('id', $serviceIds)
+            ->sum('duration_minutes');
+
+        if ($durationMinutes < 1) {
+            return response()->json(['slots' => []]);
+        }
+
+        $slots = $smartSlotService->rankedSlots(
+            $company,
+            $professional,
+            $data['date'],
+            $durationMinutes,
+            $serviceIds,
+            isset($data['ignore_appointment_id']) ? (int) $data['ignore_appointment_id'] : null,
+        );
+
+        return response()->json(['slots' => $slots]);
+    }
+
+    /**
      * Get select options for appointment forms.
      *
      * @return array<string, mixed>
@@ -294,6 +380,7 @@ class AppointmentController extends Controller
                 ->get(),
             'statuses' => Appointment::STATUSES,
             'sources' => Appointment::SOURCES,
+            'smartSlotsUrl' => route('appointments.smart-slots'),
         ];
     }
 
@@ -400,6 +487,8 @@ class AppointmentController extends Controller
             ]);
         }
 
+        $this->assertClientNotBlockedForBooking($request, $clientRow);
+
         $conflict = Appointment::findClientScheduleConflict(
             (int) $request->user()->company_id,
             (int) $data['client_id'],
@@ -411,6 +500,23 @@ class AppointmentController extends Controller
         if ($conflict) {
             throw ValidationException::withMessages([
                 'start_time' => 'Este cliente já possui um agendamento ativo nesse horário.',
+            ]);
+        }
+    }
+
+    private function assertClientNotBlockedForBooking(Request $request, Client $client): void
+    {
+        $blocks = app(CustomerBlockService::class);
+
+        if (! $blocks->isBlocked($client)) {
+            return;
+        }
+
+        $force = $request->user()->hasFinancialPrivileges() && $request->boolean('force_blocked_client');
+
+        if (! $force) {
+            throw ValidationException::withMessages([
+                'client_id' => 'Este cliente esta bloqueado. Agendamento online nao permitido. Um gestor pode confirmar o agendamento com a opcao de liberacao.',
             ]);
         }
     }

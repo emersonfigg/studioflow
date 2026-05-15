@@ -28,6 +28,7 @@ class PaymentController extends Controller
 
         abort_if($appointment->payment()->exists(), 422, 'Este atendimento ja possui pagamento registrado.');
         abort_if($appointment->status === 'cancelled', 422, 'Nao e possivel registrar pagamento para atendimento cancelado.');
+        abort_if($appointment->status === 'no_show', 422, 'Nao e possivel registrar pagamento para falta.');
 
         // Fluxo principal de fechamento: PDV com agendamento carregado.
         if ($appointment->status !== 'completed') {

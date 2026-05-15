@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\Payment;
 use App\Models\ProductSaleItem;
 use App\Models\Service;
+use App\Services\StockService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,13 +41,15 @@ class DashboardController extends Controller
         $commissionsToday = 0;
         $netToday = 0;
         $completedToday = 0;
-        $todayAppointments = new Collection();
+        $todayAppointments = new Collection;
         $publicBookingUrl = null;
-        $sellerRanking = new Collection();
+        $sellerRanking = new Collection;
         $monthStart = $now->copy()->startOfMonth();
         $monthEnd = $now->copy()->endOfMonth();
+        $lowStockProducts = new Collection;
 
         if ($companyId !== null) {
+            $lowStockProducts = app(StockService::class)->getLowStockProducts((int) $companyId);
             $publicBookingUrl = route('public-bookings.create', $companyId);
             $paymentsQuery = Payment::query()
                 ->where('company_id', $companyId)
@@ -125,6 +128,7 @@ class DashboardController extends Controller
             'publicBookingUrl' => $publicBookingUrl,
             'sellerRanking' => $sellerRanking,
             'rankingMonthLabel' => $monthStart->format('m/Y'),
+            'lowStockProducts' => $lowStockProducts,
         ]);
     }
 }

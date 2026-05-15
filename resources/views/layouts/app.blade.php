@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-theme="{{ ($tenantThemeLight ?? false) ? 'light' : 'dark' }}" style="{{ $tenantBranding['root_style'] ?? '' }}">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,36 +7,40 @@
 
         <title>{{ config('app.name', 'Laravel') }}</title>
 
+        @if (! empty($tenantFaviconHref))
+            <link rel="icon" type="image/png" href="{{ $tenantFaviconHref }}">
+        @endif
+
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="bg-[#1b335b] font-sans antialiased text-white">
-        <div class="min-h-screen bg-[#1b335b]">
+    <body class="app-chrome-body font-sans antialiased">
+        <div class="app-chrome-shell min-h-screen">
             @include('layouts.navigation')
 
             <div class="mx-auto flex max-w-[1600px] gap-6 px-4 py-6 sm:px-6 lg:px-8">
                 <aside class="hidden lg:flex lg:w-72 lg:flex-col">
                     <div class="sf-card sticky top-24 p-5">
                         <div class="flex items-center gap-3">
-                            @if (! auth()->user()->isSuperAdmin() && auth()->user()->company?->logo_url)
-                                <img src="{{ auth()->user()->company->logo_url }}" alt="Logo de {{ auth()->user()->company->name }}" class="h-12 w-12 rounded-2xl object-cover ring-1 ring-white/10">
+                            @if (! auth()->user()->isSuperAdmin() && ! empty($tenantBranding['logo_url']))
+                                <img src="{{ $tenantBranding['logo_url'] }}" alt="Logo de {{ auth()->user()->company?->name }}" class="h-12 w-12 rounded-2xl object-cover ring-1 ring-white/10" loading="lazy" decoding="async">
                             @else
-                                <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#d4af37]/12 text-[#d4af37]">
+                                <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--brand-primary)_14%,transparent)] text-[var(--brand-primary)]">
                                     <x-application-logo class="h-8 w-8" />
                                 </div>
                             @endif
                             <div>
-                                <p class="text-base font-semibold text-white">{{ auth()->user()->isSuperAdmin() ? 'StudioFlow' : (auth()->user()->company?->name ?? 'StudioFlow') }}</p>
-                                <p class="text-xs leading-5 text-[#c7d2e3]">{{ auth()->user()->isSuperAdmin() ? 'Agenda inteligente para barbearias, salões e estética' : (auth()->user()->company?->description ?: 'Agenda inteligente para barbearias, salões e estética') }}</p>
+                                <p class="text-base font-semibold sf-text">{{ auth()->user()->isSuperAdmin() ? 'StudioFlow' : (auth()->user()->company?->name ?? 'StudioFlow') }}</p>
+                                <p class="text-xs leading-5 sf-text-muted">{{ auth()->user()->isSuperAdmin() ? 'Agenda inteligente para barbearias, salões e estética' : (auth()->user()->company?->safeDescription() ?: 'Agenda inteligente para barbearias, salões e estética') }}</p>
                             </div>
                         </div>
 
-                        <div class="mt-6 rounded-2xl border border-white/8 bg-[#132746] px-4 py-4">
-                            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[#d4af37]">{{ auth()->user()->isSuperAdmin() ? 'Escopo' : 'Empresa' }}</p>
-                            <p class="mt-2 text-sm font-semibold text-white">{{ auth()->user()->isSuperAdmin() ? 'Painel Global' : (auth()->user()->company?->name ?? 'Sem empresa vinculada') }}</p>
-                            <p class="mt-1 text-sm text-[#c7d2e3]">{{ auth()->user()->name }}</p>
+                        <div class="mt-6 rounded-2xl border border-[color-mix(in_srgb,var(--text-main)_10%,transparent)] bg-[var(--sidebar-card-bg)] px-4 py-4">
+                            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--brand-primary)]">{{ auth()->user()->isSuperAdmin() ? 'Escopo' : 'Empresa' }}</p>
+                            <p class="mt-2 text-sm font-semibold sf-text">{{ auth()->user()->isSuperAdmin() ? 'Painel Global' : (auth()->user()->company?->name ?? 'Sem empresa vinculada') }}</p>
+                            <p class="mt-1 text-sm sf-text-muted">{{ auth()->user()->name }}</p>
                         </div>
 
                         <nav class="mt-6 space-y-2">
@@ -61,6 +65,12 @@
 
                                     if (auth()->user()->isAdmin()) {
                                         array_splice($sidebarLinks, 7, 0, [[
+                                            'label' => 'Assinaturas',
+                                            'route' => 'membership-plans.index',
+                                            'match' => 'membership-plans.*|customer-memberships.*',
+                                            'icon' => 'M4.5 5.25A2.25 2.25 0 016.75 3h6.5a2.25 2.25 0 012.25 2.25v9.5A2.25 2.25 0 0113.25 17h-6.5A2.25 2.25 0 014.5 14.75V5.25zm2.25-.75a.75.75 0 00-.75.75v9.5c0 .414.336.75.75.75h6.5a.75.75 0 00.75-.75v-9.5a.75.75 0 00-.75-.75h-6.5z',
+                                        ]]);
+                                        array_splice($sidebarLinks, 8, 0, [[
                                             'label' => 'Equipe',
                                             'route' => 'team.index',
                                             'match' => 'team.*',
@@ -73,6 +83,15 @@
                                             'icon' => 'M3.5 15.25V7.94a1.5 1.5 0 01.64-1.23l5-3.57a1.5 1.5 0 011.72 0l5 3.57a1.5 1.5 0 01.64 1.23v7.31A1.75 1.75 0 0114.75 17H5.25A1.75 1.75 0 013.5 15.25zm4-4a.75.75 0 000 1.5h5a.75.75 0 000-1.5h-5z',
                                         ];
                                     }
+
+                                    if (auth()->user()->hasFinancialPrivileges()) {
+                                        $sidebarLinks[] = [
+                                            'label' => 'Avaliações',
+                                            'route' => 'reviews.index',
+                                            'match' => 'reviews.*',
+                                            'icon' => 'M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z',
+                                        ];
+                                    }
                                 }
                             @endphp
 
@@ -82,9 +101,9 @@
                                 @endphp
                                 <a
                                     href="{{ route($link['route']) }}"
-                                    class="{{ $active ? 'border-[#d4af37]/25 bg-[#d4af37]/12 text-white' : 'border-transparent text-[#c7d2e3] hover:border-white/10 hover:bg-white/5 hover:text-white' }} flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition duration-150"
+                                    class="{{ $active ? 'nav-item-active border shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--brand-primary)_32%,transparent)]' : 'border border-transparent text-[var(--text-muted)] hover:border-[color-mix(in_srgb,var(--text-main)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text-main)_5%,transparent)] hover:text-[var(--text-main)]' }} flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition duration-150"
                                 >
-                                    <span class="{{ $active ? 'bg-[#d4af37]/16 text-[#d4af37]' : 'bg-white/5 text-[#c7d2e3]' }} flex h-10 w-10 items-center justify-center rounded-xl transition duration-150">
+                                    <span class="{{ $active ? 'bg-[color-mix(in_srgb,var(--brand-primary)_14%,transparent)] text-[var(--brand-primary)]' : 'bg-[color-mix(in_srgb,var(--text-main)_6%,transparent)] text-[var(--text-muted)]' }} flex h-10 w-10 items-center justify-center rounded-xl transition duration-150">
                                         <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                             <path d="{{ $link['icon'] }}" />
                                         </svg>
@@ -99,14 +118,14 @@
                 <div class="min-w-0 flex-1">
                     @if (request()->attributes->get('support_mode_active'))
                         @php($supportMode = request()->attributes->get('support_mode'))
-                        <div class="mb-6 rounded-2xl border border-[#d4af37]/25 bg-[#d4af37]/10 px-5 py-4 shadow-[0_14px_32px_rgba(9,20,45,0.18)]">
+                        <div class="mb-6 rounded-2xl border border-[color-mix(in_srgb,var(--brand-primary)_28%,transparent)] bg-[color-mix(in_srgb,var(--brand-primary)_10%,var(--card-bg))] px-5 py-4 shadow-[0_14px_32px_color-mix(in_srgb,var(--text-main)_6%,transparent)]">
                             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                                 <div>
-                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Modo suporte ativo</p>
-                                    <p class="mt-1 text-sm font-semibold text-white">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]">Modo suporte ativo</p>
+                                    <p class="mt-1 text-sm font-semibold sf-text">
                                         Você está atuando como {{ $supportMode['support_user_name'] ?? 'usuário da empresa' }} em {{ $supportMode['company_name'] ?? 'empresa do cliente' }}.
                                     </p>
-                                    <p class="mt-1 text-sm text-[#c7d2e3]">
+                                    <p class="mt-1 text-sm sf-text-muted">
                                         Acessó iniciado por {{ $supportMode['original_user_name'] ?? 'super admin' }} para resolver demandas do cliente sem sair do sistema.
                                     </p>
                                 </div>

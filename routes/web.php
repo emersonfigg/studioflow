@@ -1,17 +1,24 @@
 <?php
 
 use App\Http\Controllers\AppointmentController;
+use App\Http\Controllers\AppointmentReviewController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\CommissionSettlementController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\CompanyPaymentIntegrationController;
+use App\Http\Controllers\CompanyPaymentWebhookController;
+use App\Http\Controllers\CustomerMembershipController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceController;
+use App\Http\Controllers\MembershipPlanController;
+use App\Http\Controllers\MercadoPagoOAuthController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PdvController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductSaleController;
 use App\Http\Controllers\ProfessionalAvailabilityController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublicAppointmentReviewController;
 use App\Http\Controllers\PublicBookingController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ServiceOrderController;
@@ -37,6 +44,16 @@ Route::post('/agendar/{company}', [PublicBookingController::class, 'store'])
 Route::get('/agendar/{company}/sucesso/{appointment}', [PublicBookingController::class, 'success'])
     ->name('public-bookings.success');
 
+Route::get('/avaliar/{token}', [PublicAppointmentReviewController::class, 'show'])->name('public-reviews.show');
+Route::post('/avaliar/{token}', [PublicAppointmentReviewController::class, 'store'])->name('public-reviews.store');
+
+Route::post('webhooks/company-payments/asaas', [CompanyPaymentWebhookController::class, 'asaas'])
+    ->name('webhooks.company-payments.asaas');
+Route::post('webhooks/company-payments/galaxy-pay', [CompanyPaymentWebhookController::class, 'galaxyPay'])
+    ->name('webhooks.company-payments.galaxy-pay');
+Route::post('webhooks/company-payments/mercado-pago', [CompanyPaymentWebhookController::class, 'mercadoPago'])
+    ->name('webhooks.company-payments.mercado-pago');
+
 Route::get('/dashboard', DashboardController::class)
     ->middleware(['auth', 'verified', 'support_mode', 'active_company'])
     ->name('dashboard');
@@ -44,9 +61,13 @@ Route::get('/dashboard', DashboardController::class)
 Route::middleware(['auth', 'support_mode', 'active_company'])->group(function () {
     Route::get('appointments/client-history/{client}', [AppointmentController::class, 'clientHistory'])
         ->name('appointments.client-history');
+    Route::get('appointments/smart-slots', [AppointmentController::class, 'smartSlots'])
+        ->name('appointments.smart-slots');
     Route::resource('appointments', AppointmentController::class);
     Route::patch('appointments/{appointment}/status', [AppointmentController::class, 'updateStatus'])
         ->name('appointments.status');
+    Route::post('appointments/{appointment}/no-show', [AppointmentController::class, 'markNoShow'])
+        ->name('appointments.no-show');
     Route::get('appointments/{appointment}/order', [ServiceOrderController::class, 'show'])
         ->name('appointments.orders.show');
     Route::post('service-orders/{order}/services', [ServiceOrderController::class, 'addService'])
@@ -69,14 +90,41 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
         ->name('clients.deactivate');
     Route::patch('clients/{client}/reactivate', [ClientController::class, 'reactivate'])
         ->name('clients.reactivate');
+    Route::post('clients/{client}/unblock', [ClientController::class, 'unblock'])->name('clients.unblock');
+    Route::post('clients/{client}/customer-memberships', [CustomerMembershipController::class, 'store'])
+        ->name('clients.memberships.store');
+    Route::patch('customer-memberships/{customer_membership}/pause', [CustomerMembershipController::class, 'pause'])
+        ->name('customer-memberships.pause');
+    Route::patch('customer-memberships/{customer_membership}/resume', [CustomerMembershipController::class, 'resume'])
+        ->name('customer-memberships.resume');
+    Route::patch('customer-memberships/{customer_membership}/cancel', [CustomerMembershipController::class, 'cancel'])
+        ->name('customer-memberships.cancel');
     Route::resource('clients', ClientController::class);
     Route::get('company/onboarding', [CompanyController::class, 'onboarding'])->name('company.onboarding');
     Route::get('company', [CompanyController::class, 'edit'])->name('company.edit');
     Route::patch('company', [CompanyController::class, 'update'])->name('company.update');
-    Route::resource('products', ProductController::class)->except(['show']);
+    Route::post('company/branding-preview', [CompanyController::class, 'previewBrandingStyle'])->name('company.branding-preview');
+    Route::get('company/payment-integrations', [CompanyPaymentIntegrationController::class, 'index'])->name('company.payment-integrations.index');
+    Route::get('company/payment-integrations/create', [CompanyPaymentIntegrationController::class, 'create'])->name('company.payment-integrations.create');
+    Route::post('company/payment-integrations', [CompanyPaymentIntegrationController::class, 'store'])->name('company.payment-integrations.store');
+    Route::get('company/payment-integrations/{integration}/edit', [CompanyPaymentIntegrationController::class, 'edit'])->name('company.payment-integrations.edit');
+    Route::patch('company/payment-integrations/{integration}', [CompanyPaymentIntegrationController::class, 'update'])->name('company.payment-integrations.update');
+    Route::post('company/payment-integrations/{integration}/test', [CompanyPaymentIntegrationController::class, 'test'])->name('company.payment-integrations.test');
+    Route::patch('company/payment-integrations/{integration}/toggle', [CompanyPaymentIntegrationController::class, 'toggle'])->name('company.payment-integrations.toggle');
+    Route::get('company/payment-integrations/mercado-pago/connect', [MercadoPagoOAuthController::class, 'connect'])->name('company.payment-integrations.mercado-pago.connect');
+    Route::get('company/payment-integrations/mercado-pago/callback', [MercadoPagoOAuthController::class, 'callback'])->name('company.payment-integrations.mercado-pago.callback');
+    Route::post('company/payment-integrations/mercado-pago/disconnect', [MercadoPagoOAuthController::class, 'disconnect'])->name('company.payment-integrations.mercado-pago.disconnect');
     Route::get('products/sales', [ProductSaleController::class, 'index'])->name('product-sales.index');
     Route::get('products/sales/create', [ProductSaleController::class, 'create'])->name('product-sales.create');
     Route::post('products/sales', [ProductSaleController::class, 'store'])->name('product-sales.store');
+    Route::get('products/{product}', [ProductController::class, 'show'])->name('products.show');
+    Route::patch('products/{product}/stock', [ProductController::class, 'adjustStock'])->name('products.stock-adjust');
+    Route::resource('products', ProductController::class)->except(['show']);
+    Route::get('reviews', [AppointmentReviewController::class, 'index'])->name('reviews.index');
+    Route::patch('membership-plans/{membership_plan}/toggle-active', [MembershipPlanController::class, 'toggleActive'])
+        ->name('membership-plans.toggle-active');
+    Route::resource('membership-plans', MembershipPlanController::class)->except(['destroy']);
+
     Route::get('pdv', [PdvController::class, 'index'])->name('pdv.index');
     Route::post('pdv', [PdvController::class, 'store'])->name('pdv.store');
     Route::get('pdv/sales', [PdvController::class, 'sales'])->name('pdv.sales');

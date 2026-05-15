@@ -24,6 +24,7 @@ class Appointment extends Model
         'in_progress',
         'completed',
         'cancelled',
+        'no_show',
     ];
 
     public const SOURCES = [
@@ -139,6 +140,11 @@ class Appointment extends Model
         return $this->hasOne(ServiceOrder::class);
     }
 
+    public function appointmentReview(): HasOne
+    {
+        return $this->hasOne(AppointmentReview::class);
+    }
+
     /**
      * Get product sales registered during this appointment conclusion.
      *
@@ -160,6 +166,7 @@ class Appointment extends Model
             'in_progress' => 'Em atendimento',
             'completed' => 'Concluído',
             'cancelled' => 'Cancelado',
+            'no_show' => 'Falta',
             default => $this->status,
         };
     }
@@ -175,6 +182,7 @@ class Appointment extends Model
             'in_progress' => 'bg-amber-100 text-amber-700 ring-amber-600/20',
             'completed' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20',
             'cancelled' => 'bg-rose-100 text-rose-700 ring-rose-600/20',
+            'no_show' => 'bg-orange-100 text-orange-800 ring-orange-600/20',
             default => 'bg-gray-100 text-gray-700 ring-gray-600/20',
         };
     }
@@ -211,6 +219,24 @@ class Appointment extends Model
         return self::clientScheduleConflictQuery($companyId, $clientId, $startTime, $endTime, $ignoreAppointmentId)
             ->orderBy('start_time')
             ->first();
+    }
+
+    /**
+     * Whether the client already has another active appointment on the same calendar date (excluding overlap-only checks).
+     */
+    public static function clientHasActiveAppointmentSameCalendarDate(
+        int $companyId,
+        int $clientId,
+        CarbonInterface $startTime,
+        ?int $ignoreAppointmentId = null,
+    ): bool {
+        return self::query()
+            ->where('company_id', $companyId)
+            ->where('client_id', $clientId)
+            ->whereIn('status', self::CLIENT_CONFLICT_ACTIVE_STATUSES)
+            ->whereDate('start_time', $startTime->toDateString())
+            ->when($ignoreAppointmentId !== null, fn (Builder $query) => $query->whereKeyNot($ignoreAppointmentId))
+            ->exists();
     }
 
     /**

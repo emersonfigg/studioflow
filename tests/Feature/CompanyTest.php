@@ -85,4 +85,72 @@ class CompanyTest extends TestCase
             ])
             ->assertForbidden();
     }
+
+    public function test_company_text_fields_never_persist_dom_object_strings(): void
+    {
+        $company = Company::factory()->create([
+            'description' => 'Descricao inicial',
+        ]);
+        $admin = User::factory()->admin()->for($company)->create();
+
+        $this->actingAs($admin)
+            ->patch(route('company.update', absolute: false), [
+                'name' => 'Empresa segura',
+                'address' => '[object HTMLTextAreaElement]',
+                'description' => '[object HTMLTextAreaElement]',
+                'phone' => '[object HTMLInputElement]',
+            ])
+            ->assertRedirect(route('company.edit', absolute: false));
+
+        $company->refresh();
+
+        $this->assertSame('Empresa segura', $company->name);
+        $this->assertNull($company->address);
+        $this->assertNull($company->description);
+        $this->assertNull($company->phone);
+
+        $this->actingAs($admin)
+            ->get(route('company.edit', absolute: false))
+            ->assertOk()
+            ->assertDontSee('[object HTMLTextAreaElement]')
+            ->assertDontSee('[object HTMLInputElement]');
+    }
+
+    public function test_restoring_theme_clears_colors_without_removing_texts_or_logo(): void
+    {
+        Storage::fake('public');
+
+        Storage::disk('public')->put('companies/test-logo.png', 'logo');
+
+        $company = Company::factory()->create([
+            'name' => 'Empresa tema',
+            'description' => 'Descricao firme',
+            'logo' => 'companies/test-logo.png',
+            'primary_color' => '#750006',
+            'secondary_color' => '#FAFAFA',
+            'accent_color' => '#FFFFFF',
+            'brand_enabled' => true,
+        ]);
+        $admin = User::factory()->admin()->for($company)->create();
+
+        $this->actingAs($admin)
+            ->patch(route('company.update', absolute: false), [
+                'name' => 'Empresa tema',
+                'description' => 'Descricao firme',
+                'primary_color' => '',
+                'secondary_color' => '',
+                'accent_color' => '',
+                'brand_enabled' => '0',
+            ])
+            ->assertRedirect(route('company.edit', absolute: false));
+
+        $company->refresh();
+
+        $this->assertNull($company->primary_color);
+        $this->assertNull($company->secondary_color);
+        $this->assertNull($company->accent_color);
+        $this->assertFalse($company->brand_enabled);
+        $this->assertSame('Descricao firme', $company->description);
+        $this->assertSame('companies/test-logo.png', $company->logo);
+    }
 }

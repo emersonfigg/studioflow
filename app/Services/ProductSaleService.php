@@ -21,6 +21,7 @@ class ProductSaleService
         private readonly ServiceOrderService $serviceOrderService,
         private readonly ProductCommissionCalculator $productCommissionCalculator,
         private readonly ClientCommercialHistoryService $commercialHistoryService,
+        private readonly StockService $stockService,
     ) {}
 
     /**
@@ -74,10 +75,14 @@ class ProductSaleService
                 /** @var Product|null $product */
                 $product = $products->get((int) $productId);
 
-                if (! $product || $product->stock_quantity < $quantity) {
+                if (! $product) {
                     throw ValidationException::withMessages([
                         'items' => 'Estoque insuficiente para um ou mais produtos selecionados.',
                     ]);
+                }
+
+                if ($product->tracksStock()) {
+                    $this->stockService->validateStockAvailable($product, (float) $quantity);
                 }
             }
 
@@ -144,9 +149,9 @@ class ProductSaleService
                     'commission_value_snapshot' => $commission['value'],
                     'commission_amount' => $commission['amount'],
                 ]);
-
-                $product->decrement('stock_quantity', $quantity);
             }
+
+            $this->stockService->applyProductSaleMovements($sale->fresh(['items.product']), $actor);
 
             $client->update([
                 'last_visit_at' => $soldAt,

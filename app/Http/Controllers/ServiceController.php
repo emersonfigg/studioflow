@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreServiceRequest;
 use App\Http\Requests\UpdateServiceRequest;
+use App\Models\Product;
 use App\Models\Service;
+use App\Models\ServiceProductConsumption;
 use App\Support\MediaStorage;
 use App\Support\ServiceImageLibrary;
 use Carbon\CarbonImmutable;
@@ -45,6 +47,12 @@ class ServiceController extends Controller
 
         return view('services.create', [
             'libraryImages' => $this->serviceLibraryImages(),
+            'products' => Product::query()
+                ->where('company_id', $request->user()->company_id)
+                ->where('active', true)
+                ->orderBy('name')
+                ->get(),
+            'consumptionRows' => old('consumptions', $this->consumptionFormRows(null)),
         ]);
     }
 
@@ -54,6 +62,8 @@ class ServiceController extends Controller
     public function store(StoreServiceRequest $request): RedirectResponse
     {
         $data = $request->validated();
+        $consumptions = $data['consumptions'] ?? [];
+        unset($data['consumptions']);
         $data['active'] = $request->boolean('active');
         $image = $request->file('image') ?? ($data['image'] ?? null);
         $libraryImage = $data['library_image'] ?? null;
@@ -71,6 +81,8 @@ class ServiceController extends Controller
             'company_id' => $request->user()->company_id,
         ]);
 
+        $this->syncProductConsumptions($service, $consumptions);
+
         return redirect()->route('services.show', $service)->with('status', 'service-created');
     }
 
@@ -80,6 +92,7 @@ class ServiceController extends Controller
     public function show(Request $request, Service $service): View
     {
         $this->ensureServiceBelongsToUserCompany($request, $service);
+        $service->load(['productConsumptions.product']);
         $monthStart = CarbonImmutable::now()->startOfMonth();
         $monthEnd = CarbonImmutable::now()->endOfMonth();
 
@@ -109,6 +122,12 @@ class ServiceController extends Controller
         return view('services.edit', [
             'service' => $service,
             'libraryImages' => $this->serviceLibraryImages(),
+            'products' => Product::query()
+                ->where('company_id', $request->user()->company_id)
+                ->where('active', true)
+                ->orderBy('name')
+                ->get(),
+            'consumptionRows' => old('consumptions', $this->consumptionFormRows($service)),
         ]);
     }
 
@@ -120,6 +139,8 @@ class ServiceController extends Controller
         $this->ensureServiceBelongsToUserCompany($request, $service);
 
         $data = $request->validated();
+        $consumptions = $data['consumptions'] ?? [];
+        unset($data['consumptions']);
         $data['active'] = $request->boolean('active');
         $image = $request->file('image') ?? ($data['image'] ?? null);
         $libraryImage = $data['library_image'] ?? null;
@@ -142,6 +163,8 @@ class ServiceController extends Controller
 
         $service->update($data);
 
+        $this->syncProductConsumptions($service->fresh(), $consumptions);
+
         return redirect()->route('services.show', $service)->with('status', 'service-updated');
     }
 
@@ -160,6 +183,71 @@ class ServiceController extends Controller
         $service->delete();
 
         return redirect()->route('services.index')->with('status', 'service-deleted');
+    }
+
+    /**
+     * @return list<array{product_id: mixed, quantity: string, unit: string, active: bool}>
+     */
+    private function consumptionFormRows(?Service $service): array
+    {
+        if ($service === null) {
+            return array_fill(0, 5, [
+                'product_id' => '',
+                'quantity' => '1',
+                'unit' => '',
+                'active' => true,
+            ]);
+        }
+
+        $service->loadMissing('productConsumptions');
+
+        $rows = $service->productConsumptions
+            ->map(fn (ServiceProductConsumption $row): array => [
+                'product_id' => $row->product_id,
+                'quantity' => (string) $row->quantity,
+                'unit' => (string) ($row->unit ?? ''),
+                'active' => (bool) $row->active,
+            ])
+            ->values()
+            ->all();
+
+        if ($rows === []) {
+            return $this->consumptionFormRows(null);
+        }
+
+        while (count($rows) < 5) {
+            $rows[] = ['product_id' => '', 'quantity' => '1', 'unit' => '', 'active' => true];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function syncProductConsumptions(Service $service, array $rows): void
+    {
+        $companyId = (int) $service->company_id;
+
+        ServiceProductConsumption::query()->where('service_id', $service->id)->delete();
+
+        foreach (collect($rows)->filter(fn (mixed $row): bool => is_array($row) && ! empty($row['product_id'])) as $row) {
+            $productId = (int) $row['product_id'];
+
+            abort_unless(
+                Product::query()->where('company_id', $companyId)->whereKey($productId)->exists(),
+                422,
+            );
+
+            ServiceProductConsumption::create([
+                'company_id' => $companyId,
+                'service_id' => $service->id,
+                'product_id' => $productId,
+                'quantity' => round(max(0.01, (float) ($row['quantity'] ?? 1)), 2),
+                'unit' => isset($row['unit']) && $row['unit'] !== '' ? (string) $row['unit'] : null,
+                'active' => ((int) ($row['active'] ?? 1)) === 1,
+            ]);
+        }
     }
 
     /**

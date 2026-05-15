@@ -159,7 +159,7 @@ class ProductTest extends TestCase
             'amount' => '70.00',
         ]);
 
-        $this->assertSame(3, $product->refresh()->stock_quantity);
+        $this->assertSame('3.00', (string) $product->refresh()->stock_quantity);
 
         $this->actingAs($admin)
             ->get(route('clients.show', $client, false))
@@ -269,7 +269,7 @@ class ProductTest extends TestCase
             'service_order_id' => $order->id,
             'gross_amount' => '40.00',
         ]);
-        $this->assertSame(3, $product->refresh()->stock_quantity);
+        $this->assertSame('3.00', (string) $product->refresh()->stock_quantity);
     }
 
     public function test_standalone_service_sale_appears_in_client_history_endpoint(): void
@@ -325,7 +325,7 @@ class ProductTest extends TestCase
             ->assertRedirect(route('product-sales.create', absolute: false))
             ->assertSessionHasErrors('items');
 
-        $this->assertSame(1, $product->refresh()->stock_quantity);
+        $this->assertSame('1.00', (string) $product->refresh()->stock_quantity);
         $this->assertDatabaseCount('product_sales', 0);
     }
 

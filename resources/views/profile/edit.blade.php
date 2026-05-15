@@ -4,13 +4,13 @@
             <section class="sf-card overflow-hidden px-5 py-6 sm:px-7">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <div class="inline-flex items-center rounded-full border border-[#d4af37]/25 bg-[#d4af37]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#d4af37]">
+                        <div class="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--brand-primary)_25%,transparent)] bg-[var(--brand-primary)]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] brand-text">
                             Conta
                         </div>
-                        <h1 class="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                        <h1 class="mt-4 text-3xl font-semibold tracking-tight text-[var(--text-main)] sm:text-4xl">
                             Perfil
                         </h1>
-                        <p class="mt-2 max-w-2xl text-sm leading-7 text-[#c7d2e3] sm:text-base">
+                        <p class="mt-2 max-w-2xl text-sm leading-7 sf-text-muted sm:text-base">
                             Gerencie seus dados de acessó e seguranca.
                         </p>
                     </div>

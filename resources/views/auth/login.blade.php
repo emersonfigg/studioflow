@@ -1,8 +1,8 @@
 <x-guest-layout>
     <div class="mb-6">
-        <p class="text-xs font-semibold uppercase tracking-[0.22em] text-[#d4af37]">StudioFlow</p>
-        <p class="mt-3 text-2xl font-semibold text-white">Acesse sua operação completa</p>
-        <p class="mt-2 text-sm leading-6 text-[#c7d2e3]">
+        <p class="text-xs font-semibold uppercase tracking-[0.22em] brand-text">StudioFlow</p>
+        <p class="mt-3 text-2xl font-semibold text-[var(--text-main)]">Acesse sua operação completa</p>
+        <p class="mt-2 text-sm leading-6 sf-text-muted">
             Entre para acompanhar agenda, clientes, serviços e o fluxo de agendamentos em um só lugar.
         </p>
     </div>
@@ -33,14 +33,14 @@
 
         <div class="mt-4 block">
             <label for="remember_me" class="inline-flex items-center">
-                <input id="remember_me" type="checkbox" class="rounded border-white/20 bg-[#132746] text-[#d4af37] shadow-sm focus:ring-[#d4af37] focus:ring-offset-[#223d69]" name="remember">
-                <span class="ms-2 text-sm text-[#c7d2e3]">Lembrar-me</span>
+                <input id="remember_me" type="checkbox" class="rounded border-white/20 bg-[var(--input-bg)] brand-text shadow-sm focus:ring-[var(--brand-primary)] focus:ring-offset-[var(--app-shell-bg)]" name="remember">
+                <span class="ms-2 text-sm sf-text-muted">Lembrar-me</span>
             </label>
         </div>
 
         <div class="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             @if (Route::has('password.request'))
-                <a class="rounded-md text-sm font-medium text-[#c7d2e3] transition hover:text-white focus:outline-none focus:ring-2 focus:ring-[#d4af37] focus:ring-offset-2 focus:ring-offset-[#223d69]" href="{{ route('password.request') }}">
+                <a class="rounded-md text-sm font-medium sf-text-muted transition hover:text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] focus:ring-offset-2 focus:ring-offset-[var(--app-shell-bg)]" href="{{ route('password.request') }}">
                     Esqueceu sua senha?
                 </a>
             @endif

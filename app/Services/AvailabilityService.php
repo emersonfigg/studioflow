@@ -117,7 +117,7 @@ class AvailabilityService
         $appointments = Appointment::query()
             ->where('company_id', $company->id)
             ->where('user_id', $user->id)
-            ->where('status', '!=', 'cancelled')
+            ->whereNotIn('status', ['cancelled', 'no_show'])
             ->when($ignoreAppointmentId !== null, fn ($query) => $query->whereKeyNot($ignoreAppointmentId))
             ->where('start_time', '<', $conflictWindowEnd)
             ->where('end_time', '>', $overallStart)

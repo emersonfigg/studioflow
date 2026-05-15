@@ -2,11 +2,11 @@
     <x-slot name="header">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Equipe</p>
-                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
+                <p class="text-sm font-semibold uppercase tracking-[0.18em] brand-text">Equipe</p>
+                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-[var(--text-main)]">
                     Profissionais da empresa
                 </h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Gerencie acessos, status, fotos e comissões do seu time.</p>
+                <p class="mt-2 text-sm sf-text-muted">Gerencie acessos, status, fotos e comissões do seu time.</p>
             </div>
 
             <a href="{{ route('team.create') }}" class="sf-button-primary">
@@ -45,20 +45,20 @@
                         default => 'Sem comissão',
                     };
                 @endphp
-                <article class="{{ $highlighted ? 'border-[#d4af37]/35 shadow-[0_18px_40px_rgba(212,175,55,0.12)]' : 'border-white/10' }} sf-card overflow-hidden border p-5">
+                <article class="{{ $highlighted ? 'border-[color-mix(in_srgb,var(--brand-primary)_35%,transparent)] shadow-[0_18px_40px_color-mix(in_srgb,var(--brand-primary)_16%,transparent)]' : 'border-white/10' }} sf-card overflow-hidden border p-5">
                     <div class="flex items-start justify-between gap-4">
                         <div class="min-w-0">
                             <div class="flex items-center gap-3">
                                 @if ($user->photo_url)
                                     <img src="{{ $user->photo_url }}" alt="Foto de {{ $user->name }}" class="h-12 w-12 shrink-0 rounded-full object-cover ring-1 ring-white/10">
                                 @else
-                                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#d4af37]/12 text-sm font-semibold text-[#d4af37]">
+                                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)]/12 text-sm font-semibold brand-text">
                                         {{ $user->avatar_initial }}
                                     </div>
                                 @endif
                                 <div class="min-w-0">
-                                    <p class="truncate text-base font-semibold text-white">{{ $user->name }}</p>
-                                    <p class="truncate text-sm text-[#c7d2e3]">{{ $user->email }}</p>
+                                    <p class="truncate text-base font-semibold text-[var(--text-main)]">{{ $user->name }}</p>
+                                    <p class="truncate text-sm sf-text-muted">{{ $user->email }}</p>
                                 </div>
                             </div>
                         </div>
@@ -70,16 +70,16 @@
 
                     <dl class="mt-5 space-y-3">
                         <div class="flex items-center justify-between gap-4">
-                            <dt class="text-sm text-[#c7d2e3]">Perfil</dt>
-                            <dd class="text-sm font-semibold text-white">{{ $user->role === 'admin' ? 'Admin' : 'Staff' }}</dd>
+                            <dt class="text-sm sf-text-muted">Perfil</dt>
+                            <dd class="text-sm font-semibold text-[var(--text-main)]">{{ $user->role === 'admin' ? 'Admin' : 'Staff' }}</dd>
                         </div>
                         <div class="flex items-center justify-between gap-4">
-                            <dt class="text-sm text-[#c7d2e3]">Comissão</dt>
-                            <dd class="text-sm font-semibold text-white">{{ $commissionLabel }}</dd>
+                            <dt class="text-sm sf-text-muted">Comissão</dt>
+                            <dd class="text-sm font-semibold text-[var(--text-main)]">{{ $commissionLabel }}</dd>
                         </div>
                         <div class="flex items-center justify-between gap-4">
-                            <dt class="text-sm text-[#c7d2e3]">Agenda pública</dt>
-                            <dd class="text-sm font-semibold {{ $user->active ? 'text-[#d4af37]' : 'text-[#c7d2e3]' }}">{{ $user->active ? 'Disponível' : 'Oculta' }}</dd>
+                            <dt class="text-sm sf-text-muted">Agenda pública</dt>
+                            <dd class="text-sm font-semibold {{ $user->active ? 'brand-text' : 'sf-text-muted' }}">{{ $user->active ? 'Disponível' : 'Oculta' }}</dd>
                         </div>
                     </dl>
 
@@ -94,14 +94,14 @@
                         <form method="POST" action="{{ route('team.toggle-active', $user) }}">
                             @csrf
                             @method('PATCH')
-                            <button type="submit" class="{{ $user->active ? 'inline-flex items-center justify-center rounded-xl border border-rose-300/20 bg-rose-400/12 px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-rose-50 transition duration-150 hover:bg-rose-400/20 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2 focus:ring-offset-[#1b335b]' : 'sf-button-secondary !px-4 !py-2.5' }}">
+                            <button type="submit" class="{{ $user->active ? 'inline-flex items-center justify-center rounded-xl border border-rose-300/20 bg-rose-400/12 px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-rose-50 transition duration-150 hover:bg-rose-400/20 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2 focus:ring-offset-[var(--app-shell-bg)]' : 'sf-button-secondary !px-4 !py-2.5' }}">
                                 {{ $user->active ? 'Inativar' : 'Ativar' }}
                             </button>
                         </form>
                     </div>
                 </article>
             @empty
-                <div class="sf-card col-span-full rounded-2xl border border-dashed border-white/10 px-5 py-10 text-center text-sm text-[#c7d2e3]">
+                <div class="sf-card col-span-full rounded-2xl border border-dashed border-white/10 px-5 py-10 text-center text-sm sf-text-muted">
                     Nenhum profissional cadastrado ainda.
                 </div>
             @endforelse

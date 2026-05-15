@@ -9,6 +9,8 @@ use App\Models\Company;
 use App\Models\Service;
 use App\Models\User;
 use App\Services\AvailabilityService;
+use App\Services\BrandingService;
+use App\Services\CustomerBlockService;
 use App\Services\ServiceOrderService;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
@@ -90,8 +92,12 @@ class PublicBookingController extends Controller
                 ];
             });
 
+        $brandingService = app(BrandingService::class);
+
         return view('public-bookings.create', [
             'company' => $company,
+            'publicBranding' => $brandingService->getCurrentCompanyBranding($company),
+            'publicFaviconHref' => $brandingService->faviconHrefFor($company),
             'services' => $services,
             'users' => $users,
             'selectedServices' => $selectedServices,
@@ -253,6 +259,12 @@ class PublicBookingController extends Controller
                 ]);
             }
 
+            if (app(CustomerBlockService::class)->isBlocked($client)) {
+                throw ValidationException::withMessages([
+                    'client_phone' => 'Seu cadastro esta temporariamente bloqueado para novos agendamentos online. Entre em contato com a empresa.',
+                ]);
+            }
+
             $endTime = $startTime->copy()->addMinutes($totalDurationMinutes);
 
             Client::query()
@@ -313,9 +325,13 @@ class PublicBookingController extends Controller
 
         $appointment->load(['client', 'service', 'user', 'services']);
 
+        $brandingService = app(BrandingService::class);
+
         return view('public-bookings.success', [
             'company' => $company,
             'appointment' => $appointment,
+            'publicBranding' => $brandingService->getCurrentCompanyBranding($company),
+            'publicFaviconHref' => $brandingService->faviconHrefFor($company),
             'whatsAppUrl' => 'https://wa.me/'.preg_replace('/\D+/', '', (string) $appointment->client->phone),
         ]);
     }

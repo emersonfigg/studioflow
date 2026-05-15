@@ -6,6 +6,7 @@ use App\Http\Requests\Concerns\NormalizesBrazilianCurrency;
 use App\Support\ServiceImageLibrary;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateServiceRequest extends FormRequest
 {
@@ -35,7 +36,38 @@ class UpdateServiceRequest extends FormRequest
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'library_image' => ['nullable', 'string', Rule::in($this->availableLibraryImages())],
             'recommended_return_days' => ['nullable', 'integer', 'min:1', 'max:730'],
+            'consumptions' => ['nullable', 'array'],
+            'consumptions.*.product_id' => ['nullable', 'integer', Rule::exists('products', 'id')->where('company_id', (int) $this->user()->company_id)],
+            'consumptions.*.quantity' => ['nullable', 'numeric', 'min:0.01', 'max:99999'],
+            'consumptions.*.unit' => ['nullable', 'string', 'max:32'],
+            'consumptions.*.active' => ['nullable', 'in:0,1'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $rows = collect((array) $this->input('consumptions', []))
+                ->filter(fn (mixed $row): bool => is_array($row) && ! empty($row['product_id']));
+
+            $ids = $rows->pluck('product_id')->map(fn ($id): int => (int) $id);
+
+            if ($ids->duplicates()->isNotEmpty()) {
+                $validator->errors()->add('consumptions', 'Não repita o mesmo produto na lista de consumo.');
+            }
+
+            foreach ($rows as $row) {
+                if (empty($row['quantity']) || (float) $row['quantity'] <= 0) {
+                    $validator->errors()->add('consumptions', 'Cada produto vinculado precisa de quantidade maior que zero.');
+
+                    return;
+                }
+            }
+        });
     }
 
     protected function prepareForValidation(): void

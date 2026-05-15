@@ -2,11 +2,11 @@
     <x-slot name="header">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Comanda</p>
-                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
+                <p class="text-sm font-semibold uppercase tracking-[0.18em] brand-text">Comanda</p>
+                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-[var(--text-main)]">
                     Atendimento de {{ $appointment->client->name }}
                 </h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">
+                <p class="mt-2 text-sm sf-text-muted">
                     {{ $appointment->start_time->format('d/m/Y H:i') }} · {{ $appointment->user->name }}
                 </p>
             </div>
@@ -32,16 +32,16 @@
 
             <section class="sf-card overflow-hidden">
                 <div class="border-b border-white/10 px-5 py-5">
-                    <h3 class="text-base font-semibold text-white">Itens da comanda</h3>
-                    <p class="mt-1 text-sm text-[#c7d2e3]">Serviços adicionais não alteram a agenda automaticamente.</p>
+                    <h3 class="text-base font-semibold text-[var(--text-main)]">Itens da comanda</h3>
+                    <p class="mt-1 text-sm sf-text-muted">Serviços adicionais não alteram a agenda automaticamente.</p>
                 </div>
 
                 <div class="divide-y divide-white/10">
                     @forelse ($order->items as $item)
                         <div class="grid gap-4 px-5 py-4 md:grid-cols-[minmax(0,1fr)_120px_120px_auto] md:items-center">
                             <div>
-                                <p class="text-sm font-semibold text-white">{{ $item->description }}</p>
-                                <p class="mt-1 text-xs text-[#c7d2e3]">
+                                <p class="text-sm font-semibold text-[var(--text-main)]">{{ $item->description }}</p>
+                                <p class="mt-1 text-xs sf-text-muted">
                                     {{ $item->type === 'service' ? 'Serviço' : 'Produto' }}
                                     @if ($item->professional)
                                         · {{ $item->professional->name }}
@@ -51,8 +51,8 @@
                                     @endif
                                 </p>
                             </div>
-                            <p class="text-sm text-[#c7d2e3]">Qtd. {{ $item->quantity }}</p>
-                            <p class="text-sm font-semibold text-[#d4af37]">R$ {{ number_format((float) $item->total_price, 2, ',', '.') }}</p>
+                            <p class="text-sm sf-text-muted">Qtd. {{ $item->quantity }}</p>
+                            <p class="text-sm font-semibold brand-text">R$ {{ number_format((float) $item->total_price, 2, ',', '.') }}</p>
                             <div>
                                 @if ($order->isOpen())
                                     <form method="POST" action="{{ route('service-orders.items.destroy', [$order, $item]) }}">
@@ -64,7 +64,7 @@
                             </div>
                         </div>
                     @empty
-                        <div class="px-5 py-8 text-sm text-[#c7d2e3]">Nenhum item na comanda.</div>
+                        <div class="px-5 py-8 text-sm sf-text-muted">Nenhum item na comanda.</div>
                     @endforelse
                 </div>
             </section>
@@ -72,7 +72,7 @@
             @if ($order->isOpen())
                 <div class="grid gap-6 lg:grid-cols-2">
                     <section class="sf-card p-5">
-                        <h3 class="text-base font-semibold text-white">Adicionar serviço</h3>
+                        <h3 class="text-base font-semibold text-[var(--text-main)]">Adicionar serviço</h3>
                         <form method="POST" action="{{ route('service-orders.services.store', $order) }}" class="mt-4 space-y-4">
                             @csrf
                             <div>
@@ -99,7 +99,7 @@
                     </section>
 
                     <section class="sf-card p-5">
-                        <h3 class="text-base font-semibold text-white">Adicionar produto</h3>
+                        <h3 class="text-base font-semibold text-[var(--text-main)]">Adicionar produto</h3>
                         <form method="POST" action="{{ route('service-orders.products.store', $order) }}" class="mt-4 space-y-4">
                             @csrf
                             <div>
@@ -126,7 +126,7 @@
                                         <option value="{{ $professional->id }}" @selected(old('seller_id', $order->professional_id) == $professional->id)>{{ $professional->name }}</option>
                                     @endforeach
                                 </select>
-                                <p class="mt-2 text-xs text-[#c7d2e3]">Obrigatório quando o produto tem comissão configurada.</p>
+                                <p class="mt-2 text-xs sf-text-muted">Obrigatório quando o produto tem comissão configurada.</p>
                                 <x-input-error class="mt-2" :messages="$errors->get('seller_id')" />
                             </div>
                             <x-primary-button>Adicionar produto</x-primary-button>
@@ -138,33 +138,33 @@
 
         <aside class="space-y-6">
             <section class="sf-card p-5">
-                <h3 class="text-base font-semibold text-white">Resumo</h3>
+                <h3 class="text-base font-semibold text-[var(--text-main)]">Resumo</h3>
                 <dl class="mt-5 space-y-3 text-sm">
                     <div class="flex justify-between gap-4">
-                        <dt class="text-[#c7d2e3]">Serviços</dt>
-                        <dd class="font-semibold text-white">R$ {{ number_format((float) $order->subtotal_services, 2, ',', '.') }}</dd>
+                        <dt class="sf-text-muted">Serviços</dt>
+                        <dd class="font-semibold text-[var(--text-main)]">R$ {{ number_format((float) $order->subtotal_services, 2, ',', '.') }}</dd>
                     </div>
                     <div class="flex justify-between gap-4">
-                        <dt class="text-[#c7d2e3]">Produtos</dt>
-                        <dd class="font-semibold text-white">R$ {{ number_format((float) $order->subtotal_products, 2, ',', '.') }}</dd>
+                        <dt class="sf-text-muted">Produtos</dt>
+                        <dd class="font-semibold text-[var(--text-main)]">R$ {{ number_format((float) $order->subtotal_products, 2, ',', '.') }}</dd>
                     </div>
                     <div class="border-t border-white/10 pt-3">
                         <div class="flex justify-between gap-4">
-                            <dt class="font-semibold text-white">Total</dt>
-                            <dd class="text-xl font-semibold text-[#d4af37]">R$ {{ number_format((float) $order->total, 2, ',', '.') }}</dd>
+                            <dt class="font-semibold text-[var(--text-main)]">Total</dt>
+                            <dd class="text-xl font-semibold brand-text">R$ {{ number_format((float) $order->total, 2, ',', '.') }}</dd>
                         </div>
                     </div>
                     <div class="pt-2">
-                        <dt class="text-[#c7d2e3]">Status</dt>
-                        <dd class="mt-1 font-semibold text-white">{{ $order->status === 'paid' ? 'Paga' : 'Aberta' }}</dd>
+                        <dt class="sf-text-muted">Status</dt>
+                        <dd class="mt-1 font-semibold text-[var(--text-main)]">{{ $order->status === 'paid' ? 'Paga' : 'Aberta' }}</dd>
                     </div>
                 </dl>
             </section>
 
             @if ($order->isOpen())
                 <section id="fechamento" class="sf-card p-5">
-                    <h3 class="text-base font-semibold text-white">Fechamento</h3>
-                    <p class="mt-2 text-sm text-[#c7d2e3]">O estoque de produtos será baixado somente ao fechar a comanda.</p>
+                    <h3 class="text-base font-semibold text-[var(--text-main)]">Fechamento</h3>
+                    <p class="mt-2 text-sm sf-text-muted">O estoque de produtos será baixado somente ao fechar a comanda.</p>
                     <form method="POST" action="{{ route('service-orders.close', $order) }}" class="mt-4 space-y-4">
                         @csrf
                         <div>

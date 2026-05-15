@@ -1,11 +1,12 @@
 <?php
 
+use App\Http\Middleware\ApplySupportMode;
 use App\Http\Middleware\EnsureCompanyIsActive;
 use App\Http\Middleware\EnsureSuperAdmin;
-use App\Http\Middleware\ApplySupportMode;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -16,15 +17,16 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(
             at: '*',
-            headers: \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR
-                | \Illuminate\Http\Request::HEADER_X_FORWARDED_HOST
-                | \Illuminate\Http\Request::HEADER_X_FORWARDED_PORT
-                | \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO
-                | \Illuminate\Http\Request::HEADER_X_FORWARDED_PREFIX
+            headers: Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT
+                | Request::HEADER_X_FORWARDED_PROTO
+                | Request::HEADER_X_FORWARDED_PREFIX
         );
 
         $middleware->validateCsrfTokens(except: [
             'logout',
+            'webhooks/company-payments/*',
         ]);
 
         $middleware->alias([

@@ -26,6 +26,16 @@ class Company extends Model
         'instagram',
         'description',
         'logo',
+        'favicon_path',
+        'cover_image_path',
+        'primary_color',
+        'secondary_color',
+        'accent_color',
+        'public_headline',
+        'public_subheadline',
+        'welcome_message',
+        'custom_footer_text',
+        'brand_enabled',
         'active',
         'onboarding_completed_at',
         'auto_print_receipt',
@@ -41,6 +51,7 @@ class Company extends Model
     {
         return [
             'active' => 'boolean',
+            'brand_enabled' => 'boolean',
             'auto_print_receipt' => 'boolean',
             'client_code_counter' => 'integer',
             'onboarding_completed_at' => 'datetime',
@@ -95,6 +106,30 @@ class Company extends Model
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);
+    }
+
+    /**
+     * @return HasMany<MembershipPlan>
+     */
+    public function membershipPlans(): HasMany
+    {
+        return $this->hasMany(MembershipPlan::class);
+    }
+
+    /**
+     * @return HasMany<CompanyPaymentIntegration>
+     */
+    public function paymentIntegrations(): HasMany
+    {
+        return $this->hasMany(CompanyPaymentIntegration::class);
+    }
+
+    /**
+     * @return HasMany<AppointmentReview>
+     */
+    public function appointmentReviews(): HasMany
+    {
+        return $this->hasMany(AppointmentReview::class);
     }
 
     /**
@@ -189,11 +224,82 @@ class Company extends Model
         return MediaStorage::normalizePath($this->logo);
     }
 
+    public function normalizedFaviconPath(): ?string
+    {
+        if (! $this->favicon_path) {
+            return null;
+        }
+
+        return MediaStorage::normalizePath($this->favicon_path);
+    }
+
+    public function normalizedCoverImagePath(): ?string
+    {
+        if (! $this->cover_image_path) {
+            return null;
+        }
+
+        return MediaStorage::normalizePath($this->cover_image_path);
+    }
+
+    /**
+     * Public booking / branding headline with safe fallback.
+     */
+    public function publicDisplayHeadline(): string
+    {
+        $h = $this->safeDisplayText($this->public_headline);
+
+        return $h ?? trim((string) $this->name);
+    }
+
+    /**
+     * Public booking subheadline; falls back to short description when empty.
+     */
+    public function publicDisplaySubheadline(): ?string
+    {
+        $s = $this->safeDisplayText($this->public_subheadline);
+        if ($s !== null) {
+            return $s;
+        }
+
+        return $this->safeDescription();
+    }
+
+    /**
+     * Safe company description for layouts and branding surfaces.
+     */
+    public function safeDescription(): ?string
+    {
+        return $this->safeDisplayText($this->description);
+    }
+
     /**
      * Determine if the company finished the first setup.
      */
     public function onboardingCompleted(): bool
     {
         return $this->onboarding_completed_at !== null;
+    }
+
+    /**
+     * Normalize display text and guard against leaked DOM object strings.
+     */
+    public function safeDisplayText(mixed $value): ?string
+    {
+        if ($value === null || is_array($value) || is_object($value)) {
+            return null;
+        }
+
+        $text = trim((string) $value);
+
+        if (
+            $text === ''
+            || preg_match('/^\[object\s+HTML[\w-]*Element\]$/i', $text) === 1
+            || preg_match('/^\[object\s+[\w-]+\]$/i', $text) === 1
+        ) {
+            return null;
+        }
+
+        return $text;
     }
 }

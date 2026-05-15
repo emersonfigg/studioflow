@@ -6,9 +6,11 @@ use App\Models\Appointment;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductSale;
+use App\Models\ProductSaleItem;
 use App\Models\Service;
 use App\Models\ServiceOrder;
 use App\Models\ServiceOrderItem;
+use App\Models\StockMovement;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +22,9 @@ class ServiceOrderService
         private readonly CashRegisterService $cashRegisterService,
         private readonly ProductCommissionCalculator $productCommissionCalculator,
         private readonly ClientCommercialHistoryService $commercialHistoryService,
+        private readonly StockService $stockService,
+        private readonly MembershipService $membershipService,
+        private readonly ReviewService $reviewService,
     ) {}
 
     public function ensureForAppointment(Appointment $appointment): ServiceOrder
@@ -149,7 +154,7 @@ class ServiceOrderService
     {
         $closedAt ??= now();
 
-        return DB::transaction(function () use ($order, $paymentMethod, $notes, $closedAt): ?Payment {
+        return DB::transaction(function () use ($order, $paymentMethod, $notes, $closedAt, $actor): ?Payment {
             /** @var ServiceOrder $lockedOrder */
             $lockedOrder = ServiceOrder::query()
                 ->with(['appointment.user', 'appointment.client', 'items.product', 'items.service', 'professional', 'client'])
@@ -168,6 +173,8 @@ class ServiceOrderService
 
             $productItems = $lockedOrder->items->where('type', ServiceOrderItem::TYPE_PRODUCT);
 
+            $this->stockService->assertServiceOrderConsumptionsAvailable($lockedOrder);
+
             if ($productItems->isNotEmpty()) {
                 $products = Product::query()
                     ->where('company_id', $lockedOrder->company_id)
@@ -178,9 +185,9 @@ class ServiceOrderService
 
                 foreach ($productItems->groupBy('product_id') as $productId => $items) {
                     $product = $products->get((int) $productId);
-                    $quantity = (int) $items->sum('quantity');
+                    $quantity = (float) $items->sum('quantity');
 
-                    if (! $product || $product->stock_quantity < $quantity) {
+                    if (! $product || ($product->tracksStock() && (float) $product->stock_quantity + 1e-6 < $quantity)) {
                         throw ValidationException::withMessages([
                             'payment_method' => 'Estoque insuficiente para fechar a comanda.',
                         ]);
@@ -190,7 +197,9 @@ class ServiceOrderService
 
             $appointment = $lockedOrder->appointment;
             $professional = $appointment?->user ?? $lockedOrder->professional;
-            $discountTotal = round((float) $lockedOrder->discount, 2);
+            $benefit = $this->membershipService->computeClosureBenefit($lockedOrder, $appointment, $closedAt);
+            $membershipExtra = round((float) ($benefit['service_discount'] ?? 0) + (float) ($benefit['product_discount'] ?? 0), 2);
+            $discountTotal = round((float) $lockedOrder->discount, 2) + $membershipExtra;
             $serviceSubtotal = round((float) $lockedOrder->subtotal_services, 2);
             $productSubtotal = round((float) $lockedOrder->subtotal_products, 2);
             [$serviceChargeAmount, $productChargeAmount] = $this->applyDiscountAcrossSubtotals(
@@ -278,7 +287,7 @@ class ServiceOrderService
                         ]);
                     }
 
-                    $sale->items()->create([
+                    $saleItem = $sale->items()->create([
                         'product_id' => $item->product_id,
                         'seller_id' => $item->seller_id,
                         'quantity' => $item->quantity,
@@ -289,7 +298,20 @@ class ServiceOrderService
                         'commission_amount' => $commission['amount'],
                     ]);
 
-                    $item->product->decrement('stock_quantity', $item->quantity);
+                    $productModel = $products->get((int) $item->product_id);
+
+                    if ($productModel) {
+                        $this->stockService->decrease(
+                            $productModel,
+                            (float) $item->quantity,
+                            'Venda na comanda',
+                            StockMovement::TYPE_SALE,
+                            ProductSaleItem::class,
+                            (int) $saleItem->id,
+                            $actor,
+                            $closedAt,
+                        );
+                    }
                 }
 
                 if ($productChargeAmount > 0) {
@@ -312,6 +334,19 @@ class ServiceOrderService
                 $lockedOrder->loadMissing(['items.service', 'appointment']),
                 $closedAt,
             );
+
+            $this->stockService->applyServiceOrderConsumptions($lockedOrder, $actor, $closedAt);
+
+            $this->membershipService->recordUsagesFromClosure(
+                $lockedOrder->fresh(['items']),
+                $appointment,
+                $benefit,
+                $closedAt,
+            );
+
+            if ($appointment) {
+                $this->reviewService->createPendingReview($appointment);
+            }
 
             return $payment;
         });

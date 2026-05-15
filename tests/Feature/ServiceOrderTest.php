@@ -148,7 +148,7 @@ class ServiceOrderTest extends TestCase
             ->assertRedirect(route('appointments.orders.show', $order->appointment_id, false))
             ->assertSessionHasErrors('product_id');
 
-        $this->assertSame(1, $product->refresh()->stock_quantity);
+        $this->assertSame('1.00', (string) $product->refresh()->stock_quantity);
     }
 
     public function test_closing_order_uses_order_total_splits_products_and_blocks_further_changes(): void
@@ -185,7 +185,7 @@ class ServiceOrderTest extends TestCase
             'service_order_id' => $order->id,
             'gross_amount' => '50.00',
         ]);
-        $this->assertSame(3, $product->refresh()->stock_quantity);
+        $this->assertSame('3.00', (string) $product->refresh()->stock_quantity);
 
         $extraService = Service::factory()->for($company)->create(['active' => true]);
 

@@ -1,8 +1,8 @@
 <x-app-layout>
     <x-slot name="header">
         <div>
-            <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#C8A96B]">Agendamentos</p>
-            <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
+            <p class="text-sm font-semibold uppercase tracking-[0.18em] brand-text">Agendamentos</p>
+            <h2 class="mt-2 text-3xl font-semibold tracking-tight text-[var(--text-main)]">
                 Novo agendamento
             </h2>
         </div>

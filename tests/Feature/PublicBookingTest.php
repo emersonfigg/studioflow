@@ -1248,6 +1248,68 @@ class PublicBookingTest extends TestCase
         $this->assertDatabaseCount('appointments', 0);
     }
 
+    public function test_public_booking_uses_brand_variables_and_cta_for_light_theme(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-27 10:00:00');
+
+        $company = Company::factory()->create([
+            'primary_color' => '#750006',
+            'secondary_color' => '#FAFAFA',
+            'accent_color' => '#FFFFFF',
+            'brand_enabled' => true,
+        ]);
+        $service = Service::factory()->for($company)->create([
+            'active' => true,
+            'duration_minutes' => 30,
+        ]);
+        $user = User::factory()->for($company)->create(['active' => true]);
+        $this->createWorkingHour($company, $user, 2, '08:00', '18:00');
+
+        $this->get($this->bookingUrl($company, [
+            'service_ids' => [$service->id],
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+            'filters_submitted' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('data-theme="light"', false)
+            ->assertSee('--brand-primary: #750006', false)
+            ->assertSee('brand-cta', false)
+            ->assertSee('booking-summary-panel', false)
+            ->assertSee('booking-step', false);
+    }
+
+    public function test_public_booking_uses_brand_variables_and_cta_for_dark_theme(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-27 10:00:00');
+
+        $company = Company::factory()->create([
+            'primary_color' => '#C9A227',
+            'secondary_color' => '#1A1A1A',
+            'accent_color' => '#0D0D0D',
+            'brand_enabled' => true,
+        ]);
+        $service = Service::factory()->for($company)->create([
+            'active' => true,
+            'duration_minutes' => 30,
+        ]);
+        $user = User::factory()->for($company)->create(['active' => true]);
+        $this->createWorkingHour($company, $user, 2, '08:00', '18:00');
+
+        $this->get($this->bookingUrl($company, [
+            'service_ids' => [$service->id],
+            'user_id' => $user->id,
+            'date' => '2026-04-28',
+            'filters_submitted' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('data-theme="dark"', false)
+            ->assertSee('--brand-primary: #C9A227', false)
+            ->assertSee('brand-cta', false)
+            ->assertSee('booking-hero', false)
+            ->assertSee('booking-service-selectable', false);
+    }
+
     private function bookingUrl(Company $company, array $query = []): string
     {
         $baseUrl = route('public-bookings.create', $company, false);

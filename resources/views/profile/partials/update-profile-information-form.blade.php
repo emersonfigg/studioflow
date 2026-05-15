@@ -1,10 +1,10 @@
 <section>
     <header>
-        <h2 class="text-xl font-semibold text-white">
+        <h2 class="text-xl font-semibold text-[var(--text-main)]">
             Informacoes do perfil
         </h2>
 
-        <p class="mt-2 text-sm leading-6 text-[#c7d2e3]">
+        <p class="mt-2 text-sm leading-6 sf-text-muted">
             Atualize seu nome e o e-mail usado para acessar o StudioFlow.
         </p>
     </header>
@@ -33,11 +33,11 @@
 
         @if ($user instanceof \Illuminaté\Contracts\Auth\MustVerifyEmail && ! $user->hasVerifiedEmail())
             <div class="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-4">
-                <p class="text-sm text-[#f5e7bf]">
+                <p class="text-sm text-[var(--text-main)]">
                     Seu e-mail ainda não foi verificado.
                 </p>
 
-                <button form="send-verification" class="mt-3 inline-flex items-center text-sm font-semibold text-[#d4af37] transition hover:text-[#f0ca63] focus:outline-none focus:ring-2 focus:ring-[#d4af37] focus:ring-offset-2 focus:ring-offset-[#1b335b]">
+                <button form="send-verification" class="mt-3 inline-flex items-center text-sm font-semibold brand-text transition hover:text-[color-mix(in_srgb,var(--brand-primary)_88%,white)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] focus:ring-offset-2 focus:ring-offset-[var(--app-shell-bg)]">
                     Reenviar e-mail de verificacao
                 </button>
 

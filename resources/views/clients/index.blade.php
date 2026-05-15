@@ -2,11 +2,11 @@
     <x-slot name="header">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Clientes</p>
-                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
+                <p class="text-sm font-semibold uppercase tracking-[0.18em] brand-text">Clientes</p>
+                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-[var(--text-main)]">
                     Clientes da empresa
                 </h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Gerencie relacionamento e histórico da base.</p>
+                <p class="mt-2 text-sm sf-text-muted">Gerencie relacionamento e histórico da base.</p>
             </div>
 
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -21,7 +21,7 @@
                             placeholder="Buscar por nome, telefone, CPF ou código"
                             class="sf-input w-full pr-12"
                         >
-                        <button type="submit" class="absolute inset-y-0 right-2 my-2 inline-flex w-9 items-center justify-center rounded-xl border border-white/10 bg-[#1b335b] text-[#d4af37] transition hover:border-[#d4af37]/30 hover:bg-[#223d69]">
+                        <button type="submit" class="absolute inset-y-0 right-2 my-2 inline-flex w-9 items-center justify-center rounded-xl border border-white/10 bg-[var(--app-shell-bg)] brand-text transition hover:border-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)] hover:bg-[var(--card-bg)]">
                             <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                 <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 013.982 9.295l3.111 3.112a.75.75 0 01-1.06 1.06l-3.112-3.11A5.5 5.5 0 119 3.5zm0 1.5a4 4 0 100 8 4 4 0 000-8z" clip-rule="evenodd" />
                             </svg>
@@ -68,63 +68,63 @@
 
         <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Total clientes</p>
-                <p class="mt-3 text-3xl font-semibold text-white">{{ $totalClients }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Total clientes</p>
+                <p class="mt-3 text-3xl font-semibold text-[var(--text-main)]">{{ $totalClients }}</p>
             </article>
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Novos no mês</p>
-                <p class="mt-3 text-3xl font-semibold text-white">{{ $newClientsThisMonth }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Novos no mês</p>
+                <p class="mt-3 text-3xl font-semibold text-[var(--text-main)]">{{ $newClientsThisMonth }}</p>
             </article>
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Retornaram no mês</p>
-                <p class="mt-3 text-3xl font-semibold text-white">{{ $returningClientsThisMonth }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Retornaram no mês</p>
+                <p class="mt-3 text-3xl font-semibold text-[var(--text-main)]">{{ $returningClientsThisMonth }}</p>
             </article>
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Ticket medio</p>
-                <p class="mt-3 text-3xl font-semibold text-white">R$ {{ number_format($averageTicket, 2, ',', '.') }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Ticket medio</p>
+                <p class="mt-3 text-3xl font-semibold text-[var(--text-main)]">R$ {{ number_format($averageTicket, 2, ',', '.') }}</p>
             </article>
         </section>
 
         <section class="sf-card overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-white/10">
-                    <thead class="bg-[#132746]">
+                    <thead class="bg-[var(--input-bg)]">
                         <tr>
-                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Código</th>
-                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Cliente</th>
-                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Telefone</th>
-                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">CPF</th>
-                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Status</th>
-                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Última visita</th>
-                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Total gasto</th>
-                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Visitas</th>
-                            <th class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Acoes</th>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Código</th>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Cliente</th>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Telefone</th>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">CPF</th>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Status</th>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Última visita</th>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Total gasto</th>
+                            <th class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Visitas</th>
+                            <th class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Acoes</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-white/10">
                         @forelse ($clients as $client)
                             <tr class="transition hover:bg-white/5">
-                                <td class="px-5 py-4 text-sm font-semibold text-white">{{ $client->client_code ?? '-' }}</td>
+                                <td class="px-5 py-4 text-sm font-semibold text-[var(--text-main)]">{{ $client->client_code ?? '-' }}</td>
                                 <td class="px-5 py-4">
                                     <div>
-                                        <p class="text-sm font-semibold text-white">{{ $client->name }}</p>
-                                        <p class="mt-1 text-xs text-[#c7d2e3]">Cliente desde {{ $client->created_at->format('d/m/Y') }}</p>
+                                        <p class="text-sm font-semibold text-[var(--text-main)]">{{ $client->name }}</p>
+                                        <p class="mt-1 text-xs sf-text-muted">Cliente desde {{ $client->created_at->format('d/m/Y') }}</p>
                                     </div>
                                 </td>
-                                <td class="px-5 py-4 text-sm text-[#c7d2e3]">{{ $client->phone }}</td>
-                                <td class="px-5 py-4 text-sm text-[#c7d2e3]">{{ $client->cpf ? preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $client->cpf) : '-' }}</td>
+                                <td class="px-5 py-4 text-sm sf-text-muted">{{ $client->phone }}</td>
+                                <td class="px-5 py-4 text-sm sf-text-muted">{{ $client->cpf ? preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $client->cpf) : '-' }}</td>
                                 <td class="px-5 py-4 text-sm">
                                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $client->active ? 'bg-emerald-500/20 text-emerald-100' : 'bg-rose-500/20 text-rose-100' }}">
                                         {{ $client->active ? 'Ativo' : 'Inativo' }}
                                     </span>
                                 </td>
-                                <td class="px-5 py-4 text-sm text-[#c7d2e3]">
+                                <td class="px-5 py-4 text-sm sf-text-muted">
                                     {{ $client->last_visit_at?->format('d/m/Y H:i') ?? '-' }}
                                 </td>
-                                <td class="px-5 py-4 text-sm font-semibold text-white">
+                                <td class="px-5 py-4 text-sm font-semibold text-[var(--text-main)]">
                                     R$ {{ number_format((float) ($client->total_spent ?? 0), 2, ',', '.') }}
                                 </td>
-                                <td class="px-5 py-4 text-sm text-[#c7d2e3]">{{ $client->visits_count }}</td>
+                                <td class="px-5 py-4 text-sm sf-text-muted">{{ $client->visits_count }}</td>
                                 <td class="px-5 py-4">
                                     <div class="flex justify-end gap-3">
                                         <a href="{{ route('clients.show', $client) }}" class="sf-button-ghost !px-4 !py-2.5">Visualizar</a>
@@ -154,7 +154,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="px-5 py-10 text-center text-sm text-[#c7d2e3]">
+                                <td colspan="9" class="px-5 py-10 text-center text-sm sf-text-muted">
                                     Nenhum cliente encontrado.
                                 </td>
                             </tr>

@@ -5,6 +5,65 @@
 @layer base {
     :root {
         color-scheme: dark;
+        --brand-primary: #d4af37;
+        --brand-secondary: #223d69;
+        --brand-accent: #132746;
+        --brand-on-primary: #0f172a;
+
+        --app-bg: #223d69;
+        --app-shell-bg: #1b335b;
+        --sidebar-bg: #203a63;
+        --sidebar-card-bg: #132746;
+        --topbar-bg: #1b335b;
+
+        --text-main: #f8fafc;
+        --text-muted: #c7d2e3;
+        --text-on-card: #f8fafc;
+
+        --card-bg: #223d69;
+        --card-soft-bg: #1f3a65;
+        --card-border: color-mix(in srgb, var(--text-main) 12%, transparent);
+
+        --input-bg: #132746;
+        --input-border: color-mix(in srgb, var(--text-main) 14%, transparent);
+
+        --link-color: var(--brand-primary);
+
+        --btn-primary-bg: var(--brand-primary);
+        --btn-primary-text: var(--brand-on-primary);
+        --btn-primary-border: color-mix(in srgb, var(--brand-primary) 72%, black);
+        --btn-primary-hover: color-mix(in srgb, var(--brand-primary) 88%, black);
+
+        --active-menu-bg: color-mix(in srgb, var(--brand-primary) 18%, var(--sidebar-bg));
+        --active-menu-border: var(--brand-primary);
+        --active-menu-text: var(--text-main);
+
+        --table-bg: var(--card-soft-bg);
+        --table-border: var(--card-border);
+
+        --badge-bg: color-mix(in srgb, var(--brand-primary) 28%, var(--card-bg));
+        --badge-text: var(--text-main);
+        --shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.28);
+        --shadow-card: 0 18px 38px rgba(0, 0, 0, 0.34);
+        --shadow-elevated: 0 28px 60px rgba(0, 0, 0, 0.42);
+        --shadow-glow-brand: 0 14px 34px rgba(212, 175, 55, 0.28);
+
+        --sf-shell-bg: var(--app-shell-bg);
+        --sf-layout-bg: var(--app-shell-bg);
+        --sf-sidebar-bg: var(--sidebar-bg);
+        --sf-topbar-bg: var(--topbar-bg);
+        --sf-card-bg: var(--card-bg);
+        --sf-card-soft-bg: var(--card-soft-bg);
+        --sf-input-bg: var(--input-bg);
+        --sf-text-main: var(--text-main);
+    }
+
+    html[data-theme='light'] {
+        color-scheme: light;
+    }
+
+    html[data-theme='dark'] {
+        color-scheme: dark;
     }
 
     @media (min-width: 1024px) {
@@ -14,13 +73,18 @@
     }
 
     body {
-        background-color: #1b335b;
-        color: #ffffff;
+        background-color: var(--app-bg);
+        color: var(--text-main);
+        text-rendering: optimizeLegibility;
+    }
+
+    a {
+        color: var(--link-color);
     }
 
     ::selection {
-        background-color: #d4af37;
-        color: #132746;
+        background-color: var(--brand-primary);
+        color: var(--brand-on-primary);
     }
 
     [type='date'],
@@ -35,31 +99,157 @@
     textarea {
         color-scheme: dark;
     }
+
+    html[data-theme='light'] [type='date'],
+    html[data-theme='light'] [type='datetime-local'],
+    html[data-theme='light'] [type='email'],
+    html[data-theme='light'] [type='number'],
+    html[data-theme='light'] [type='password'],
+    html[data-theme='light'] [type='search'],
+    html[data-theme='light'] [type='tel'],
+    html[data-theme='light'] [type='text'],
+    html[data-theme='light'] select,
+    html[data-theme='light'] textarea {
+        color-scheme: light;
+    }
 }
 
 @layer components {
+    .sf-page-eyebrow,
+    .sf-label {
+        font-size: 0.73rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--brand-primary);
+    }
+
+    .sf-page-title {
+        color: var(--text-main);
+        font-size: clamp(2rem, 1.5rem + 1.4vw, 3rem);
+        line-height: 1.04;
+        font-weight: 700;
+        letter-spacing: -0.035em;
+    }
+
+    .sf-page-subtitle {
+        color: var(--text-muted);
+        font-size: 0.97rem;
+        line-height: 1.72;
+    }
+
+    .sf-section-title {
+        color: var(--text-main);
+        font-size: 1.08rem;
+        line-height: 1.35;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+    }
+
+    .sf-text {
+        color: var(--text-main);
+    }
+
+    .sf-text-muted {
+        color: var(--text-muted);
+    }
+
+    .app-chrome-body {
+        background-color: var(--app-bg);
+        color: var(--text-main);
+    }
+
+    .app-chrome-shell {
+        background-color: var(--app-shell-bg);
+    }
+
+    .sf-admin-topbar {
+        background: color-mix(in srgb, var(--topbar-bg) 94%, transparent);
+        backdrop-filter: blur(14px);
+        border-bottom: 1px solid color-mix(in srgb, var(--text-main) 10%, transparent);
+        color: var(--text-main);
+        box-shadow: var(--shadow-soft);
+    }
+
+    .sf-responsive-nav-link {
+        display: block;
+        width: 100%;
+        border-radius: 0.75rem;
+        border: 1px solid transparent;
+        padding: 0.75rem 1rem;
+        text-align: start;
+        font-size: 1rem;
+        line-height: 1.5rem;
+        font-weight: 500;
+        color: var(--text-muted);
+        transition:
+            background-color 180ms ease,
+            border-color 180ms ease,
+            color 180ms ease,
+            box-shadow 180ms ease,
+            transform 180ms ease,
+            opacity 180ms ease;
+    }
+
+    .sf-responsive-nav-link:hover {
+        border-color: color-mix(in srgb, var(--text-main) 10%, transparent);
+        background-color: color-mix(in srgb, var(--text-main) 5%, transparent);
+        color: var(--text-main);
+        transform: translateY(-1px);
+    }
+
+    .sf-responsive-nav-link--active {
+        border-color: var(--active-menu-border);
+        background-color: var(--active-menu-bg);
+        color: var(--active-menu-text);
+        box-shadow:
+            inset 0 0 0 1px color-mix(in srgb, var(--brand-primary) 32%, transparent),
+            var(--shadow-soft);
+    }
+
     .sf-card {
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--card-border);
         border-radius: 1rem;
-        background-color: #223d69;
-        box-shadow: 0 18px 40px rgba(7, 17, 38, 0.28);
+        background-color: var(--card-bg);
+        color: var(--text-on-card);
+        box-shadow: var(--shadow-card);
+        transition:
+            background-color 180ms ease,
+            border-color 180ms ease,
+            color 180ms ease,
+            box-shadow 180ms ease,
+            transform 180ms ease;
     }
 
     .sf-card-soft {
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--card-border);
         border-radius: 1rem;
-        background-color: #1f3a65;
-        box-shadow: 0 12px 28px rgba(7, 17, 38, 0.24);
+        background-color: var(--card-soft-bg);
+        color: var(--text-on-card);
+        box-shadow: var(--shadow-soft);
+        transition:
+            background-color 180ms ease,
+            border-color 180ms ease,
+            color 180ms ease,
+            box-shadow 180ms ease,
+            transform 180ms ease;
     }
 
     .sf-input,
     .sf-select {
         width: 100%;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--input-border);
         border-radius: 0.75rem;
-        background-color: #132746;
-        color: #ffffff;
-        box-shadow: 0 1px 2px rgba(6, 15, 34, 0.08);
+        background-color: var(--input-bg);
+        color: var(--text-main);
+        box-shadow: 0 1px 2px color-mix(in srgb, var(--text-main) 4%, transparent);
+        transition:
+            background-color 180ms ease,
+            border-color 180ms ease,
+            color 180ms ease,
+            box-shadow 180ms ease,
+            transform 180ms ease,
+            opacity 180ms ease;
     }
 
     .sf-input {
@@ -71,13 +261,13 @@
     }
 
     .sf-input::placeholder {
-        color: #9eb1cc;
+        color: var(--text-muted);
     }
 
     .sf-input:focus,
     .sf-select:focus {
-        border-color: #d4af37;
-        box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+        border-color: var(--brand-primary);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 22%, transparent);
         outline: none;
     }
 
@@ -85,62 +275,171 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border: 1px solid rgba(212, 175, 55, 0.32);
+        border: 1px solid var(--btn-primary-border);
         border-radius: 0.75rem;
-        background-color: #d4af37;
+        background-color: var(--btn-primary-bg);
         padding: 0.75rem 1.25rem;
-        color: #132746;
+        color: var(--btn-primary-text);
         font-size: 0.875rem;
         font-weight: 600;
-        box-shadow: 0 10px 24px rgba(212, 175, 55, 0.22);
-        transition: background-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+        box-shadow: var(--shadow-glow-brand);
+        transition:
+            background-color 180ms ease,
+            border-color 180ms ease,
+            color 180ms ease,
+            box-shadow 180ms ease,
+            transform 180ms ease,
+            opacity 180ms ease;
     }
 
     .sf-button-primary:hover {
-        background-color: #e0bd54;
+        background-color: var(--btn-primary-hover);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-elevated), var(--shadow-glow-brand);
     }
 
     .sf-button-secondary {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--input-border);
         border-radius: 0.75rem;
-        background-color: #132746;
+        background-color: var(--input-bg);
         padding: 0.75rem 1.25rem;
-        color: #ffffff;
+        color: var(--text-main);
         font-size: 0.875rem;
         font-weight: 600;
-        transition: background-color 150ms ease, border-color 150ms ease;
+        box-shadow: var(--shadow-soft);
+        transition:
+            background-color 180ms ease,
+            border-color 180ms ease,
+            color 180ms ease,
+            box-shadow 180ms ease,
+            transform 180ms ease,
+            opacity 180ms ease;
     }
 
     .sf-button-secondary:hover {
-        border-color: rgba(212, 175, 55, 0.35);
-        background-color: #193056;
+        border-color: color-mix(in srgb, var(--brand-primary) 35%, transparent);
+        background-color: color-mix(in srgb, var(--input-bg) 88%, var(--brand-primary));
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-card);
     }
 
     .sf-button-ghost {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--input-border);
         border-radius: 0.75rem;
         background-color: transparent;
         padding: 0.625rem 1rem;
-        color: #c7d2e3;
+        color: var(--text-muted);
         font-size: 0.875rem;
         font-weight: 500;
-        transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+        transition:
+            background-color 180ms ease,
+            border-color 180ms ease,
+            color 180ms ease,
+            box-shadow 180ms ease,
+            transform 180ms ease,
+            opacity 180ms ease;
     }
 
     .sf-button-ghost:hover {
-        border-color: rgba(212, 175, 55, 0.35);
-        background-color: rgba(255, 255, 255, 0.05);
-        color: #ffffff;
+        border-color: color-mix(in srgb, var(--brand-primary) 35%, transparent);
+        background-color: color-mix(in srgb, var(--text-main) 5%, transparent);
+        color: var(--text-main);
+        transform: translateY(-1px);
     }
 
     .sf-muted {
-        color: #c7d2e3;
+        color: var(--text-muted);
+    }
+
+    /* Abas internas (ex.: financeiro) */
+    .sf-tab {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 1rem;
+        border: 1px solid transparent;
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--text-muted);
+        transition:
+            background-color 180ms ease,
+            border-color 180ms ease,
+            color 180ms ease,
+            box-shadow 180ms ease,
+            transform 180ms ease,
+            opacity 180ms ease;
+    }
+
+    .sf-tab:hover {
+        border-color: color-mix(in srgb, var(--text-main) 10%, transparent);
+        background-color: color-mix(in srgb, var(--text-main) 5%, transparent);
+        color: var(--text-main);
+        transform: translateY(-1px);
+    }
+
+    .sf-tab--active {
+        border-color: color-mix(in srgb, var(--brand-primary) 25%, transparent);
+        background-color: color-mix(in srgb, var(--brand-primary) 12%, var(--card-bg));
+        color: var(--text-main);
+    }
+
+    /* Branding da empresa — camadas base (CTA/texto/borda fortes ficam fora de @layer no fim do arquivo) */
+    .brand-primary-bg {
+        background-color: var(--brand-primary, #d4af37);
+        color: var(--brand-on-primary, #0f172a);
+    }
+
+    .brand-accent-bg {
+        background-color: var(--brand-accent, #132746);
+        color: var(--text-on-card, #f8fafc);
+    }
+
+    .brand-focus:focus {
+        border-color: var(--brand-primary, #d4af37);
+        box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--brand-primary, #d4af37) 25%, transparent);
+        outline: none;
+    }
+
+    .nav-item-active {
+        border-color: var(--active-menu-border);
+        background-color: var(--active-menu-bg);
+        color: var(--active-menu-text);
+        box-shadow: var(--shadow-soft);
+    }
+
+    /* Color picker branding (touch-friendly, funciona bem no mobile). */
+    .sf-color-picker {
+        height: 2.75rem;
+        width: 2.75rem;
+        min-height: 2.75rem;
+        min-width: 2.75rem;
+        flex-shrink: 0;
+        cursor: pointer;
+        border-radius: 0.75rem;
+        border: 1px solid var(--input-border);
+        background-color: transparent;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .sf-color-picker::-webkit-color-swatch-wrapper {
+        padding: 2px;
+    }
+
+    .sf-color-picker::-webkit-color-swatch {
+        border-radius: 0.5rem;
+        border: none;
+    }
+
+    .sf-color-picker::-moz-color-swatch {
+        border-radius: 0.5rem;
+        border: none;
     }
 
     /* Evita zoom automático no iOS ao focar campos com fonte menor que 16px (PDV / formulários). */
@@ -150,5 +449,487 @@
             font-size: 1rem !important;
             line-height: 1.5rem !important;
         }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            transition: none !important;
+            animation: none !important;
+            scroll-behavior: auto !important;
+        }
+    }
+}
+
+/*
+ * Marca (fora de @layer): vence utilitários Tailwind e o foco dourado fixo de .sf-input.
+ * Variáveis --brand-* vêm do style inline do <html> (BrandingService).
+ */
+.brand-cta {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 0.75rem !important;
+    border: 1px solid var(--btn-primary-border) !important;
+    background: var(--btn-primary-bg) !important;
+    color: var(--btn-primary-text) !important;
+    padding: 0.75rem 1.25rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    box-shadow: var(--shadow-glow-brand) !important;
+    transition:
+        background-color 180ms ease,
+        color 180ms ease,
+        border-color 180ms ease,
+        box-shadow 180ms ease,
+        transform 180ms ease,
+        opacity 180ms ease !important;
+}
+
+.brand-cta:hover {
+    background: var(--btn-primary-hover) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--shadow-elevated), var(--shadow-glow-brand) !important;
+}
+
+.brand-text {
+    color: var(--brand-primary) !important;
+}
+
+.brand-border {
+    border-color: var(--brand-primary) !important;
+}
+
+.brand-preset-active {
+    border: 2px solid var(--brand-primary) !important;
+    background: color-mix(in srgb, var(--brand-primary) 24%, var(--brand-secondary)) !important;
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--brand-primary) 40%, transparent),
+        var(--shadow-glow-brand) !important;
+}
+
+.company-branding-shell .sf-input:focus,
+.company-branding-shell .sf-select:focus,
+.public-booking-page .sf-input:focus,
+.public-booking-page .sf-select:focus {
+    border-color: var(--brand-primary) !important;
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--brand-primary) 25%, transparent) !important;
+    outline: none !important;
+}
+
+/* -------------------------------------------------------------------------
+ * Fluxo público de agendamento (nível 2): atmosfera e superfícies da marca.
+ * Escopo: body.public-booking-page e preview em /company (.company-preview-landing).
+ * ------------------------------------------------------------------------- */
+body.public-booking-page {
+    --brand-primary-soft: color-mix(in srgb, var(--brand-primary) 18%, transparent);
+    --brand-primary-hover: var(--btn-primary-hover);
+    --brand-primary-border: color-mix(in srgb, var(--brand-primary) 20%, transparent);
+    --brand-primary-glow: color-mix(in srgb, var(--brand-primary) 38%, transparent);
+    --brand-secondary-soft: color-mix(in srgb, var(--brand-secondary) 82%, black);
+    --brand-surface: color-mix(in srgb, var(--brand-accent) 78%, black);
+    --brand-card-bg: color-mix(in srgb, var(--brand-secondary) 82%, black);
+    --brand-input-bg: color-mix(in srgb, var(--brand-accent) 72%, black 28%);
+    --brand-muted: color-mix(in srgb, white 70%, var(--brand-secondary));
+    --brand-ring-offset: color-mix(in srgb, var(--brand-secondary) 72%, black);
+
+    background:
+        radial-gradient(
+            circle at top,
+            color-mix(in srgb, var(--brand-primary) 18%, transparent),
+            transparent 45%
+        ),
+        linear-gradient(
+            180deg,
+            var(--brand-secondary),
+            color-mix(in srgb, var(--brand-secondary) 88%, black)
+        );
+    background-color: var(--brand-secondary);
+    color: #fff;
+}
+
+.public-booking-page .brand-muted {
+    color: var(--brand-muted);
+}
+
+.public-booking-page .sf-card {
+    background-color: var(--brand-card-bg);
+    border-color: var(--brand-primary-border);
+    box-shadow: var(--shadow-card);
+    transition:
+        background-color 180ms ease,
+        border-color 180ms ease,
+        color 180ms ease,
+        box-shadow 180ms ease,
+        transform 180ms ease;
+}
+
+.public-booking-page .sf-card:hover {
+    border-color: color-mix(in srgb, var(--brand-primary) 32%, transparent);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-elevated);
+}
+
+.public-booking-page .sf-input,
+.public-booking-page .sf-select {
+    background-color: var(--brand-input-bg);
+    border-color: color-mix(in srgb, var(--brand-accent) 55%, white 12%);
+}
+
+.public-booking-page .sf-input::placeholder,
+.public-booking-page .sf-select::placeholder {
+    color: color-mix(in srgb, var(--brand-muted) 85%, transparent);
+}
+
+.public-booking-page .brand-cta:focus-visible {
+    outline: none !important;
+    box-shadow:
+        0 0 0 2px color-mix(in srgb, var(--brand-secondary) 70%, black),
+        0 0 0 4px color-mix(in srgb, var(--brand-primary) 45%, transparent) !important;
+}
+
+.public-booking-page .brand-cta:active:not(:disabled) {
+    filter: brightness(0.88) !important;
+    transform: scale(0.99);
+}
+
+.public-booking-page .brand-cta:disabled,
+.public-booking-page .brand-cta[aria-disabled='true'] {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.booking-card {
+    border-radius: 1rem;
+    background: var(--brand-card-bg);
+    border: 1px solid var(--brand-primary-border);
+    box-shadow: var(--shadow-card);
+    transition:
+        background-color 180ms ease,
+        border-color 180ms ease,
+        color 180ms ease,
+        box-shadow 180ms ease,
+        transform 180ms ease;
+}
+
+.booking-card:hover {
+    border-color: color-mix(in srgb, var(--brand-primary) 30%, transparent);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-elevated);
+}
+
+.booking-hero {
+    border-radius: 1.5rem;
+    background: linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--brand-secondary) 92%, black),
+        color-mix(in srgb, var(--brand-card-bg) 95%, var(--brand-primary) 5%)
+    );
+    border: 1px solid var(--brand-primary-border);
+    box-shadow: var(--shadow-elevated);
+}
+
+.booking-step {
+    border-width: 1px;
+    border-style: solid;
+    transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.booking-step--pending {
+    border-color: color-mix(in srgb, white 12%, transparent);
+    background: var(--brand-surface);
+    color: var(--brand-muted);
+}
+
+.booking-step--pending .booking-step-num {
+    color: color-mix(in srgb, var(--brand-primary) 55%, var(--brand-muted));
+}
+
+.booking-step--active {
+    border-color: color-mix(in srgb, var(--brand-primary) 48%, transparent);
+    background: color-mix(in srgb, var(--brand-primary) 14%, var(--brand-surface));
+    color: #fff;
+}
+
+.booking-step--active .booking-step-num {
+    color: var(--brand-primary);
+}
+
+.booking-step--complete {
+    border-color: color-mix(in srgb, var(--brand-primary) 28%, transparent);
+    background: color-mix(in srgb, var(--brand-primary) 8%, var(--brand-surface));
+    color: color-mix(in srgb, white 88%, var(--brand-muted));
+}
+
+.booking-step--complete .booking-step-num {
+    color: color-mix(in srgb, var(--brand-primary) 85%, white);
+}
+
+.public-booking-page .peer:checked + .booking-service-selectable,
+.public-booking-page .booking-service-selectable.booking-service--selected {
+    border-color: color-mix(in srgb, var(--brand-primary) 55%, transparent) !important;
+    background: color-mix(in srgb, var(--brand-primary) 14%, var(--brand-surface)) !important;
+    box-shadow: 0 0 0 2px var(--brand-primary-glow);
+}
+
+.public-booking-page .booking-service-selectable {
+    border: 1px solid color-mix(in srgb, white 10%, transparent);
+    background: var(--brand-surface);
+}
+
+.public-booking-page .booking-service-selectable:hover {
+    border-color: color-mix(in srgb, var(--brand-primary) 35%, transparent);
+    background: color-mix(in srgb, var(--brand-surface) 90%, black);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-soft);
+}
+
+.public-booking-page .booking-summary-panel {
+    background-color: color-mix(in srgb, var(--brand-secondary) 88%, black);
+    border: 1px solid var(--brand-primary-border);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-card);
+}
+
+.public-booking-page .booking-summary-panel .booking-summary-head {
+    border-bottom: 1px solid color-mix(in srgb, white 10%, transparent);
+}
+
+.public-booking-page .booking-summary-row {
+    background: var(--brand-surface);
+    border: 1px solid color-mix(in srgb, white 8%, transparent);
+    border-radius: 1rem;
+}
+
+.public-booking-page .booking-summary-total {
+    color: var(--brand-primary);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.public-booking-page .booking-sticky-bar {
+    background: color-mix(in srgb, var(--brand-accent) 92%, black);
+    border-top: 1px solid var(--brand-primary-border);
+    box-shadow: 0 -18px 40px color-mix(in srgb, black 42%, transparent);
+}
+
+.public-booking-page .booking-pill-slot {
+    border-radius: 9999px;
+    border: 1px solid color-mix(in srgb, white 10%, transparent);
+    background: color-mix(in srgb, var(--brand-accent) 88%, black);
+    color: #fff;
+    transition:
+        background-color 180ms ease,
+        border-color 180ms ease,
+        color 180ms ease,
+        box-shadow 180ms ease,
+        transform 180ms ease;
+}
+
+.public-booking-page .booking-pill-slot:hover {
+    border-color: color-mix(in srgb, var(--brand-primary) 35%, transparent);
+    background: color-mix(in srgb, var(--brand-accent) 78%, black);
+    transform: translateY(-1px);
+}
+
+.public-booking-page .booking-pill-slot--on {
+    border-color: color-mix(in srgb, var(--brand-primary) 55%, transparent);
+    background: color-mix(in srgb, var(--brand-primary) 16%, var(--brand-surface));
+}
+
+.public-booking-page .booking-date-tile {
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, white 10%, transparent);
+    background: var(--brand-surface);
+    transition:
+        background-color 180ms ease,
+        border-color 180ms ease,
+        color 180ms ease,
+        box-shadow 180ms ease,
+        transform 180ms ease;
+}
+
+.public-booking-page .booking-date-tile:hover {
+    border-color: color-mix(in srgb, var(--brand-primary) 35%, transparent);
+    background: color-mix(in srgb, var(--brand-surface) 88%, black);
+    transform: translateY(-1px);
+}
+
+.public-booking-page .booking-date-tile--on {
+    border-color: color-mix(in srgb, var(--brand-primary) 50%, transparent);
+    background: color-mix(in srgb, var(--brand-primary) 14%, var(--brand-surface));
+    color: var(--text-main, #fff);
+}
+
+/* Fluxo público em tema claro (secundária clara): alinhar superfícies ao motor de tema global */
+html[data-theme='light'] body.public-booking-page {
+    color: var(--text-main);
+    --brand-card-bg: var(--card-bg);
+    --brand-input-bg: var(--input-bg);
+    --brand-muted: var(--text-muted);
+    --brand-surface: var(--card-soft-bg);
+    --brand-ring-offset: var(--app-shell-bg);
+    --brand-secondary-soft: color-mix(in srgb, var(--brand-secondary) 92%, white);
+    background:
+        radial-gradient(
+            circle at top,
+            color-mix(in srgb, var(--brand-primary) 12%, transparent),
+            transparent 46%
+        ),
+        linear-gradient(180deg, var(--app-shell-bg), var(--brand-accent));
+    background-color: var(--brand-secondary);
+}
+
+html[data-theme='light'] .public-booking-page .booking-step--active {
+    color: var(--text-main);
+}
+
+html[data-theme='light'] .public-booking-page .booking-pill-slot,
+html[data-theme='light'] .public-booking-page .booking-date-tile--on {
+    color: var(--text-main);
+}
+
+/* Preview /company: usa as mesmas variáveis estruturais do tema */
+.company-branding-shell .company-preview-landing {
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--brand-primary) 22%, transparent);
+    background: linear-gradient(180deg, var(--app-shell-bg), var(--card-bg));
+    box-shadow: var(--shadow-card);
+}
+
+.company-branding-shell .company-preview-landing__footer {
+    background: var(--sidebar-card-bg);
+    border-top: 1px solid var(--card-border);
+}
+
+.company-branding-shell .preview-brand-card {
+    border-radius: 1rem;
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+    color: var(--text-on-card);
+    box-shadow: var(--shadow-soft);
+}
+
+.company-branding-shell .brand-muted {
+    color: var(--text-muted);
+}
+
+.company-branding-shell .preview-brand-shell {
+    border-radius: 1rem;
+    border: 1px solid var(--card-border);
+    background:
+        linear-gradient(180deg, var(--topbar-bg) 0 18%, transparent 18%),
+        linear-gradient(90deg, var(--sidebar-bg) 0 22%, transparent 22%),
+        var(--app-shell-bg);
+    box-shadow: var(--shadow-elevated);
+}
+
+.company-branding-shell .preview-brand-shell__mini-card,
+.company-branding-shell .preview-brand-shell__mini-input,
+.company-branding-shell .preview-brand-shell__mini-badge {
+    border-radius: 0.75rem;
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+}
+
+.company-branding-shell .preview-brand-shell__mini-input {
+    background: var(--input-bg);
+}
+
+.company-branding-shell .preview-brand-shell__mini-badge {
+    background: var(--badge-bg);
+    color: var(--badge-text);
+}
+
+/* Operacao compacta: fechamento e venda avulsa */
+.sf-operation-page {
+    width: 100%;
+    min-width: 0;
+    gap: 1rem;
+}
+
+.sf-operation-card {
+    border-radius: 1.25rem;
+    border: 1px solid color-mix(in srgb, var(--card-border) 78%, transparent);
+    background: color-mix(in srgb, var(--card-bg) 92%, var(--brand-accent));
+    box-shadow: var(--shadow-card);
+}
+
+.sf-operation-card--soft {
+    background: color-mix(in srgb, var(--input-bg) 82%, var(--brand-accent));
+}
+
+.sf-operation-kpis {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sf-operation-kpi {
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--card-border) 75%, transparent);
+    background: color-mix(in srgb, var(--brand-accent) 86%, var(--card-bg));
+    padding: 0.85rem 1rem;
+}
+
+.sf-operation-kpi__label {
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.sf-operation-kpi__value {
+    margin-top: 0.35rem;
+    color: var(--text-main);
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+.sf-operation-search-grid {
+    display: grid;
+    gap: 0.75rem;
+    align-items: end;
+}
+
+.sf-operation-item-row {
+    display: grid;
+    gap: 0.75rem;
+    align-items: center;
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--card-border) 75%, transparent);
+    background: color-mix(in srgb, var(--input-bg) 82%, var(--brand-accent));
+    padding: 0.85rem;
+}
+
+.sf-operation-summary {
+    display: grid;
+    gap: 0.75rem;
+}
+
+@media (min-width: 1280px) {
+    .sf-operation-page {
+        max-height: calc(100vh - 10.5rem);
+    }
+
+    .sf-operation-page--fixed {
+        overflow: hidden;
+    }
+
+    .sf-operation-column {
+        min-height: 0;
+    }
+
+    .sf-operation-scroll {
+        min-height: 0;
+        overflow: auto;
+    }
+
+    .sf-operation-kpis {
+        grid-template-columns: 1fr;
     }
 }

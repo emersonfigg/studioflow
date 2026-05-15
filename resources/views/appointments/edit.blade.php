@@ -1,8 +1,8 @@
 <x-app-layout>
     <x-slot name="header">
         <div>
-            <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#C8A96B]">{{ __('Appointments') }}</p>
-            <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">
+            <p class="text-sm font-semibold uppercase tracking-[0.18em] brand-text">{{ __('Appointments') }}</p>
+            <h2 class="mt-2 text-3xl font-semibold tracking-tight text-[var(--text-main)]">
                 {{ __('Edit Appointment') }}
             </h2>
         </div>

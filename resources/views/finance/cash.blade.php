@@ -2,9 +2,9 @@
     <x-slot name="header">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Relatórios</p>
-                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-white">Caixa diário</h2>
-                <p class="mt-2 text-sm text-[#c7d2e3]">Abra, acompanhe e feche o caixa do dia com saldo esperado e movimentos reais.</p>
+                <p class="text-sm font-semibold uppercase tracking-[0.18em] brand-text">Relatórios</p>
+                <h2 class="mt-2 text-3xl font-semibold tracking-tight text-[var(--text-main)]">Caixa diário</h2>
+                <p class="mt-2 text-sm sf-text-muted">Abra, acompanhe e feche o caixa do dia com saldo esperado e movimentos reais.</p>
             </div>
 
             <form method="GET" action="{{ route('finance.cash') }}" class="flex flex-wrap items-center gap-3">
@@ -33,29 +33,29 @@
 
         <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Status</p>
-                <p class="mt-3 text-2xl font-semibold text-white">{{ $register ? ($register->closed_at ? 'Fechado' : 'Aberto') : 'Não aberto' }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Status</p>
+                <p class="mt-3 text-2xl font-semibold text-[var(--text-main)]">{{ $register ? ($register->closed_at ? 'Fechado' : 'Aberto') : 'Não aberto' }}</p>
             </article>
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Abertura</p>
-                <p class="mt-3 text-3xl font-semibold text-white">R$ {{ number_format((float) ($register?->opening_amount ?? 0), 2, ',', '.') }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Abertura</p>
+                <p class="mt-3 text-3xl font-semibold text-[var(--text-main)]">R$ {{ number_format((float) ($register?->opening_amount ?? 0), 2, ',', '.') }}</p>
             </article>
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Entradas - saídas</p>
-                <p class="mt-3 text-3xl font-semibold text-white">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Entradas - saídas</p>
+                <p class="mt-3 text-3xl font-semibold text-[var(--text-main)]">
                     R$ {{ number_format($register ? ($register->inflowsTotal() - $register->outflowsTotal()) : 0, 2, ',', '.') }}
                 </p>
             </article>
             <article class="sf-card p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#d4af37]">Saldo esperado</p>
-                <p class="mt-3 text-3xl font-semibold text-white">R$ {{ number_format($register?->expectedBalance() ?? 0, 2, ',', '.') }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Saldo esperado</p>
+                <p class="mt-3 text-3xl font-semibold text-[var(--text-main)]">R$ {{ number_format($register?->expectedBalance() ?? 0, 2, ',', '.') }}</p>
             </article>
         </section>
 
         <section class="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
             <aside class="sf-card p-5">
                 @if (! $register)
-                    <h3 class="text-lg font-semibold text-white">Abrir caixa</h3>
+                    <h3 class="text-lg font-semibold text-[var(--text-main)]">Abrir caixa</h3>
                     <form method="POST" action="{{ route('finance.cash.open') }}" class="mt-5 space-y-4">
                         @csrf
                         <input type="hidden" name="date" value="{{ $date->format('Y-m-d') }}">
@@ -70,30 +70,30 @@
                         <button class="sf-button-primary w-full">Abrir caixa</button>
                     </form>
                 @else
-                    <h3 class="text-lg font-semibold text-white">Resumo operacional</h3>
+                    <h3 class="text-lg font-semibold text-[var(--text-main)]">Resumo operacional</h3>
                     <dl class="mt-5 space-y-3">
                         <div class="flex items-center justify-between gap-4">
-                            <dt class="text-sm text-[#c7d2e3]">Aberto em</dt>
-                            <dd class="text-sm font-semibold text-white">{{ $register->opened_at?->format('d/m/Y H:i') ?? '-' }}</dd>
+                            <dt class="text-sm sf-text-muted">Aberto em</dt>
+                            <dd class="text-sm font-semibold text-[var(--text-main)]">{{ $register->opened_at?->format('d/m/Y H:i') ?? '-' }}</dd>
                         </div>
                         <div class="flex items-center justify-between gap-4">
-                            <dt class="text-sm text-[#c7d2e3]">Entradas</dt>
+                            <dt class="text-sm sf-text-muted">Entradas</dt>
                             <dd class="text-sm font-semibold text-emerald-200">R$ {{ number_format($register->inflowsTotal(), 2, ',', '.') }}</dd>
                         </div>
                         <div class="flex items-center justify-between gap-4">
-                            <dt class="text-sm text-[#c7d2e3]">Saídas</dt>
+                            <dt class="text-sm sf-text-muted">Saídas</dt>
                             <dd class="text-sm font-semibold text-rose-200">R$ {{ number_format($register->outflowsTotal(), 2, ',', '.') }}</dd>
                         </div>
                         <div class="flex items-center justify-between gap-4">
-                            <dt class="text-sm text-[#c7d2e3]">Fechado em</dt>
-                            <dd class="text-sm font-semibold text-white">{{ $register->closed_at?->format('d/m/Y H:i') ?? '-' }}</dd>
+                            <dt class="text-sm sf-text-muted">Fechado em</dt>
+                            <dd class="text-sm font-semibold text-[var(--text-main)]">{{ $register->closed_at?->format('d/m/Y H:i') ?? '-' }}</dd>
                         </div>
                     </dl>
 
                     @if (! $register->closed_at && auth()->user()->hasFinancialPrivileges())
-                        <div class="mt-6 rounded-2xl border border-white/10 bg-[#132746] p-5">
-                            <h4 class="text-sm font-semibold text-white">Registrar saida manual</h4>
-                            <p class="mt-1 text-xs text-[#c7d2e3]">Insumos, retiradas e despesas operacionais diminuem o saldo esperado do dia.</p>
+                        <div class="mt-6 rounded-2xl border border-white/10 bg-[var(--input-bg)] p-5">
+                            <h4 class="text-sm font-semibold text-[var(--text-main)]">Registrar saida manual</h4>
+                            <p class="mt-1 text-xs sf-text-muted">Insumos, retiradas e despesas operacionais diminuem o saldo esperado do dia.</p>
                             <form method="POST" action="{{ route('finance.cash.outflow') }}" class="mt-4 space-y-3">
                                 @csrf
                                 <input type="hidden" name="cash_register_id" value="{{ $register->id }}">
@@ -149,29 +149,29 @@
 
             <section class="sf-card overflow-hidden">
                 <div class="border-b border-white/10 px-6 py-5">
-                    <h3 class="text-base font-semibold text-white">Movimentos do dia</h3>
-                    <p class="mt-1 text-sm text-[#c7d2e3]">Pagamentos de serviços, vendas de produtos e acertos saem daqui.</p>
+                    <h3 class="text-base font-semibold text-[var(--text-main)]">Movimentos do dia</h3>
+                    <p class="mt-1 text-sm sf-text-muted">Pagamentos de serviços, vendas de produtos e acertos saem daqui.</p>
                 </div>
                 @if (! $register || $register->movements->isEmpty())
-                    <div class="px-6 py-10 text-sm text-[#c7d2e3]">Nenhuma movimentação registrada neste dia.</div>
+                    <div class="px-6 py-10 text-sm sf-text-muted">Nenhuma movimentação registrada neste dia.</div>
                 @else
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-white/10">
-                            <thead class="bg-[#132746]">
+                            <thead class="bg-[var(--input-bg)]">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Horário</th>
-                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Descrição</th>
-                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Método</th>
-                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Tipo</th>
-                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[#c7d2e3]">Valor</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Horário</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Descrição</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Método</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Tipo</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Valor</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-white/8 bg-[#223d69]">
+                            <tbody class="divide-y divide-white/8 bg-[var(--card-bg)]">
                                 @foreach ($register->movements->sortByDesc('occurred_at') as $movement)
                                     <tr class="transition hover:bg-white/[0.03]">
-                                        <td class="px-6 py-4 text-sm text-[#c7d2e3]">{{ $movement->occurred_at->format('H:i') }}</td>
-                                        <td class="px-6 py-4 text-sm text-white">{{ $movement->description }}</td>
-                                        <td class="px-6 py-4 text-sm text-[#c7d2e3]">{{ $movement->payment_method ? \App\Models\Payment::labelForPaymentMethod($movement->payment_method) : '-' }}</td>
+                                        <td class="px-6 py-4 text-sm sf-text-muted">{{ $movement->occurred_at->format('H:i') }}</td>
+                                        <td class="px-6 py-4 text-sm text-[var(--text-main)]">{{ $movement->description }}</td>
+                                        <td class="px-6 py-4 text-sm sf-text-muted">{{ $movement->payment_method ? \App\Models\Payment::labelForPaymentMethod($movement->payment_method) : '-' }}</td>
                                         <td class="px-6 py-4 text-sm">
                                             <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] {{ $movement->type === \App\Models\CashMovement::TYPE_INFLOW ? 'bg-emerald-500/10 text-emerald-100 ring-1 ring-emerald-400/20' : 'bg-rose-500/10 text-rose-100 ring-1 ring-rose-400/20' }}">
                                                 {{ $movement->type === \App\Models\CashMovement::TYPE_INFLOW ? 'Entrada' : 'Saida' }}

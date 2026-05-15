@@ -1,10 +1,10 @@
 <section>
     <header>
-        <h2 class="text-xl font-semibold text-white">
+        <h2 class="text-xl font-semibold text-[var(--text-main)]">
             Alterar senha
         </h2>
 
-        <p class="mt-2 text-sm leading-6 text-[#c7d2e3]">
+        <p class="mt-2 text-sm leading-6 sf-text-muted">
             Use uma senha forte para manter sua conta protegida.
         </p>
     </header>

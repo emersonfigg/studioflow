@@ -47,9 +47,10 @@ class StoreAppointmentRequest extends FormRequest
             'product_items.*.product_id' => ['required_with:product_items', 'integer', Rule::exists('products', 'id')->where('company_id', $companyId)->where('active', true)],
             'product_items.*.quantity' => ['required_with:product_items', 'integer', 'min:1', 'max:999'],
             'start_time' => ['required', 'date'],
-            'status' => ['required', Rule::in(Appointment::STATUSES)],
+            'status' => ['required', Rule::in(array_values(array_diff(Appointment::STATUSES, ['no_show'])))],
             'source' => ['required', Rule::in(Appointment::SOURCES)],
             'notes' => ['nullable', 'string'],
+            'force_blocked_client' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -154,6 +155,19 @@ class StoreAppointmentRequest extends FormRequest
                 return;
             }
 
+            if (! $this->user()->isAdmin() && Appointment::clientHasActiveAppointmentSameCalendarDate(
+                (int) $this->user()->company_id,
+                $this->integer('client_id'),
+                $startTime,
+            )) {
+                $validator->errors()->add(
+                    'start_time',
+                    'Este cliente já possui outro agendamento ativo neste dia. Escolha outra data ou ajuste o agendamento existente.',
+                );
+
+                return;
+            }
+
             $availableSlots = app(AvailabilityService::class)->availableSlotsForDuration(
                 $this->user()->company,
                 $professional,
@@ -187,9 +201,18 @@ class StoreAppointmentRequest extends FormRequest
 
         foreach ($items->groupBy('product_id') as $productId => $groupedItems) {
             $product = $products->get((int) $productId);
-            $quantity = (int) $groupedItems->sum('quantity');
+            $quantity = (float) $groupedItems->sum('quantity');
 
-            if (! $product || $product->stock_quantity < $quantity) {
+            if (! $product) {
+                $validator->errors()->add(
+                    'product_items',
+                    'Estoque insuficiente para um dos produtos selecionados.'
+                );
+
+                continue;
+            }
+
+            if ($product->tracksStock() && round((float) $product->stock_quantity, 2) + 1e-6 < round($quantity, 2)) {
                 $validator->errors()->add(
                     'product_items',
                     'Estoque insuficiente para um dos produtos selecionados.'
