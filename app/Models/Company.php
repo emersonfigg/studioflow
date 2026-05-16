@@ -39,6 +39,12 @@ class Company extends Model
         'active',
         'onboarding_completed_at',
         'auto_print_receipt',
+        'online_booking_payment_enabled',
+        'booking_payment_mode',
+        'booking_deposit_type',
+        'booking_deposit_value',
+        'booking_payment_expiration_minutes',
+        'booking_auto_cancel_unpaid',
         'client_code_counter',
     ];
 
@@ -53,6 +59,10 @@ class Company extends Model
             'active' => 'boolean',
             'brand_enabled' => 'boolean',
             'auto_print_receipt' => 'boolean',
+            'online_booking_payment_enabled' => 'boolean',
+            'booking_deposit_value' => 'decimal:2',
+            'booking_payment_expiration_minutes' => 'integer',
+            'booking_auto_cancel_unpaid' => 'boolean',
             'client_code_counter' => 'integer',
             'onboarding_completed_at' => 'datetime',
         ];
@@ -122,6 +132,11 @@ class Company extends Model
     public function paymentIntegrations(): HasMany
     {
         return $this->hasMany(CompanyPaymentIntegration::class);
+    }
+
+    public function bookingPayments(): HasMany
+    {
+        return $this->hasMany(BookingPayment::class);
     }
 
     /**
@@ -279,6 +294,12 @@ class Company extends Model
     public function onboardingCompleted(): bool
     {
         return $this->onboarding_completed_at !== null;
+    }
+
+    public function onlineBookingPaymentEnabled(): bool
+    {
+        return (bool) $this->online_booking_payment_enabled
+            && in_array((string) $this->booking_payment_mode, ['deposit', 'full'], true);
     }
 
     /**

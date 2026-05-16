@@ -3,7 +3,10 @@
 namespace App\Services\Payments\Gateways;
 
 use App\Enums\MembershipPaymentBillingType;
+use App\Models\Appointment;
+use App\Models\BookingPayment;
 use App\Models\Client;
+use App\Models\Company;
 use App\Models\CompanyPaymentIntegration;
 use App\Models\CustomerMembership;
 use App\Models\MembershipPayment;
@@ -95,6 +98,84 @@ class MercadoPagoGateway implements PaymentGatewayInterface
         ];
     }
 
+    /**
+     * @return array{preference_id:string,checkout_url:?string,init_point:?string,sandbox_init_point:?string,raw:array<string,mixed>}
+     */
+    public function createBookingPayment(Company $company, Appointment $appointment, BookingPayment $payment): array
+    {
+        $token = $this->ensureFreshAccessToken();
+        $description = 'Reserva de horario - '.$appointment->bookedServices()->pluck('name')->join(', ').' - '.$company->name;
+
+        $payload = [
+            'items' => [[
+                'id' => 'booking-payment-'.$payment->id,
+                'title' => mb_substr($description, 0, 120),
+                'quantity' => 1,
+                'currency_id' => 'BRL',
+                'unit_price' => (float) $payment->amount,
+            ]],
+            'payer' => array_filter([
+                'email' => $appointment->client?->email,
+                'name' => $appointment->client?->name,
+            ]),
+            'external_reference' => $payment->external_reference,
+            'notification_url' => route('webhooks.company-payments.mercado-pago', [
+                'payment_context' => 'booking',
+                'company_id' => $company->id,
+                'external_reference' => $payment->external_reference,
+            ]),
+            'back_urls' => [
+                'success' => route('public-bookings.payment.success', [
+                    'company' => $company,
+                    'reference' => $payment->external_reference,
+                ]),
+                'pending' => route('public-bookings.payment.pending', [
+                    'company' => $company,
+                    'reference' => $payment->external_reference,
+                ]),
+                'failure' => route('public-bookings.payment.failure', [
+                    'company' => $company,
+                    'reference' => $payment->external_reference,
+                ]),
+            ],
+            'auto_return' => 'approved',
+            'statement_descriptor' => mb_substr($company->name, 0, 13),
+            'metadata' => [
+                'company_id' => (int) $company->id,
+                'appointment_id' => (int) $appointment->id,
+                'booking_payment_id' => (int) $payment->id,
+                'payment_type' => (string) $payment->payment_type,
+            ],
+        ];
+
+        if ($payment->expires_at) {
+            $payload['expires'] = true;
+            $payload['expiration_date_to'] = $payment->expires_at->copy()->utc()->toIso8601String();
+        }
+
+        $response = Http::withToken($token)
+            ->acceptJson()
+            ->post($this->apiBaseUrl().'/checkout/preferences', $payload);
+
+        if (! $response->successful()) {
+            throw new RuntimeException('Mercado Pago: nao foi possivel criar a cobranca de reserva para esta empresa.');
+        }
+
+        $data = $response->json();
+        $preferenceId = (string) ($data['id'] ?? '');
+        if ($preferenceId === '') {
+            throw new RuntimeException('Mercado Pago: resposta invalida ao criar a cobranca de reserva.');
+        }
+
+        return [
+            'preference_id' => $preferenceId,
+            'checkout_url' => $data['init_point'] ?? $data['sandbox_init_point'] ?? null,
+            'init_point' => $data['init_point'] ?? null,
+            'sandbox_init_point' => $data['sandbox_init_point'] ?? null,
+            'raw' => $data,
+        ];
+    }
+
     public function cancelCharge(MembershipPayment $payment): void
     {
         throw new RuntimeException('Mercado Pago: cancelamento desta cobrança ainda não está disponível no StudioFlow.');
@@ -113,6 +194,23 @@ class MercadoPagoGateway implements PaymentGatewayInterface
 
         if (! $response->successful()) {
             throw new RuntimeException('Mercado Pago: não foi possível consultar a cobrança da empresa.');
+        }
+
+        return $response->json();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function fetchPaymentDetails(string $externalPaymentId): array
+    {
+        $token = $this->ensureFreshAccessToken();
+        $response = Http::withToken($token)
+            ->acceptJson()
+            ->get($this->apiBaseUrl().'/v1/payments/'.$externalPaymentId);
+
+        if (! $response->successful()) {
+            throw new RuntimeException('Mercado Pago: nao foi possivel consultar o pagamento da reserva.');
         }
 
         return $response->json();

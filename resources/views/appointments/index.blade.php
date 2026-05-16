@@ -107,6 +107,10 @@
                                                     <span class="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--brand-primary)_20%,transparent)] bg-[var(--brand-primary)]/10 px-2.5 py-1 text-xs font-medium brand-text">
                                                         Pago
                                                     </span>
+                                                @elseif ($appointment->payment_status)
+                                                    <span class="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--brand-primary)_20%,transparent)] bg-[var(--brand-primary)]/10 px-2.5 py-1 text-xs font-medium brand-text">
+                                                        {{ $appointment->paymentStatusLabel() }}
+                                                    </span>
                                                 @endif
                                             </div>
 
@@ -159,7 +163,7 @@
                                                 </form>
                                             @endif
 
-                                            @if ($appointment->status !== 'cancelled' && ! $appointment->payment && (auth()->user()->isAdmin() || auth()->id() === $appointment->user_id))
+                                            @if ($appointment->status !== 'cancelled' && $appointment->status !== 'pending_payment' && ! $appointment->payment && (auth()->user()->isAdmin() || auth()->id() === $appointment->user_id))
                                                 <a href="{{ route('pdv.index', ['appointment_id' => $appointment->id]) }}" class="sf-button-primary !px-3 !py-2 !text-xs">
                                                     Concluir atendimento
                                                 </a>

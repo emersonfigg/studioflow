@@ -194,6 +194,12 @@ class CompanyController extends Controller
             'custom_footer_text' => $this->sanitizeTextualField($request->old('custom_footer_text', $company->custom_footer_text)),
             'brand_enabled' => (bool) $request->old('brand_enabled', $company->brand_enabled ?? true),
             'auto_print_receipt' => (bool) $request->old('auto_print_receipt', $company->auto_print_receipt),
+            'online_booking_payment_enabled' => (bool) $request->old('online_booking_payment_enabled', $company->online_booking_payment_enabled),
+            'booking_payment_mode' => (string) $request->old('booking_payment_mode', $company->booking_payment_mode ?: 'none'),
+            'booking_deposit_type' => (string) $request->old('booking_deposit_type', $company->booking_deposit_type ?: 'fixed'),
+            'booking_deposit_value' => $request->old('booking_deposit_value', $company->booking_deposit_value),
+            'booking_payment_expiration_minutes' => (int) $request->old('booking_payment_expiration_minutes', $company->booking_payment_expiration_minutes ?: 15),
+            'booking_auto_cancel_unpaid' => (bool) $request->old('booking_auto_cancel_unpaid', $company->booking_auto_cancel_unpaid ?? true),
         ];
     }
 

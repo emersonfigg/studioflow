@@ -20,6 +20,7 @@ use App\Http\Controllers\ProfessionalAvailabilityController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicAppointmentReviewController;
 use App\Http\Controllers\PublicBookingController;
+use App\Http\Controllers\PublicBookingPaymentController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ServiceOrderController;
 use App\Http\Controllers\SuperAdminCompanyController;
@@ -43,6 +44,12 @@ Route::post('/agendar/{company}', [PublicBookingController::class, 'store'])
     ->name('public-bookings.store');
 Route::get('/agendar/{company}/sucesso/{appointment}', [PublicBookingController::class, 'success'])
     ->name('public-bookings.success');
+Route::get('/agendar/{company}/pagamento/{reference}/pendente', [PublicBookingPaymentController::class, 'pending'])
+    ->name('public-bookings.payment.pending');
+Route::get('/agendar/{company}/pagamento/{reference}/sucesso', [PublicBookingPaymentController::class, 'success'])
+    ->name('public-bookings.payment.success');
+Route::get('/agendar/{company}/pagamento/{reference}/falha', [PublicBookingPaymentController::class, 'failure'])
+    ->name('public-bookings.payment.failure');
 
 Route::get('/avaliar/{token}', [PublicAppointmentReviewController::class, 'show'])->name('public-reviews.show');
 Route::post('/avaliar/{token}', [PublicAppointmentReviewController::class, 'store'])->name('public-reviews.store');

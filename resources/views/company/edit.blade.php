@@ -326,6 +326,90 @@
                         </label>
                         <p class="mt-2 text-xs sf-muted/80">Requer permissao de pop-up no navegador. O botao manual de impressao continua disponivel.</p>
                     </div>
+
+                    <div class="lg:col-span-2 rounded-2xl border border-white/10 bg-[var(--input-bg)] px-4 py-4">
+                        <p class="sf-page-eyebrow">Pagamentos no agendamento</p>
+                        <p class="mt-2 text-sm sf-muted">Defina se o cliente precisa pagar um sinal ou o valor total para reservar horarios online.</p>
+
+                        <div class="mt-5 grid gap-4 lg:grid-cols-2">
+                            <div class="lg:col-span-2">
+                                <label class="flex cursor-pointer items-start gap-3 text-sm sf-text-muted">
+                                    <input type="hidden" name="online_booking_payment_enabled" value="0">
+                                    <input
+                                        type="checkbox"
+                                        name="online_booking_payment_enabled"
+                                        value="1"
+                                        class="mt-1 rounded border-white/20 bg-[var(--app-shell-bg)] text-[var(--brand-primary)] focus:ring-[var(--brand-primary)]"
+                                        @checked($formValues['online_booking_payment_enabled'])
+                                    >
+                                    <span>Ativar pagamento online no agendamento publico usando a conta Mercado Pago conectada da empresa.</span>
+                                </label>
+                            </div>
+
+                            <div>
+                                <label for="booking_payment_mode" class="text-sm font-medium text-[var(--text-main)]">Modo de cobranca</label>
+                                <select id="booking_payment_mode" name="booking_payment_mode" class="sf-select mt-2 block w-full">
+                                    <option value="none" @selected($formValues['booking_payment_mode'] === 'none')>Desativado</option>
+                                    <option value="deposit" @selected($formValues['booking_payment_mode'] === 'deposit')>Cobrar sinal para reservar</option>
+                                    <option value="full" @selected($formValues['booking_payment_mode'] === 'full')>Cobrar valor total antecipado</option>
+                                </select>
+                                <x-input-error class="mt-2" :messages="$errors->get('booking_payment_mode')" />
+                            </div>
+
+                            <div>
+                                <label for="booking_payment_expiration_minutes" class="text-sm font-medium text-[var(--text-main)]">Prazo do pagamento</label>
+                                <input
+                                    id="booking_payment_expiration_minutes"
+                                    name="booking_payment_expiration_minutes"
+                                    type="number"
+                                    min="5"
+                                    max="180"
+                                    value="{{ $formValues['booking_payment_expiration_minutes'] }}"
+                                    class="sf-input mt-2 block w-full"
+                                >
+                                <p class="mt-2 text-xs sf-muted">Em minutos. O horario pode ser liberado apos esse prazo.</p>
+                                <x-input-error class="mt-2" :messages="$errors->get('booking_payment_expiration_minutes')" />
+                            </div>
+
+                            <div>
+                                <label for="booking_deposit_type" class="text-sm font-medium text-[var(--text-main)]">Tipo do sinal</label>
+                                <select id="booking_deposit_type" name="booking_deposit_type" class="sf-select mt-2 block w-full">
+                                    <option value="fixed" @selected($formValues['booking_deposit_type'] === 'fixed')>Valor fixo (R$)</option>
+                                    <option value="percentage" @selected($formValues['booking_deposit_type'] === 'percentage')>Percentual do servico</option>
+                                </select>
+                                <x-input-error class="mt-2" :messages="$errors->get('booking_deposit_type')" />
+                            </div>
+
+                            <div>
+                                <label for="booking_deposit_value" class="text-sm font-medium text-[var(--text-main)]">Valor do sinal</label>
+                                <input
+                                    id="booking_deposit_value"
+                                    name="booking_deposit_value"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value="{{ $formValues['booking_deposit_value'] }}"
+                                    class="sf-input mt-2 block w-full"
+                                >
+                                <p class="mt-2 text-xs sf-muted">Se usar percentual, informe apenas o numero. Ex.: 30 para 30%.</p>
+                                <x-input-error class="mt-2" :messages="$errors->get('booking_deposit_value')" />
+                            </div>
+
+                            <div class="lg:col-span-2">
+                                <label class="flex cursor-pointer items-start gap-3 text-sm sf-text-muted">
+                                    <input type="hidden" name="booking_auto_cancel_unpaid" value="0">
+                                    <input
+                                        type="checkbox"
+                                        name="booking_auto_cancel_unpaid"
+                                        value="1"
+                                        class="mt-1 rounded border-white/20 bg-[var(--app-shell-bg)] text-[var(--brand-primary)] focus:ring-[var(--brand-primary)]"
+                                        @checked($formValues['booking_auto_cancel_unpaid'])
+                                    >
+                                    <span>Cancelar automaticamente o agendamento se o pagamento nao for confirmado dentro do prazo.</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </form>
         </section>

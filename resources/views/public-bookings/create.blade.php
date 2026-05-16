@@ -579,6 +579,22 @@
                                     </div>
                                 @endif
 
+                                @if ($onlineBookingPaymentEnabled)
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div class="booking-summary-row px-4 py-4">
+                                            <p class="text-xs brand-muted">{{ $bookingPaymentMode === 'full' ? 'Pagamento online' : 'Sinal' }}</p>
+                                            <p class="mt-1 text-lg font-semibold text-[var(--brand-primary)]">R$ {{ number_format($depositAmount, 2, ',', '.') }}</p>
+                                        </div>
+                                        <div class="booking-summary-row px-4 py-4">
+                                            <p class="text-xs brand-muted">Restante</p>
+                                            <p class="mt-1 text-lg font-semibold text-white">R$ {{ number_format($remainingAmount, 2, ',', '.') }}</p>
+                                        </div>
+                                    </div>
+                                    <p class="rounded-2xl border border-[color:color-mix(in_srgb,var(--brand-primary)_18%,transparent)] bg-[color-mix(in_srgb,var(--brand-primary)_10%,transparent)] px-4 py-3 text-xs brand-muted">
+                                        Seu horario ficara reservado por {{ $bookingPaymentExpirationMinutes }} minutos ate a confirmacao do Mercado Pago.
+                                    </p>
+                                @endif
+
                                 @unless ($identifiedClient)
                                     <div>
                                         <label for="client_name" class="text-sm font-medium text-white">Nome completo</label>
@@ -642,9 +658,41 @@
                                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] text-sm font-semibold text-[var(--brand-primary)]">6</span>
                                 <div>
                                     <h2 class="sf-section-title text-white">Confirmação</h2>
-                                    <p class="mt-1 text-sm brand-muted">O horário será confirmado após o envio. A disponibilidade será validada novamente.</p>
+                                    <p class="mt-1 text-sm brand-muted">
+                                        @if ($onlineBookingPaymentEnabled)
+                                            Seu horário será confirmado após a aprovação do pagamento online. A disponibilidade será validada novamente antes da reserva final.
+                                        @else
+                                            O horário será confirmado após o envio. A disponibilidade será validada novamente.
+                                        @endif
+                                    </p>
                                 </div>
                             </div>
+
+                            @if ($onlineBookingPaymentEnabled)
+                                <div class="mt-5 rounded-2xl border border-[color:color-mix(in_srgb,var(--brand-primary)_20%,transparent)] bg-[color-mix(in_srgb,var(--brand-primary)_10%,transparent)] px-4 py-4 text-sm">
+                                    <div class="grid gap-3 sm:grid-cols-3">
+                                        <div>
+                                            <p class="text-xs uppercase tracking-[0.16em] brand-muted">Valor total</p>
+                                            <p class="mt-1 font-semibold text-white">R$ {{ number_format($totalPrice, 2, ',', '.') }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs uppercase tracking-[0.16em] brand-muted">{{ $bookingPaymentMode === 'full' ? 'Pagamento online' : 'Sinal' }}</p>
+                                            <p class="mt-1 font-semibold text-[var(--brand-primary)]">R$ {{ number_format($depositAmount, 2, ',', '.') }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs uppercase tracking-[0.16em] brand-muted">Restante no salao</p>
+                                            <p class="mt-1 font-semibold text-white">R$ {{ number_format($remainingAmount, 2, ',', '.') }}</p>
+                                        </div>
+                                    </div>
+                                    <p class="mt-3 text-xs brand-muted">Seu horario ficara reservado por {{ $bookingPaymentExpirationMinutes }} minutos enquanto aguardamos a confirmacao do Mercado Pago.</p>
+                                </div>
+                            @endif
+
+                            @if ($errors->has('payment'))
+                                <div class="mt-4 rounded-2xl border border-rose-400/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+                                    {{ $errors->first('payment') }}
+                                </div>
+                            @endif
 
                             <button
                                 type="submit"
@@ -652,7 +700,11 @@
                                 :class="{ 'cursor-not-allowed opacity-60': !readyToConfirm() }"
                                 :aria-disabled="!readyToConfirm()"
                             >
-                                Confirmar agendamento
+                                @if ($onlineBookingPaymentEnabled)
+                                    {{ $bookingPaymentMode === 'full' ? 'Pagar e reservar horario' : 'Pagar sinal e reservar horario' }}
+                                @else
+                                    Confirmar agendamento
+                                @endif
                             </button>
                             <template x-if="!readyToConfirm()">
                                 <div class="mt-3 space-y-1 text-center">

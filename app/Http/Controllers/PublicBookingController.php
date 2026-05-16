@@ -9,6 +9,7 @@ use App\Models\Company;
 use App\Models\Service;
 use App\Models\User;
 use App\Services\AvailabilityService;
+use App\Services\BookingPaymentService;
 use App\Services\BrandingService;
 use App\Services\CustomerBlockService;
 use App\Services\ServiceOrderService;
@@ -33,6 +34,7 @@ class PublicBookingController extends Controller
      */
     public function create(Request $request, Company $company, AvailabilityService $availabilityService): View
     {
+        $bookingPaymentService = app(BookingPaymentService::class);
         $services = Service::query()
             ->where('company_id', $company->id)
             ->where('active', true)
@@ -60,6 +62,11 @@ class PublicBookingController extends Controller
             ? (int) $selectedServices->sum('duration_minutes')
             : self::DEFAULT_BOOKING_DURATION_MINUTES;
         $totalPrice = (float) $selectedServices->sum(fn (Service $service): float => (float) $service->price);
+        $onlineBookingPaymentEnabled = $bookingPaymentService->onlinePaymentEnabled($company);
+        $depositAmount = $onlineBookingPaymentEnabled && $hasSelectedServices
+            ? $bookingPaymentService->depositAmountFor($company, $totalPrice)
+            : 0.0;
+        $remainingAmount = max(0, round($totalPrice - $depositAmount, 2));
         $identifiedClient = $this->identifiedClient($company);
 
         [$selectedUser, $slotOptions] = $this->resolveSelectedUserAndSlots(
@@ -112,6 +119,11 @@ class PublicBookingController extends Controller
             'totalDurationMinutes' => $totalDurationMinutes,
             'totalPrice' => $totalPrice,
             'usingEstimatedDuration' => ! $hasSelectedServices,
+            'onlineBookingPaymentEnabled' => $onlineBookingPaymentEnabled,
+            'bookingPaymentMode' => $onlineBookingPaymentEnabled ? (string) $company->booking_payment_mode : 'none',
+            'depositAmount' => $depositAmount,
+            'remainingAmount' => $remainingAmount,
+            'bookingPaymentExpirationMinutes' => (int) ($company->booking_payment_expiration_minutes ?: 15),
             'identifiedClient' => $identifiedClient,
             'googleConfigured' => (bool) (config('services.google.client_id') && config('services.google.client_secret')),
             'servicesCatalog' => $services->map(fn (Service $service): array => [
@@ -211,12 +223,41 @@ class PublicBookingController extends Controller
     /**
      * Store a new public booking.
      */
-    public function store(StorePublicBookingRequest $request, Company $company, AvailabilityService $availabilityService, ServiceOrderService $serviceOrders): RedirectResponse
-    {
+    public function store(
+        StorePublicBookingRequest $request,
+        Company $company,
+        AvailabilityService $availabilityService,
+        ServiceOrderService $serviceOrders,
+        BookingPaymentService $bookingPaymentService,
+    ): RedirectResponse {
         $data = $request->validated();
         $startTime = Carbon::createFromFormat('Y-m-d H:i', "{$data['date']} {$data['time']}");
+        $onlinePaymentEnabled = $bookingPaymentService->onlinePaymentEnabled($company);
 
-        $appointment = DB::transaction(function () use ($company, $availabilityService, $startTime, $data, $request): Appointment {
+        if ($onlinePaymentEnabled) {
+            $servicesTotal = (float) Service::query()
+                ->where('company_id', $company->id)
+                ->where('active', true)
+                ->whereIn('id', $data['service_ids'])
+                ->sum('price');
+
+            try {
+                $bookingPaymentService->ensureCompanyCanAcceptOnlineBooking($company, $servicesTotal);
+            } catch (\Throwable $e) {
+                return redirect()
+                    ->route('public-bookings.create', [
+                        'company' => $company,
+                        'service_ids' => $data['service_ids'],
+                        'user_id' => $data['user_id'],
+                        'date' => $data['date'],
+                        'filters_submitted' => 1,
+                    ])
+                    ->withInput($request->except(['time']))
+                    ->withErrors(['payment' => $e->getMessage()]);
+            }
+        }
+
+        $appointment = DB::transaction(function () use ($company, $availabilityService, $startTime, $data, $request, $onlinePaymentEnabled): Appointment {
             $user = User::query()
                 ->where('company_id', $company->id)
                 ->where('active', true)
@@ -266,6 +307,7 @@ class PublicBookingController extends Controller
             }
 
             $endTime = $startTime->copy()->addMinutes($totalDurationMinutes);
+            $amountTotal = round((float) $orderedServices->sum(fn (Service $service): float => (float) $service->price), 2);
 
             Client::query()
                 ->where('company_id', $company->id)
@@ -286,7 +328,12 @@ class PublicBookingController extends Controller
                 'service_id' => $orderedServices->firstOrFail()->id,
                 'start_time' => $startTime,
                 'end_time' => $endTime,
-                'status' => 'scheduled',
+                'status' => $onlinePaymentEnabled ? 'pending_payment' : 'scheduled',
+                'payment_status' => $onlinePaymentEnabled ? 'pending' : null,
+                'payment_gateway' => $onlinePaymentEnabled ? 'mercado_pago' : null,
+                'amount_total' => $amountTotal,
+                'amount_paid' => 0,
+                'deposit_amount' => 0,
                 'source' => 'public_booking',
                 'notes' => $data['notes'] ?? null,
             ]);
@@ -307,6 +354,33 @@ class PublicBookingController extends Controller
         });
 
         $serviceOrders->ensureForAppointment($appointment);
+
+        if ($onlinePaymentEnabled) {
+            try {
+                $bookingPayment = $bookingPaymentService->createCheckoutForAppointment(
+                    $company,
+                    $appointment->fresh(['company', 'client', 'service', 'services'])
+                );
+            } catch (\Throwable $e) {
+                return redirect()
+                    ->route('public-bookings.create', [
+                        'company' => $company,
+                        'service_ids' => $data['service_ids'],
+                        'user_id' => $data['user_id'],
+                        'date' => $data['date'],
+                        'filters_submitted' => 1,
+                    ])
+                    ->withInput($request->except(['time']))
+                    ->withErrors(['payment' => 'Nao foi possivel gerar o pagamento online agora. Tente novamente em instantes.']);
+            }
+
+            return redirect()
+                ->route('public-bookings.payment.pending', [
+                    'company' => $company,
+                    'reference' => $bookingPayment->external_reference,
+                ])
+                ->with('status', 'public-booking-payment-pending');
+        }
 
         return redirect()
             ->route('public-bookings.success', [

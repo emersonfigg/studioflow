@@ -23,6 +23,10 @@
                         <span class="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)] bg-[var(--brand-primary)]/10 px-2.5 py-1 text-xs font-semibold text-[var(--text-main)]">
                             Pagamento registrado
                         </span>
+                    @elseif ($appointment->payment_status)
+                        <span class="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)] bg-[var(--brand-primary)]/10 px-2.5 py-1 text-xs font-semibold text-[var(--text-main)]">
+                            {{ $appointment->paymentStatusLabel() }}
+                        </span>
                     @endif
                     @if (! empty($membershipSummary['active']))
                         <span class="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--brand-primary)_40%,transparent)] bg-[var(--brand-primary)]/10 px-2.5 py-1 text-xs font-semibold text-[var(--text-main)]">
@@ -41,7 +45,7 @@
                     Novo agendamento
                 </a>
 
-                @if (! $appointment->payment && $appointment->status !== 'cancelled' && (auth()->user()->isAdmin() || auth()->id() === $appointment->user_id))
+                @if (! $appointment->payment && $appointment->status !== 'cancelled' && $appointment->status !== 'pending_payment' && (auth()->user()->isAdmin() || auth()->id() === $appointment->user_id))
                     <a href="{{ route('appointments.orders.show', $appointment) }}" class="sf-button-secondary">
                         Abrir comanda
                     </a>
@@ -51,7 +55,7 @@
                     <a href="{{ route('appointments.payments.create', $appointment) }}" class="sf-button-secondary">
                         Registrar pagamento
                     </a>
-                @elseif ($appointment->status !== 'completed' && $appointment->status !== 'cancelled' && ! $appointment->payment && (auth()->user()->isAdmin() || auth()->id() === $appointment->user_id))
+                @elseif ($appointment->status !== 'completed' && $appointment->status !== 'cancelled' && $appointment->status !== 'pending_payment' && ! $appointment->payment && (auth()->user()->isAdmin() || auth()->id() === $appointment->user_id))
                     <a href="{{ route('pdv.index', ['appointment_id' => $appointment->id]) }}" class="sf-button-primary">
                         Concluir atendimento
                     </a>
@@ -113,6 +117,10 @@
                 <div>
                     <dt class="text-sm font-medium sf-text-muted">{{ __('Status') }}</dt>
                     <dd class="mt-1 text-sm text-[var(--text-main)]">{{ $appointment->statusLabel() }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium sf-text-muted">Pagamento online</dt>
+                    <dd class="mt-1 text-sm text-[var(--text-main)]">{{ $appointment->paymentStatusLabel() }}</dd>
                 </div>
                 <div>
                     <dt class="text-sm font-medium sf-text-muted">{{ __('Source') }}</dt>
@@ -249,6 +257,33 @@
                         </form>
                     </details>
                 @endif
+            @elseif ($appointment->payment_status)
+                <dl class="mt-5 space-y-4">
+                    <div>
+                        <dt class="text-sm sf-text-muted">Status do pagamento</dt>
+                        <dd class="mt-1 text-sm font-semibold text-[var(--text-main)]">{{ $appointment->paymentStatusLabel() }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm sf-text-muted">Gateway</dt>
+                        <dd class="mt-1 text-sm font-semibold text-[var(--text-main)]">{{ $appointment->payment_gateway ?: '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm sf-text-muted">Valor total</dt>
+                        <dd class="mt-1 text-sm font-semibold text-[var(--text-main)]">R$ {{ number_format((float) $appointment->amount_total, 2, ',', '.') }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm sf-text-muted">Valor pago</dt>
+                        <dd class="mt-1 text-sm font-semibold text-[var(--text-main)]">R$ {{ number_format((float) $appointment->amount_paid, 2, ',', '.') }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm sf-text-muted">Sinal</dt>
+                        <dd class="mt-1 text-sm font-semibold text-[var(--text-main)]">R$ {{ number_format((float) $appointment->deposit_amount, 2, ',', '.') }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm sf-text-muted">Referencia externa</dt>
+                        <dd class="mt-1 break-all text-sm font-semibold text-[var(--text-main)]">{{ $appointment->payment_reference ?: '—' }}</dd>
+                    </div>
+                </dl>
             @else
                 <p class="mt-4 text-sm leading-6 sf-text-muted">
                     Ainda não há pagamento registrado para este atendimento.

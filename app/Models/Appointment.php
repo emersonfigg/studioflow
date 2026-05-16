@@ -20,6 +20,7 @@ class Appointment extends Model
 
     public const STATUSES = [
         'scheduled',
+        'pending_payment',
         'confirmed',
         'in_progress',
         'completed',
@@ -38,6 +39,7 @@ class Appointment extends Model
         'confirmed',
         'in_progress',
         'pending',
+        'pending_payment',
         'agendado',
         'confirmado',
         'em_atendimento',
@@ -56,6 +58,16 @@ class Appointment extends Model
         'start_time',
         'end_time',
         'status',
+        'payment_status',
+        'payment_gateway',
+        'payment_reference',
+        'payment_preference_id',
+        'payment_external_id',
+        'amount_total',
+        'amount_paid',
+        'deposit_amount',
+        'payment_expires_at',
+        'confirmed_at',
         'source',
         'notes',
     ];
@@ -70,6 +82,11 @@ class Appointment extends Model
         return [
             'start_time' => 'datetime',
             'end_time' => 'datetime',
+            'amount_total' => 'decimal:2',
+            'amount_paid' => 'decimal:2',
+            'deposit_amount' => 'decimal:2',
+            'payment_expires_at' => 'datetime',
+            'confirmed_at' => 'datetime',
         ];
     }
 
@@ -155,6 +172,11 @@ class Appointment extends Model
         return $this->hasMany(ProductSale::class);
     }
 
+    public function bookingPayments(): HasMany
+    {
+        return $this->hasMany(BookingPayment::class);
+    }
+
     /**
      * Get the translated label for the appointment status.
      */
@@ -162,6 +184,7 @@ class Appointment extends Model
     {
         return match ($this->status) {
             'scheduled' => 'Agendado',
+            'pending_payment' => 'Aguardando pagamento',
             'confirmed' => 'Confirmado',
             'in_progress' => 'Em atendimento',
             'completed' => 'Concluído',
@@ -178,6 +201,7 @@ class Appointment extends Model
     {
         return match ($this->status) {
             'scheduled' => 'bg-sky-100 text-sky-700 ring-sky-600/20',
+            'pending_payment' => 'bg-violet-100 text-violet-700 ring-violet-600/20',
             'confirmed' => 'bg-indigo-100 text-indigo-700 ring-indigo-600/20',
             'in_progress' => 'bg-amber-100 text-amber-700 ring-amber-600/20',
             'completed' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20',
@@ -291,5 +315,17 @@ class Appointment extends Model
         return (float) $services->sum(
             fn (Service $service): float => (float) ($service->pivot->price_snapshot ?? $service->price)
         );
+    }
+
+    public function paymentStatusLabel(): string
+    {
+        return match ((string) $this->payment_status) {
+            'pending' => 'Aguardando pagamento',
+            'paid' => 'Pago',
+            'failed' => 'Falhou',
+            'expired' => 'Expirado',
+            'refunded' => 'Estornado',
+            default => '—',
+        };
     }
 }

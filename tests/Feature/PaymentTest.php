@@ -2,17 +2,24 @@
 
 namespace Tests\Feature;
 
+use App\Enums\PaymentIntegrationEnvironment;
+use App\Enums\PaymentProvider;
 use App\Models\Appointment;
+use App\Models\BookingPayment;
 use App\Models\CashMovement;
 use App\Models\Client;
 use App\Models\CommissionSettlement;
 use App\Models\Company;
+use App\Models\CompanyPaymentIntegration;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductSale;
 use App\Models\Service;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request as HttpClientRequest;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class PaymentTest extends TestCase
@@ -647,5 +654,172 @@ class PaymentTest extends TestCase
             'source_id' => $payment->id,
             'payment_method' => 'card_debit',
         ]);
+    }
+
+    public function test_mercado_pago_booking_webhook_approved_confirms_appointment_idempotently(): void
+    {
+        Http::fake(function (HttpClientRequest $request) {
+            if (str_contains($request->url(), '/v1/payments/mp-payment-123')) {
+                return Http::response([
+                    'id' => 'mp-payment-123',
+                    'status' => 'approved',
+                    'external_reference' => 'booking-ref-approved',
+                    'transaction_amount' => 30.00,
+                ], 200);
+            }
+
+            return Http::response([], 200);
+        });
+
+        $company = Company::factory()->create();
+        $integration = CompanyPaymentIntegration::query()->create([
+            'company_id' => $company->id,
+            'provider' => PaymentProvider::MercadoPago,
+            'environment' => PaymentIntegrationEnvironment::Production,
+            'access_token' => 'mp_company_token_live',
+            'refresh_token' => 'refresh-token',
+            'active' => true,
+            'status' => 'connected',
+        ]);
+        $appointment = Appointment::factory()->for($company)->create([
+            'status' => 'pending_payment',
+            'payment_status' => 'pending',
+            'payment_gateway' => 'mercado_pago',
+            'amount_total' => 100,
+            'deposit_amount' => 30,
+        ]);
+        $bookingPayment = BookingPayment::query()->create([
+            'company_id' => $company->id,
+            'appointment_id' => $appointment->id,
+            'gateway' => 'mercado_pago',
+            'status' => 'pending',
+            'payment_type' => 'deposit',
+            'amount' => 30,
+            'external_reference' => 'booking-ref-approved',
+            'expires_at' => now()->addMinutes(15),
+        ]);
+
+        $payload = [
+            'type' => 'payment',
+            'data' => ['id' => 'mp-payment-123'],
+        ];
+
+        $this->postJson(route('webhooks.company-payments.mercado-pago', [
+            'payment_context' => 'booking',
+            'company_id' => $company->id,
+            'external_reference' => $bookingPayment->external_reference,
+        ], false), $payload)->assertOk();
+
+        $this->postJson(route('webhooks.company-payments.mercado-pago', [
+            'payment_context' => 'booking',
+            'company_id' => $company->id,
+            'external_reference' => $bookingPayment->external_reference,
+        ], false), $payload)->assertOk();
+
+        $appointment->refresh();
+        $bookingPayment->refresh();
+        $integration->refresh();
+
+        $this->assertSame('confirmed', $appointment->status);
+        $this->assertSame('paid', $appointment->payment_status);
+        $this->assertSame('30.00', number_format((float) $appointment->amount_paid, 2, '.', ''));
+        $this->assertSame('paid', $bookingPayment->status);
+        $this->assertSame('mp-payment-123', $bookingPayment->external_payment_id);
+    }
+
+    public function test_mercado_pago_booking_webhook_rejected_does_not_confirm_appointment(): void
+    {
+        Http::fake(function (HttpClientRequest $request) {
+            if (str_contains($request->url(), '/v1/payments/mp-payment-456')) {
+                return Http::response([
+                    'id' => 'mp-payment-456',
+                    'status' => 'rejected',
+                    'external_reference' => 'booking-ref-rejected',
+                    'transaction_amount' => 30.00,
+                ], 200);
+            }
+
+            return Http::response([], 200);
+        });
+
+        $company = Company::factory()->create([
+            'booking_auto_cancel_unpaid' => true,
+        ]);
+        CompanyPaymentIntegration::query()->create([
+            'company_id' => $company->id,
+            'provider' => PaymentProvider::MercadoPago,
+            'environment' => PaymentIntegrationEnvironment::Production,
+            'access_token' => 'mp_company_token_live',
+            'refresh_token' => 'refresh-token',
+            'active' => true,
+            'status' => 'connected',
+        ]);
+        $appointment = Appointment::factory()->for($company)->create([
+            'status' => 'pending_payment',
+            'payment_status' => 'pending',
+            'payment_gateway' => 'mercado_pago',
+            'amount_total' => 100,
+            'deposit_amount' => 30,
+        ]);
+        $bookingPayment = BookingPayment::query()->create([
+            'company_id' => $company->id,
+            'appointment_id' => $appointment->id,
+            'gateway' => 'mercado_pago',
+            'status' => 'pending',
+            'payment_type' => 'deposit',
+            'amount' => 30,
+            'external_reference' => 'booking-ref-rejected',
+            'expires_at' => now()->addMinutes(15),
+        ]);
+
+        $this->postJson(route('webhooks.company-payments.mercado-pago', [
+            'payment_context' => 'booking',
+            'company_id' => $company->id,
+            'external_reference' => $bookingPayment->external_reference,
+        ], false), [
+            'type' => 'payment',
+            'data' => ['id' => 'mp-payment-456'],
+        ])->assertOk();
+
+        $appointment->refresh();
+        $bookingPayment->refresh();
+
+        $this->assertSame('cancelled', $appointment->status);
+        $this->assertSame('failed', $appointment->payment_status);
+        $this->assertSame('failed', $bookingPayment->status);
+    }
+
+    public function test_expired_booking_payment_cancels_pending_appointment(): void
+    {
+        $company = Company::factory()->create([
+            'booking_auto_cancel_unpaid' => true,
+        ]);
+        $appointment = Appointment::factory()->for($company)->create([
+            'status' => 'pending_payment',
+            'payment_status' => 'pending',
+            'payment_gateway' => 'mercado_pago',
+            'amount_total' => 100,
+            'deposit_amount' => 30,
+            'payment_expires_at' => now()->subMinute(),
+        ]);
+        $bookingPayment = BookingPayment::query()->create([
+            'company_id' => $company->id,
+            'appointment_id' => $appointment->id,
+            'gateway' => 'mercado_pago',
+            'status' => 'pending',
+            'payment_type' => 'deposit',
+            'amount' => 30,
+            'external_reference' => 'booking-ref-expired',
+            'expires_at' => now()->subMinute(),
+        ]);
+
+        Artisan::call('bookings:expire-unpaid-payments');
+
+        $appointment->refresh();
+        $bookingPayment->refresh();
+
+        $this->assertSame('cancelled', $appointment->status);
+        $this->assertSame('expired', $appointment->payment_status);
+        $this->assertSame('expired', $bookingPayment->status);
     }
 }
