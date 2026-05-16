@@ -153,4 +153,27 @@ class CompanyTest extends TestCase
         $this->assertSame('Descricao firme', $company->description);
         $this->assertSame('companies/test-logo.png', $company->logo);
     }
+
+    public function test_percentage_booking_deposit_cannot_be_greater_than_one_hundred_percent(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+
+        $this->actingAs($admin)
+            ->from(route('company.edit', absolute: false))
+            ->patch(route('company.update', absolute: false), [
+                'name' => 'Empresa Percentual',
+                'online_booking_payment_enabled' => '1',
+                'booking_payment_requirement' => 'required',
+                'booking_payment_mode' => 'deposit',
+                'booking_deposit_type' => 'percentage',
+                'booking_deposit_value' => '120',
+                'booking_payment_expiration_minutes' => 15,
+                'booking_auto_cancel_unpaid' => '1',
+            ])
+            ->assertRedirect(route('company.edit', absolute: false))
+            ->assertSessionHasErrors([
+                'booking_deposit_value' => 'O percentual do sinal não pode ser maior que 100%.',
+            ]);
+    }
 }

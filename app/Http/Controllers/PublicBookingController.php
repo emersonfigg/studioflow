@@ -71,6 +71,13 @@ class PublicBookingController extends Controller
             ? $bookingPaymentService->depositAmountFor($company, $totalPrice)
             : 0.0;
         $remainingAmount = max(0, round($totalPrice - $depositAmount, 2));
+        $bookingDepositType = (string) ($company->booking_deposit_type ?: 'fixed');
+        $bookingDepositValue = (float) ($company->booking_deposit_value ?: 0);
+        $depositSummaryText = $bookingPaymentService->paymentMode($company) === 'full'
+            ? 'R$ '.number_format($depositAmount, 2, ',', '.')
+            : ($bookingDepositType === 'percentage'
+                ? rtrim(rtrim(number_format($bookingDepositValue, 2, ',', '.'), '0'), ',').'% (R$ '.number_format($depositAmount, 2, ',', '.').')'
+                : 'R$ '.number_format($depositAmount, 2, ',', '.'));
         $selectedPaymentChoice = old(
             'payment_choice',
             $shouldRequireOnlineBookingPayment
@@ -135,7 +142,10 @@ class PublicBookingController extends Controller
             'shouldRequireOnlineBookingPayment' => $shouldRequireOnlineBookingPayment,
             'bookingPaymentRequirement' => $company->booking_payment_requirement ?: 'disabled',
             'bookingPaymentMode' => $onlineBookingPaymentConfigured ? (string) $company->booking_payment_mode : 'none',
+            'bookingDepositType' => $bookingDepositType,
+            'bookingDepositValue' => $bookingDepositValue,
             'depositAmount' => $depositAmount,
+            'depositSummaryText' => $depositSummaryText,
             'remainingAmount' => $remainingAmount,
             'bookingPaymentExpirationMinutes' => (int) ($company->booking_payment_expiration_minutes ?: 15),
             'selectedPaymentChoice' => $selectedPaymentChoice,

@@ -45,7 +45,17 @@ class UpdateCompanyRequest extends FormRequest
             'booking_payment_requirement' => ['nullable', 'in:disabled,optional,required'],
             'booking_payment_mode' => ['nullable', 'in:none,deposit,full'],
             'booking_deposit_type' => ['nullable', 'in:fixed,percentage'],
-            'booking_deposit_value' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
+            'booking_deposit_value' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                'max:999999.99',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($this->input('booking_deposit_type') === 'percentage' && $value !== null && (float) $value > 100) {
+                        $fail('O percentual do sinal não pode ser maior que 100%.');
+                    }
+                },
+            ],
             'booking_payment_expiration_minutes' => ['nullable', 'integer', 'min:5', 'max:180'],
             'booking_auto_cancel_unpaid' => ['nullable', 'boolean'],
         ];
@@ -74,6 +84,22 @@ class UpdateCompanyRequest extends FormRequest
         ] as $field) {
             if ($this->has($field) && $this->input($field) === '') {
                 $this->merge([$field => null]);
+            }
+        }
+
+        if ($this->has('booking_deposit_value')) {
+            $rawDepositValue = $this->input('booking_deposit_value');
+
+            if (is_string($rawDepositValue)) {
+                $normalizedDepositValue = str_replace(['.', ','], ['', '.'], $rawDepositValue);
+
+                if ($this->input('booking_deposit_type') === 'percentage') {
+                    $normalizedDepositValue = str_replace(',', '.', $rawDepositValue);
+                }
+
+                $this->merge([
+                    'booking_deposit_value' => $normalizedDepositValue === '' ? null : $normalizedDepositValue,
+                ]);
             }
         }
 

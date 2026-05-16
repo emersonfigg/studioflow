@@ -22,6 +22,7 @@ document.addEventListener('alpine:init', () => {
             brandSecondary: config.brandSecondary ?? '',
             brandAccent: config.brandAccent ?? '',
             brandEnabled: Boolean(config.brandEnabled ?? true),
+            bookingDepositType: config.bookingDepositType ?? 'fixed',
             previewStyleVars: config.previewStyleVars ?? {},
             _previewTimer: null,
 

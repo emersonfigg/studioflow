@@ -23,6 +23,7 @@
             'secondary' => \App\Services\BrandingService::DEFAULT_SECONDARY,
             'accent' => \App\Services\BrandingService::DEFAULT_ACCENT,
         ],
+        'bookingDepositType' => $formValues['booking_deposit_type'] ?? 'fixed',
     ];
 @endphp
 
@@ -383,7 +384,7 @@
 
                             <div>
                                 <label for="booking_deposit_type" class="text-sm font-medium text-[var(--text-main)]">Tipo do sinal</label>
-                                <select id="booking_deposit_type" name="booking_deposit_type" class="sf-select mt-2 block w-full">
+                                <select id="booking_deposit_type" name="booking_deposit_type" x-model="bookingDepositType" class="sf-select mt-2 block w-full">
                                     <option value="fixed" @selected($formValues['booking_deposit_type'] === 'fixed')>Valor fixo (R$)</option>
                                     <option value="percentage" @selected($formValues['booking_deposit_type'] === 'percentage')>Percentual do servico</option>
                                 </select>
@@ -391,17 +392,17 @@
                             </div>
 
                             <div>
-                                <label for="booking_deposit_value" class="text-sm font-medium text-[var(--text-main)]">Valor do sinal</label>
+                                <label for="booking_deposit_value" class="text-sm font-medium text-[var(--text-main)]" x-text="bookingDepositType === 'percentage' ? 'Percentual do sinal (%)' : 'Valor do sinal (R$)'">Valor do sinal (R$)</label>
                                 <input
                                     id="booking_deposit_value"
                                     name="booking_deposit_value"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
+                                    type="text"
+                                    inputmode="decimal"
                                     value="{{ $formValues['booking_deposit_value'] }}"
+                                    :placeholder="bookingDepositType === 'percentage' ? 'Ex: 30 para 30%' : 'Ex: 30,00'"
                                     class="sf-input mt-2 block w-full"
                                 >
-                                <p class="mt-2 text-xs sf-muted">Se usar percentual, informe apenas o numero. Ex.: 30 para 30%.</p>
+                                <p class="mt-2 text-xs sf-muted" x-text="bookingDepositType === 'percentage' ? 'Informe apenas o percentual. Ex.: 30 para 30%.' : 'Informe o valor em reais. Ex.: 30,00.'">Informe o valor em reais. Ex.: 30,00.</p>
                                 <x-input-error class="mt-2" :messages="$errors->get('booking_deposit_value')" />
                             </div>
 

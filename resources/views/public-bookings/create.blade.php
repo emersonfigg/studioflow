@@ -587,7 +587,7 @@
                                     <div class="grid grid-cols-2 gap-3">
                                         <div class="booking-summary-row px-4 py-4">
                                             <p class="text-xs brand-muted">{{ $bookingPaymentMode === 'full' ? 'Pagamento online' : 'Sinal' }}</p>
-                                            <p class="mt-1 text-lg font-semibold text-[var(--brand-primary)]">R$ {{ number_format($depositAmount, 2, ',', '.') }}</p>
+                                            <p class="mt-1 text-lg font-semibold text-[var(--brand-primary)]">{{ $depositSummaryText }}</p>
                                         </div>
                                         <div class="booking-summary-row px-4 py-4">
                                             <p class="text-xs brand-muted">Restante</p>
@@ -707,7 +707,7 @@
                                         </div>
                                         <div>
                                             <p class="text-xs uppercase tracking-[0.16em] brand-muted">{{ $bookingPaymentMode === 'full' ? 'Pagamento online' : 'Sinal' }}</p>
-                                            <p class="mt-1 font-semibold text-[var(--brand-primary)]">R$ {{ number_format($depositAmount, 2, ',', '.') }}</p>
+                                            <p class="mt-1 font-semibold text-[var(--brand-primary)]">{{ $depositSummaryText }}</p>
                                         </div>
                                         <div>
                                             <p class="text-xs uppercase tracking-[0.16em] brand-muted">Restante no salao</p>

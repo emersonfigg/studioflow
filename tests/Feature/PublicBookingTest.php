@@ -1390,6 +1390,178 @@ class PublicBookingTest extends TestCase
         ]);
     }
 
+    public function test_fixed_deposit_amount_uses_currency_value_instead_of_percentage(): void
+    {
+        CarbonImmutable::setTestNow('2026-05-15 10:00:00');
+
+        Http::fake([
+            'https://api.mercadopago.com/checkout/preferences' => Http::response([
+                'id' => 'pref_booking_fixed_35',
+                'init_point' => 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=pref_booking_fixed_35',
+            ], 201),
+        ]);
+
+        $company = Company::factory()->create([
+            'online_booking_payment_enabled' => true,
+            'booking_payment_requirement' => 'required',
+            'booking_payment_mode' => 'deposit',
+            'booking_deposit_type' => 'fixed',
+            'booking_deposit_value' => 30,
+        ]);
+        $service = Service::factory()->for($company)->create([
+            'price' => 35,
+            'duration_minutes' => 30,
+            'active' => true,
+        ]);
+        $user = User::factory()->for($company)->create(['active' => true]);
+        $this->createWorkingHour($company, $user, 5, '08:00', '18:00');
+
+        CompanyPaymentIntegration::query()->create([
+            'company_id' => $company->id,
+            'provider' => PaymentProvider::MercadoPago,
+            'environment' => PaymentIntegrationEnvironment::Production,
+            'access_token' => 'mp_company_token_live',
+            'refresh_token' => 'refresh-token',
+            'active' => true,
+            'status' => 'connected',
+            'connected_at' => now(),
+        ]);
+
+        $this->post(route('public-bookings.store', $company, false), [
+            'service_ids' => [$service->id],
+            'user_id' => $user->id,
+            'date' => '2026-05-15',
+            'time' => '11:00',
+            'client_name' => 'Maria Souza',
+            'client_phone' => '71999990000',
+            'client_email' => 'maria@example.com',
+        ])->assertRedirect();
+
+        $appointment = Appointment::query()->firstOrFail();
+        $bookingPayment = BookingPayment::query()->firstOrFail();
+
+        $this->assertSame('30.00', number_format((float) $appointment->deposit_amount, 2, '.', ''));
+        $this->assertSame('30.00', number_format((float) $bookingPayment->amount, 2, '.', ''));
+    }
+
+    public function test_percentage_deposit_amount_is_calculated_from_service_total_and_shown_correctly(): void
+    {
+        CarbonImmutable::setTestNow('2026-05-15 10:00:00');
+
+        Http::fake([
+            'https://api.mercadopago.com/checkout/preferences' => Http::response([
+                'id' => 'pref_booking_percentage_35',
+                'init_point' => 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=pref_booking_percentage_35',
+            ], 201),
+        ]);
+
+        $company = Company::factory()->create([
+            'online_booking_payment_enabled' => true,
+            'booking_payment_requirement' => 'required',
+            'booking_payment_mode' => 'deposit',
+            'booking_deposit_type' => 'percentage',
+            'booking_deposit_value' => 30,
+        ]);
+        $service = Service::factory()->for($company)->create([
+            'price' => 35,
+            'duration_minutes' => 30,
+            'active' => true,
+        ]);
+        $user = User::factory()->for($company)->create(['active' => true]);
+        $this->createWorkingHour($company, $user, 5, '08:00', '18:00');
+
+        CompanyPaymentIntegration::query()->create([
+            'company_id' => $company->id,
+            'provider' => PaymentProvider::MercadoPago,
+            'environment' => PaymentIntegrationEnvironment::Production,
+            'access_token' => 'mp_company_token_live',
+            'refresh_token' => 'refresh-token',
+            'active' => true,
+            'status' => 'connected',
+            'connected_at' => now(),
+        ]);
+
+        $this->get($this->bookingUrl($company, [
+            'service_ids' => [$service->id],
+            'user_id' => $user->id,
+            'date' => '2026-05-15',
+            'filters_submitted' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('30% (R$ 10,50)', false)
+            ->assertSee('R$ 24,50', false);
+
+        $this->post(route('public-bookings.store', $company, false), [
+            'service_ids' => [$service->id],
+            'user_id' => $user->id,
+            'date' => '2026-05-15',
+            'time' => '11:00',
+            'client_name' => 'Maria Souza',
+            'client_phone' => '71999990000',
+            'client_email' => 'maria@example.com',
+        ])->assertRedirect();
+
+        $appointment = Appointment::query()->firstOrFail();
+        $bookingPayment = BookingPayment::query()->firstOrFail();
+
+        $this->assertSame('10.50', number_format((float) $appointment->deposit_amount, 2, '.', ''));
+        $this->assertSame('10.50', number_format((float) $bookingPayment->amount, 2, '.', ''));
+    }
+
+    public function test_percentage_deposit_amount_can_reach_one_hundred_percent_of_service_total(): void
+    {
+        CarbonImmutable::setTestNow('2026-05-15 10:00:00');
+
+        Http::fake([
+            'https://api.mercadopago.com/checkout/preferences' => Http::response([
+                'id' => 'pref_booking_percentage_100',
+                'init_point' => 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=pref_booking_percentage_100',
+            ], 201),
+        ]);
+
+        $company = Company::factory()->create([
+            'online_booking_payment_enabled' => true,
+            'booking_payment_requirement' => 'required',
+            'booking_payment_mode' => 'deposit',
+            'booking_deposit_type' => 'percentage',
+            'booking_deposit_value' => 100,
+        ]);
+        $service = Service::factory()->for($company)->create([
+            'price' => 35,
+            'duration_minutes' => 30,
+            'active' => true,
+        ]);
+        $user = User::factory()->for($company)->create(['active' => true]);
+        $this->createWorkingHour($company, $user, 5, '08:00', '18:00');
+
+        CompanyPaymentIntegration::query()->create([
+            'company_id' => $company->id,
+            'provider' => PaymentProvider::MercadoPago,
+            'environment' => PaymentIntegrationEnvironment::Production,
+            'access_token' => 'mp_company_token_live',
+            'refresh_token' => 'refresh-token',
+            'active' => true,
+            'status' => 'connected',
+            'connected_at' => now(),
+        ]);
+
+        $this->post(route('public-bookings.store', $company, false), [
+            'service_ids' => [$service->id],
+            'user_id' => $user->id,
+            'date' => '2026-05-15',
+            'time' => '11:00',
+            'client_name' => 'Maria Souza',
+            'client_phone' => '71999990000',
+            'client_email' => 'maria@example.com',
+        ])->assertRedirect();
+
+        $appointment = Appointment::query()->firstOrFail();
+        $bookingPayment = BookingPayment::query()->firstOrFail();
+
+        $this->assertSame('35.00', number_format((float) $appointment->deposit_amount, 2, '.', ''));
+        $this->assertSame('35.00', number_format((float) $bookingPayment->amount, 2, '.', ''));
+    }
+
     public function test_company_with_online_payment_uses_connected_company_mercado_pago_token(): void
     {
         CarbonImmutable::setTestNow('2026-05-15 10:00:00');

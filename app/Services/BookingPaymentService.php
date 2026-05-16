@@ -27,11 +27,9 @@ class BookingPaymentService
 
     public function depositAmountFor(Company $company, float $totalAmount): float
     {
-        $totalAmount = max(0, round($totalAmount, 2));
-
         return match ($this->paymentMode($company)) {
-            'full' => $totalAmount,
-            'deposit' => $this->calculateDeposit($company, $totalAmount),
+            'full' => round(max(0, (float) $totalAmount), 2),
+            'deposit' => $this->calculateBookingDepositAmount($company, $totalAmount),
             default => 0.0,
         };
     }
@@ -51,7 +49,7 @@ class BookingPaymentService
 
         $this->mercadoPagoIntegrationForCompany($company);
 
-        if (! $company->shouldRequireOnlineBookingPayment($totalAmount) || $this->depositAmountFor($company, $totalAmount) <= 0) {
+        if (! $company->canOfferOnlineBookingPayment($totalAmount) || $this->depositAmountFor($company, $totalAmount) <= 0) {
             throw new RuntimeException('Configure um valor de sinal valido antes de ativar o pagamento online.');
         }
     }
@@ -187,8 +185,9 @@ class BookingPaymentService
         return $count;
     }
 
-    private function calculateDeposit(Company $company, float $totalAmount): float
+    public function calculateBookingDepositAmount(Company $company, float $totalAmount): float
     {
+        $totalAmount = max(0, round($totalAmount, 2));
         $type = (string) ($company->booking_deposit_type ?: 'fixed');
         $value = (float) ($company->booking_deposit_value ?: 0);
 
