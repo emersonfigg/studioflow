@@ -48,6 +48,7 @@ class StorePublicBookingRequest extends FormRequest
             ],
             'date' => ['required', 'date_format:Y-m-d'],
             'time' => ['required', 'date_format:H:i'],
+            'payment_choice' => ['nullable', 'in:online,on_site'],
             'client_name' => [
                 $hasIdentifiedClient ? 'nullable' : 'required',
                 'string',

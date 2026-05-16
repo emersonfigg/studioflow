@@ -347,6 +347,16 @@
                             </div>
 
                             <div>
+                                <label for="booking_payment_requirement" class="text-sm font-medium text-[var(--text-main)]">Quando cobrar online</label>
+                                <select id="booking_payment_requirement" name="booking_payment_requirement" class="sf-select mt-2 block w-full">
+                                    <option value="disabled" @selected($formValues['booking_payment_requirement'] === 'disabled')>Desativado</option>
+                                    <option value="optional" @selected($formValues['booking_payment_requirement'] === 'optional')>Cliente escolhe pagar agora ou no local</option>
+                                    <option value="required" @selected($formValues['booking_payment_requirement'] === 'required')>Pagamento online obrigatorio</option>
+                                </select>
+                                <x-input-error class="mt-2" :messages="$errors->get('booking_payment_requirement')" />
+                            </div>
+
+                            <div>
                                 <label for="booking_payment_mode" class="text-sm font-medium text-[var(--text-main)]">Modo de cobranca</label>
                                 <select id="booking_payment_mode" name="booking_payment_mode" class="sf-select mt-2 block w-full">
                                     <option value="none" @selected($formValues['booking_payment_mode'] === 'none')>Desativado</option>

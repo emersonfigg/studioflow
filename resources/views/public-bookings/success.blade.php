@@ -1,3 +1,10 @@
+@php
+    $isPayOnSite = $appointment->payment_status === 'unpaid' || $appointment->payment_gateway === 'on_site';
+    $successCopy = $isPayOnSite
+        ? 'Seu horario foi confirmado. O pagamento sera feito diretamente no estabelecimento.'
+        : 'Seu bloco de atendimento foi confirmado com sucesso. Confira abaixo todos os detalhes do agendamento.';
+@endphp
+
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-theme="{{ ($publicBranding['theme_light'] ?? false) ? 'light' : 'dark' }}" style="{{ $publicBranding['root_style'] }}">
     <head>
@@ -35,9 +42,7 @@
                             <p class="sf-page-subtitle mt-1 brand-muted">{{ $publicBranding['hero_subtitle'] ?? ($publicBranding['description_fallback'] ?: 'Seu bloco de atendimento foi confirmado com sucesso.') }}</p>
                         </div>
                     </div>
-                    <p class="mt-2 max-w-2xl text-sm leading-7 brand-muted">
-                        Seu bloco de atendimento foi confirmado com sucesso. Confira abaixo todos os detalhes do agendamento.
-                    </p>
+                    <p class="mt-2 max-w-2xl text-sm leading-7 brand-muted">{{ $successCopy }}</p>
                 </div>
 
                 <div class="grid gap-6 px-5 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_320px]">

@@ -100,6 +100,7 @@
                     serviceSearch: '',
                     selectedDate: @js($selectedDate),
                     selectedTime: @js(old('time', $selectedTime)),
+                    paymentChoice: @js($selectedPaymentChoice),
                     hasProfessional: @js((bool) $selectedUser),
                     clientName: @js(old('client_name', $identifiedClient?->name)),
                     clientPhone: @js(old('client_phone', $identifiedClient?->phone)),
@@ -211,6 +212,9 @@
                     },
                     readyToConfirm() {
                         if (! this.readyForSlots() || ! this.selectedTime) {
+                            return false;
+                        }
+                        if (@js($bookingPaymentRequirement === 'optional' && $canOfferOnlineBookingPayment) && !this.paymentChoice) {
                             return false;
                         }
                         if (@js((bool) $identifiedClient)) {
@@ -595,6 +599,30 @@
                                     </p>
                                 @endif
 
+                                @if ($canOfferOnlineBookingPayment && $bookingPaymentRequirement === 'optional')
+                                    <div class="rounded-2xl border border-[color:color-mix(in_srgb,var(--brand-primary)_18%,transparent)] bg-[color:color-mix(in_srgb,var(--brand-accent)_55%,transparent)] px-4 py-4">
+                                        <p class="text-sm font-semibold text-white">Como deseja confirmar seu horario?</p>
+                                        <p class="mt-1 text-xs brand-muted">Escolha entre pagar agora pelo Mercado Pago ou pagar diretamente no estabelecimento.</p>
+                                        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                            <label class="cursor-pointer rounded-2xl border px-4 py-4 transition"
+                                                :class="paymentChoice === 'online' ? 'border-[var(--brand-primary)] bg-[color-mix(in_srgb,var(--brand-primary)_10%,transparent)] shadow-[var(--shadow-glow-brand)]' : 'border-white/10 bg-[var(--brand-surface)] hover:border-[color:color-mix(in_srgb,var(--brand-primary)_18%,transparent)]'">
+                                                <input type="radio" name="payment_choice" value="online" class="sr-only" x-model="paymentChoice">
+                                                <p class="text-sm font-semibold text-white">Pagar agora e garantir minha reserva</p>
+                                                <p class="mt-2 text-xs leading-6 brand-muted">Voce paga o {{ $bookingPaymentMode === 'full' ? 'valor total' : 'sinal' }} agora pelo Mercado Pago. O horario sera confirmado apos aprovacao do pagamento.</p>
+                                            </label>
+                                            <label class="cursor-pointer rounded-2xl border px-4 py-4 transition"
+                                                :class="paymentChoice === 'on_site' ? 'border-[var(--brand-primary)] bg-[color-mix(in_srgb,var(--brand-primary)_10%,transparent)] shadow-[var(--shadow-soft)]' : 'border-white/10 bg-[var(--brand-surface)] hover:border-[color:color-mix(in_srgb,var(--brand-primary)_18%,transparent)]'">
+                                                <input type="radio" name="payment_choice" value="on_site" class="sr-only" x-model="paymentChoice">
+                                                <p class="text-sm font-semibold text-white">Pagar no ato do servico</p>
+                                                <p class="mt-2 text-xs leading-6 brand-muted">Seu horario sera confirmado agora e o pagamento sera feito diretamente no estabelecimento.</p>
+                                            </label>
+                                        </div>
+                                        <x-input-error class="mt-3" :messages="$errors->get('payment_choice')" />
+                                    </div>
+                                @elseif ($shouldRequireOnlineBookingPayment)
+                                    <input type="hidden" name="payment_choice" value="online">
+                                @endif
+
                                 @unless ($identifiedClient)
                                     <div>
                                         <label for="client_name" class="text-sm font-medium text-white">Nome completo</label>
@@ -659,8 +687,10 @@
                                 <div>
                                     <h2 class="sf-section-title text-white">Confirmação</h2>
                                     <p class="mt-1 text-sm brand-muted">
-                                        @if ($onlineBookingPaymentEnabled)
+                                        @if ($shouldRequireOnlineBookingPayment)
                                             Seu horário será confirmado após a aprovação do pagamento online. A disponibilidade será validada novamente antes da reserva final.
+                                        @elseif ($canOfferOnlineBookingPayment && $bookingPaymentRequirement === 'optional')
+                                            Se escolher pagar agora, o horario sera confirmado apos a aprovacao do pagamento. Se preferir pagar no local, o agendamento sera confirmado imediatamente.
                                         @else
                                             O horário será confirmado após o envio. A disponibilidade será validada novamente.
                                         @endif
@@ -700,8 +730,12 @@
                                 :class="{ 'cursor-not-allowed opacity-60': !readyToConfirm() }"
                                 :aria-disabled="!readyToConfirm()"
                             >
-                                @if ($onlineBookingPaymentEnabled)
-                                    {{ $bookingPaymentMode === 'full' ? 'Pagar e reservar horario' : 'Pagar sinal e reservar horario' }}
+                                @if ($shouldRequireOnlineBookingPayment)
+                                    {{ $bookingPaymentMode === 'full' ? 'Pagar e confirmar horario' : 'Pagar sinal e reservar horario' }}
+                                @elseif ($canOfferOnlineBookingPayment && $bookingPaymentRequirement === 'optional')
+                                    <span x-show="paymentChoice === 'online'" x-cloak>{{ $bookingPaymentMode === 'full' ? 'Pagar e confirmar horario' : 'Pagar sinal e reservar horario' }}</span>
+                                    <span x-show="paymentChoice === 'on_site'" x-cloak>Confirmar agendamento e pagar no local</span>
+                                    <span x-show="!paymentChoice" x-cloak>Escolha como deseja confirmar</span>
                                 @else
                                     Confirmar agendamento
                                 @endif

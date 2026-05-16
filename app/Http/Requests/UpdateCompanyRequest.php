@@ -42,6 +42,7 @@ class UpdateCompanyRequest extends FormRequest
             'brand_enabled' => ['nullable', 'boolean'],
             'auto_print_receipt' => ['nullable', 'boolean'],
             'online_booking_payment_enabled' => ['nullable', 'boolean'],
+            'booking_payment_requirement' => ['nullable', 'in:disabled,optional,required'],
             'booking_payment_mode' => ['nullable', 'in:none,deposit,full'],
             'booking_deposit_type' => ['nullable', 'in:fixed,percentage'],
             'booking_deposit_value' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
@@ -76,6 +77,12 @@ class UpdateCompanyRequest extends FormRequest
             }
         }
 
+        if (! $this->filled('booking_payment_requirement')) {
+            $this->merge([
+                'booking_payment_requirement' => $this->boolean('online_booking_payment_enabled') ? 'required' : 'disabled',
+            ]);
+        }
+
         if ($this->input('booking_payment_mode') !== 'deposit') {
             $this->merge([
                 'booking_deposit_type' => null,
@@ -85,6 +92,7 @@ class UpdateCompanyRequest extends FormRequest
 
         if (! $this->boolean('online_booking_payment_enabled')) {
             $this->merge([
+                'booking_payment_requirement' => 'disabled',
                 'booking_payment_mode' => 'none',
                 'booking_deposit_type' => null,
                 'booking_deposit_value' => null,

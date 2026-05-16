@@ -195,6 +195,7 @@ class CompanyController extends Controller
             'brand_enabled' => (bool) $request->old('brand_enabled', $company->brand_enabled ?? true),
             'auto_print_receipt' => (bool) $request->old('auto_print_receipt', $company->auto_print_receipt),
             'online_booking_payment_enabled' => (bool) $request->old('online_booking_payment_enabled', $company->online_booking_payment_enabled),
+            'booking_payment_requirement' => (string) $request->old('booking_payment_requirement', $company->booking_payment_requirement ?: ($company->online_booking_payment_enabled ? 'required' : 'disabled')),
             'booking_payment_mode' => (string) $request->old('booking_payment_mode', $company->booking_payment_mode ?: 'none'),
             'booking_deposit_type' => (string) $request->old('booking_deposit_type', $company->booking_deposit_type ?: 'fixed'),
             'booking_deposit_value' => $request->old('booking_deposit_value', $company->booking_deposit_value),

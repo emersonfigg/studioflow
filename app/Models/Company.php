@@ -41,6 +41,7 @@ class Company extends Model
         'onboarding_completed_at',
         'auto_print_receipt',
         'online_booking_payment_enabled',
+        'booking_payment_requirement',
         'booking_payment_mode',
         'booking_deposit_type',
         'booking_deposit_value',
@@ -61,6 +62,7 @@ class Company extends Model
             'brand_enabled' => 'boolean',
             'auto_print_receipt' => 'boolean',
             'online_booking_payment_enabled' => 'boolean',
+            'booking_payment_requirement' => 'string',
             'booking_deposit_value' => 'decimal:2',
             'booking_payment_expiration_minutes' => 'integer',
             'booking_auto_cancel_unpaid' => 'boolean',
@@ -303,6 +305,24 @@ class Company extends Model
             && in_array((string) $this->booking_payment_mode, ['deposit', 'full'], true);
     }
 
+    public function bookingPaymentDisabled(): bool
+    {
+        return ! $this->onlineBookingPaymentEnabled()
+            || (string) ($this->booking_payment_requirement ?: 'disabled') === 'disabled';
+    }
+
+    public function bookingPaymentOptional(): bool
+    {
+        return $this->onlineBookingPaymentEnabled()
+            && (string) ($this->booking_payment_requirement ?: 'disabled') === 'optional';
+    }
+
+    public function bookingPaymentRequired(): bool
+    {
+        return $this->onlineBookingPaymentEnabled()
+            && (string) ($this->booking_payment_requirement ?: 'required') === 'required';
+    }
+
     public function activeMercadoPagoIntegration(): ?CompanyPaymentIntegration
     {
         /** @var ?CompanyPaymentIntegration $integration */
@@ -315,9 +335,9 @@ class Company extends Model
         return $integration?->isConnected() ? $integration : null;
     }
 
-    public function shouldRequireOnlineBookingPayment(float|int|null $amount = null): bool
+    public function canOfferOnlineBookingPayment(float|int|null $amount = null): bool
     {
-        if (! $this->onlineBookingPaymentEnabled()) {
+        if ($this->bookingPaymentDisabled()) {
             return false;
         }
 
@@ -325,24 +345,31 @@ class Company extends Model
             return false;
         }
 
-        if ($amount === null) {
-            return true;
-        }
+        if ($amount !== null) {
+            $amount = round(max(0, (float) $amount), 2);
 
-        $amount = round(max(0, (float) $amount), 2);
-
-        if ($amount <= 0) {
-            return false;
+            if ($amount <= 0) {
+                return false;
+            }
         }
 
         return match ((string) $this->booking_payment_mode) {
-            'full' => $amount > 0,
+            'full' => $amount === null ? true : $amount > 0,
             'deposit' => match ((string) ($this->booking_deposit_type ?: 'fixed')) {
                 'percentage' => (float) ($this->booking_deposit_value ?: 0) > 0,
                 default => (float) ($this->booking_deposit_value ?: 0) > 0,
             },
             default => false,
         };
+    }
+
+    public function shouldRequireOnlineBookingPayment(float|int|null $amount = null): bool
+    {
+        if (! $this->bookingPaymentRequired()) {
+            return false;
+        }
+
+        return $this->canOfferOnlineBookingPayment($amount);
     }
 
     /**
