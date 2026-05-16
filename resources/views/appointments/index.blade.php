@@ -92,6 +92,13 @@
                             @foreach ($groupedAppointments as $appointment)
                                 @php
                                     $servicesLabel = $appointment->bookedServices()->pluck('name')->join(', ');
+                                    [$paymentTone, $paymentRing, $paymentLabel] = match ((string) $appointment->payment_status) {
+                                        'paid' => ['text-emerald-100', 'border-emerald-400/20 bg-emerald-500/10', 'Pago online'],
+                                        'failed' => ['text-rose-100', 'border-rose-400/20 bg-rose-500/10', 'Falhou'],
+                                        'expired' => ['text-orange-100', 'border-orange-400/20 bg-orange-500/10', 'Expirado'],
+                                        'refunded' => ['text-slate-100', 'border-slate-400/20 bg-slate-500/10', 'Estornado'],
+                                        default => ['brand-text', 'border-[color-mix(in_srgb,var(--brand-primary)_20%,transparent)] bg-[var(--brand-primary)]/10', $appointment->paymentStatusLabel()],
+                                    };
                                 @endphp
                                 <article class="px-5 py-5 transition hover:bg-white/[0.03]">
                                     <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -108,8 +115,8 @@
                                                         Pago
                                                     </span>
                                                 @elseif ($appointment->payment_status)
-                                                    <span class="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--brand-primary)_20%,transparent)] bg-[var(--brand-primary)]/10 px-2.5 py-1 text-xs font-medium brand-text">
-                                                        {{ $appointment->paymentStatusLabel() }}
+                                                    <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium {{ $paymentRing }} {{ $paymentTone }}">
+                                                        {{ $paymentLabel }}
                                                     </span>
                                                 @endif
                                             </div>
@@ -127,6 +134,16 @@
                                                     <p class="text-xs font-semibold uppercase tracking-[0.16em] sf-text-muted">Serviço(s)</p>
                                                     <p class="mt-1 text-sm text-[var(--text-main)]">{{ $servicesLabel !== '' ? $servicesLabel : $appointment->service->name }}</p>
                                                 </div>
+                                                @if ($appointment->payment_status)
+                                                    <div>
+                                                        <p class="text-xs font-semibold uppercase tracking-[0.16em] sf-text-muted">Pagamento</p>
+                                                        <p class="mt-1 text-sm font-semibold text-[var(--text-main)]">{{ $appointment->paymentStatusLabel() }}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-xs font-semibold uppercase tracking-[0.16em] sf-text-muted">Valor</p>
+                                                        <p class="mt-1 text-sm font-semibold text-[var(--text-main)]">R$ {{ number_format((float) ($appointment->amount_paid ?: $appointment->deposit_amount ?: $appointment->amount_total), 2, ',', '.') }}</p>
+                                                    </div>
+                                                @endif
                                             </div>
                                         </div>
 

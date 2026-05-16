@@ -45,9 +45,13 @@ class BookingPaymentService
 
     public function ensureCompanyCanAcceptOnlineBooking(Company $company, float $totalAmount): void
     {
+        if (! $company->onlineBookingPaymentEnabled()) {
+            throw new RuntimeException('O pagamento online para agendamento esta desativado nesta empresa.');
+        }
+
         $this->mercadoPagoIntegrationForCompany($company);
 
-        if ($this->depositAmountFor($company, $totalAmount) <= 0) {
+        if (! $company->shouldRequireOnlineBookingPayment($totalAmount) || $this->depositAmountFor($company, $totalAmount) <= 0) {
             throw new RuntimeException('Configure um valor de sinal valido antes de ativar o pagamento online.');
         }
     }

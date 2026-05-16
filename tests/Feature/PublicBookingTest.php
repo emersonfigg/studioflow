@@ -1376,6 +1376,7 @@ class PublicBookingTest extends TestCase
         $this->assertSame('mercado_pago', $appointment->payment_gateway);
         $this->assertSame('120.00', number_format((float) $appointment->amount_total, 2, '.', ''));
         $this->assertSame('30.00', number_format((float) $appointment->deposit_amount, 2, '.', ''));
+        $this->assertNull($appointment->confirmed_at);
 
         $this->assertDatabaseHas('booking_payments', [
             'company_id' => $company->id,
@@ -1478,6 +1479,37 @@ class PublicBookingTest extends TestCase
         $this->assertSame('pending', $appointment->payment_status);
     }
 
+    public function test_pending_payment_appointment_success_route_redirects_to_pending_status_page(): void
+    {
+        $company = Company::factory()->create();
+        $appointment = Appointment::factory()->for($company)->create([
+            'status' => 'pending_payment',
+            'payment_status' => 'pending',
+            'payment_gateway' => 'mercado_pago',
+            'payment_reference' => 'booking-ref-pending-route',
+        ]);
+
+        BookingPayment::query()->create([
+            'company_id' => $company->id,
+            'appointment_id' => $appointment->id,
+            'gateway' => 'mercado_pago',
+            'status' => 'pending',
+            'payment_type' => 'deposit',
+            'amount' => 25,
+            'external_reference' => 'booking-ref-pending-route',
+            'expires_at' => now()->addMinutes(15),
+        ]);
+
+        $this->get(route('public-bookings.success', [
+            'company' => $company,
+            'appointment' => $appointment,
+        ], false))
+            ->assertRedirect(route('public-bookings.payment.pending', [
+                'company' => $company,
+                'reference' => 'booking-ref-pending-route',
+            ], false));
+    }
+
     public function test_public_booking_pending_page_shows_deposit_and_remaining_amounts(): void
     {
         CarbonImmutable::setTestNow('2026-05-15 10:00:00');
@@ -1568,6 +1600,45 @@ class PublicBookingTest extends TestCase
             ->assertSessionHasErrors('payment');
 
         $this->assertDatabaseCount('appointments', 0);
+        $this->assertDatabaseCount('booking_payments', 0);
+    }
+
+    public function test_company_with_online_payment_disabled_keeps_legacy_booking_flow(): void
+    {
+        CarbonImmutable::setTestNow('2026-05-15 10:00:00');
+
+        $company = Company::factory()->create([
+            'online_booking_payment_enabled' => false,
+            'booking_payment_mode' => 'none',
+        ]);
+        $service = Service::factory()->for($company)->create([
+            'price' => 90,
+            'duration_minutes' => 30,
+            'active' => true,
+        ]);
+        $user = User::factory()->for($company)->create(['active' => true]);
+        $this->createWorkingHour($company, $user, 5, '08:00', '18:00');
+
+        $response = $this->post(route('public-bookings.store', $company, false), [
+            'service_ids' => [$service->id],
+            'user_id' => $user->id,
+            'date' => '2026-05-15',
+            'time' => '11:00',
+            'client_name' => 'Maria Souza',
+            'client_phone' => '71999990000',
+            'client_email' => 'maria@example.com',
+        ]);
+
+        $appointment = Appointment::query()->firstOrFail();
+
+        $response->assertRedirect(route('public-bookings.success', [
+            'company' => $company,
+            'appointment' => $appointment,
+        ], false));
+
+        $this->assertSame('scheduled', $appointment->status);
+        $this->assertNull($appointment->payment_status);
+        $this->assertNull($appointment->confirmed_at);
         $this->assertDatabaseCount('booking_payments', 0);
     }
 

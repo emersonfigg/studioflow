@@ -258,6 +258,32 @@
                     </details>
                 @endif
             @elseif ($appointment->payment_status)
+                @php
+                    [$paymentPanelClasses, $paymentBadgeClasses] = match ((string) $appointment->payment_status) {
+                        'paid' => ['border-emerald-400/20 bg-emerald-500/10', 'border-emerald-400/25 bg-emerald-400/12 text-emerald-100'],
+                        'failed' => ['border-rose-400/20 bg-rose-500/10', 'border-rose-400/25 bg-rose-400/12 text-rose-100'],
+                        'expired' => ['border-orange-400/20 bg-orange-500/10', 'border-orange-400/25 bg-orange-400/12 text-orange-100'],
+                        'refunded' => ['border-slate-400/20 bg-slate-500/10', 'border-slate-400/25 bg-slate-400/12 text-slate-100'],
+                        default => ['border-[color-mix(in_srgb,var(--brand-primary)_25%,transparent)] bg-[var(--brand-primary)]/5', 'border-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)] bg-[var(--brand-primary)]/10 text-[var(--text-main)]'],
+                    };
+                @endphp
+                <div class="mt-4 rounded-2xl border px-4 py-4 {{ $paymentPanelClasses }}">
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Pagamento online</p>
+                        <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold {{ $paymentBadgeClasses }}">
+                            {{ $appointment->paymentStatusLabel() }}
+                        </span>
+                    </div>
+                    <p class="mt-3 text-sm leading-6 text-[var(--text-main)]/85">
+                        @if ($appointment->payment_status === 'paid')
+                            O pagamento online foi aprovado e este horario ja esta confirmado.
+                        @elseif (in_array($appointment->payment_status, ['failed', 'expired'], true))
+                            O pagamento online nao foi confirmado. Revise o historico antes de orientar o cliente.
+                        @else
+                            O horario ainda depende da confirmacao final do gateway para seguir como reserva confirmada.
+                        @endif
+                    </p>
+                </div>
                 <dl class="mt-5 space-y-4">
                     <div>
                         <dt class="text-sm sf-text-muted">Status do pagamento</dt>

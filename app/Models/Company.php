@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PaymentProvider;
 use App\Support\MediaStorage;
 use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -300,6 +301,48 @@ class Company extends Model
     {
         return (bool) $this->online_booking_payment_enabled
             && in_array((string) $this->booking_payment_mode, ['deposit', 'full'], true);
+    }
+
+    public function activeMercadoPagoIntegration(): ?CompanyPaymentIntegration
+    {
+        /** @var ?CompanyPaymentIntegration $integration */
+        $integration = $this->paymentIntegrations()
+            ->where('provider', PaymentProvider::MercadoPago)
+            ->where('active', true)
+            ->orderByDesc('id')
+            ->first();
+
+        return $integration?->isConnected() ? $integration : null;
+    }
+
+    public function shouldRequireOnlineBookingPayment(float|int|null $amount = null): bool
+    {
+        if (! $this->onlineBookingPaymentEnabled()) {
+            return false;
+        }
+
+        if (! $this->activeMercadoPagoIntegration()) {
+            return false;
+        }
+
+        if ($amount === null) {
+            return true;
+        }
+
+        $amount = round(max(0, (float) $amount), 2);
+
+        if ($amount <= 0) {
+            return false;
+        }
+
+        return match ((string) $this->booking_payment_mode) {
+            'full' => $amount > 0,
+            'deposit' => match ((string) ($this->booking_deposit_type ?: 'fixed')) {
+                'percentage' => (float) ($this->booking_deposit_value ?: 0) > 0,
+                default => (float) ($this->booking_deposit_value ?: 0) > 0,
+            },
+            default => false,
+        };
     }
 
     /**

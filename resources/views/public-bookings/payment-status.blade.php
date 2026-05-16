@@ -2,6 +2,21 @@
     $isPaid = $bookingPayment->status === \App\Models\BookingPayment::STATUS_PAID;
     $isPending = $bookingPayment->status === \App\Models\BookingPayment::STATUS_PENDING;
     $isFailed = in_array($bookingPayment->status, [\App\Models\BookingPayment::STATUS_FAILED, \App\Models\BookingPayment::STATUS_EXPIRED], true);
+    $statusBadgeClasses = match (true) {
+        $isPaid => 'border-emerald-400/25 bg-emerald-400/12 text-emerald-200',
+        $isFailed => 'border-rose-400/25 bg-rose-400/12 text-rose-100',
+        default => 'border-amber-400/25 bg-amber-400/12 text-amber-100',
+    };
+    $statusPanelClasses = match (true) {
+        $isPaid => 'border-emerald-400/20 bg-emerald-500/10',
+        $isFailed => 'border-rose-400/20 bg-rose-500/10',
+        default => 'border-amber-400/20 bg-amber-500/10',
+    };
+    $statusIcon = match (true) {
+        $isPaid => '✓',
+        $isFailed => '!',
+        default => '...',
+    };
     $summaryTitle = match (true) {
         $isPaid => 'Pagamento confirmado',
         $screen === 'failure' || $isFailed => 'Pagamento nao concluido',
@@ -32,8 +47,7 @@
         <main class="mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
             <section class="w-full overflow-hidden rounded-[28px] border border-[color:color-mix(in_srgb,var(--brand-primary)_18%,transparent)] bg-[color-mix(in_srgb,var(--brand-secondary)_92%,black)] shadow-[var(--shadow-elevated)]">
                 <div class="border-b border-[color:color-mix(in_srgb,var(--brand-primary)_14%,transparent)] bg-[color-mix(in_srgb,var(--brand-accent)_78%,black)] px-5 py-6 text-white sm:px-6">
-                    <div class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]
-                        {{ $isPaid ? 'border-emerald-400/25 bg-emerald-400/12 text-emerald-200' : ($isFailed ? 'border-rose-400/25 bg-rose-400/12 text-rose-100' : 'border-amber-400/25 bg-amber-400/12 text-amber-100') }}">
+                    <div class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] {{ $statusBadgeClasses }}">
                         {{ $summaryTitle }}
                     </div>
                     <h1 class="sf-page-title mt-4 text-3xl text-white">{{ $company->publicDisplayHeadline() }}</h1>
@@ -42,6 +56,27 @@
 
                 <div class="grid gap-6 px-5 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_320px]">
                     <div class="space-y-4">
+                        <div class="rounded-3xl border px-4 py-4 shadow-[var(--shadow-soft)] {{ $statusPanelClasses }}">
+                            <div class="flex items-start gap-4">
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-lg font-bold text-white">
+                                    {{ $statusIcon }}
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">Status da reserva</p>
+                                    <p class="mt-1 text-lg font-semibold text-white">{{ $bookingPayment->statusLabel() }}</p>
+                                    <p class="mt-2 text-sm leading-6 text-white/80">
+                                        @if ($isPaid)
+                                            Pagamento validado pelo Mercado Pago. Seu horario ja pode ser tratado como confirmado.
+                                        @elseif ($isFailed)
+                                            O pagamento nao foi concluido. Enquanto o prazo da reserva estiver ativo, voce pode tentar novamente.
+                                        @else
+                                            Estamos aguardando a confirmacao oficial do pagamento. O retorno do navegador sozinho nao confirma a reserva.
+                                        @endif
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="booking-summary-row px-4 py-4">
                             <p class="sf-label">Resumo da reserva</p>
                             <div class="mt-4 grid gap-3 sm:grid-cols-2">
@@ -92,6 +127,24 @@
                                     Seu horario ficara reservado por {{ (int) ($appointment->company->booking_payment_expiration_minutes ?: 15) }} minutos. Se o pagamento nao for confirmado nesse prazo, o horario podera ser liberado.
                                 @endif
                             </p>
+                        </div>
+
+                        <div class="booking-summary-row px-4 py-4">
+                            <p class="sf-label">Etapas</p>
+                            <div class="mt-4 grid gap-3 sm:grid-cols-3">
+                                <div class="rounded-2xl border border-white/10 bg-[var(--brand-surface)] px-4 py-3">
+                                    <p class="text-xs uppercase tracking-[0.16em] brand-muted">1</p>
+                                    <p class="mt-2 text-sm font-semibold text-white">Horario escolhido</p>
+                                </div>
+                                <div class="rounded-2xl border px-4 py-3 {{ $isPending ? 'border-amber-400/20 bg-amber-400/10' : 'border-white/10 bg-[var(--brand-surface)]' }}">
+                                    <p class="text-xs uppercase tracking-[0.16em] brand-muted">2</p>
+                                    <p class="mt-2 text-sm font-semibold text-white">Pagamento enviado</p>
+                                </div>
+                                <div class="rounded-2xl border px-4 py-3 {{ $isPaid ? 'border-emerald-400/20 bg-emerald-400/10' : ($isFailed ? 'border-rose-400/20 bg-rose-400/10' : 'border-white/10 bg-[var(--brand-surface)]') }}">
+                                    <p class="text-xs uppercase tracking-[0.16em] brand-muted">3</p>
+                                    <p class="mt-2 text-sm font-semibold text-white">{{ $isPaid ? 'Reserva confirmada' : ($isFailed ? 'Pagamento falhou' : 'Confirmacao final') }}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
