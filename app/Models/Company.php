@@ -36,6 +36,7 @@ class Company extends Model
         'public_subheadline',
         'welcome_message',
         'custom_footer_text',
+        'receipt_message',
         'brand_enabled',
         'active',
         'onboarding_completed_at',

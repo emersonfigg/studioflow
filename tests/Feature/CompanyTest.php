@@ -39,6 +39,7 @@ class CompanyTest extends TestCase
                 'cnpj' => '12.345.678/0001-90',
                 'instagram' => '@barbeariadojoao',
                 'description' => 'Cortes completos e atendimento de bairro com acabamento fino.',
+                'receipt_message' => 'Mais que um corte, e sobre autoestima.',
                 'logo' => $logo,
             ])
             ->assertRedirect(route('company.edit', absolute: false));
@@ -51,6 +52,7 @@ class CompanyTest extends TestCase
         $this->assertSame('12.345.678/0001-90', $company->cnpj);
         $this->assertSame('@barbeariadojoao', $company->instagram);
         $this->assertSame('Cortes completos e atendimento de bairro com acabamento fino.', $company->description);
+        $this->assertSame('Mais que um corte, e sobre autoestima.', $company->receipt_message);
         $this->assertNotNull($company->logo);
         Storage::disk('public')->assertExists($company->logo);
     }

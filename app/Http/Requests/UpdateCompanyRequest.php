@@ -39,6 +39,7 @@ class UpdateCompanyRequest extends FormRequest
             'public_subheadline' => ['nullable', 'string', 'max:500'],
             'welcome_message' => ['nullable', 'string', 'max:2000'],
             'custom_footer_text' => ['nullable', 'string', 'max:500'],
+            'receipt_message' => ['nullable', 'string', 'max:120'],
             'brand_enabled' => ['nullable', 'boolean'],
             'auto_print_receipt' => ['nullable', 'boolean'],
             'online_booking_payment_enabled' => ['nullable', 'boolean'],
@@ -80,6 +81,7 @@ class UpdateCompanyRequest extends FormRequest
             'public_subheadline',
             'welcome_message',
             'custom_footer_text',
+            'receipt_message',
             'booking_deposit_type',
         ] as $field) {
             if ($this->has($field) && $this->input($field) === '') {

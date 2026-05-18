@@ -314,6 +314,21 @@
 
                     <div class="lg:col-span-2 rounded-2xl border border-white/10 bg-[var(--input-bg)] px-4 py-4">
                         <p class="sf-page-eyebrow">PDV</p>
+                        <div class="mt-4">
+                            <label for="receipt_message" class="text-sm font-medium text-[var(--text-main)]">Frase do recibo</label>
+                            <input
+                                id="receipt_message"
+                                name="receipt_message"
+                                type="text"
+                                value="{{ $formValues['receipt_message'] }}"
+                                class="sf-input mt-2 block w-full"
+                                placeholder="Mais que um corte, &eacute; sobre autoestima."
+                                maxlength="120"
+                            >
+                            <p class="mt-2 text-xs sf-muted">Essa mensagem aparece no recibo com estilo manuscrito.</p>
+                            <x-input-error class="mt-2" :messages="$errors->get('receipt_message')" />
+                        </div>
+
                         <label class="mt-3 flex cursor-pointer items-start gap-3 text-sm sf-text-muted">
                             <input type="hidden" name="auto_print_receipt" value="0">
                             <input

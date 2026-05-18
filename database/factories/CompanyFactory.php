@@ -24,6 +24,7 @@ class CompanyFactory extends Factory
             'cnpj' => null,
             'instagram' => null,
             'description' => null,
+            'receipt_message' => null,
             'logo' => null,
             'active' => true,
             'onboarding_completed_at' => now(),

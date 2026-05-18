@@ -20,6 +20,7 @@
     $companyCnpj = $company?->safeDisplayText($company->cnpj ?? null);
     $companyAddress = $company?->safeDisplayText($company->address ?? null);
     $companyInstagram = $company?->safeDisplayText($company->instagram ?? null);
+    $receiptMessage = $company?->safeDisplayText($company->receipt_message ?? null) ?: 'Obrigado pela preferencia.';
     $logoUrl = $company?->logo_url;
     $closedAt = $order->closed_at?->timezone(config('app.timezone'))->format('d/m/Y H:i');
     $receiptNumber = str_pad((string) $order->id, 6, '0', STR_PAD_LEFT);
@@ -66,6 +67,7 @@
         $companyCnpj ? 'CNPJ: '.$companyCnpj : null,
         $instagramDisplay,
     ])->filter()->values();
+    $hasBusinessInfo = (bool) ($companyPhone || $addressDisplay || $addressUrl || $instagramDisplay || $companyCnpj);
 @endphp
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -227,12 +229,20 @@
             padding: 0 34px;
         }
 
+        .receipt-business-info-message-only {
+            grid-template-columns: 1fr;
+        }
+
         .receipt-info-column {
             display: grid;
             gap: 19px;
             align-content: start;
             padding-right: 34px;
             border-right: 2px solid var(--receipt-brand);
+        }
+
+        .receipt-business-info-message-only .receipt-message-panel {
+            min-height: 120px;
         }
 
         .receipt-info-line {
@@ -287,11 +297,14 @@
         }
 
         .receipt-message {
+            max-width: 320px;
             color: var(--receipt-black);
             font-family: "Brush Script MT", "Segoe Script", cursive;
             font-size: 1.75rem;
             font-weight: 500;
             line-height: 1.55;
+            overflow-wrap: anywhere;
+            text-wrap: balance;
         }
 
         .receipt-message::after {
@@ -909,6 +922,7 @@
 
             body.a4-print .receipt-message,
             body:not(.thermal-print) .receipt-message {
+                max-width: 260px;
                 font-size: 1.15rem;
                 line-height: 1.25;
             }
@@ -1331,9 +1345,10 @@
 
             <div class="receipt-accent-line"></div>
 
-            @if ($companyPhone || $addressDisplay || $addressUrl || $instagramDisplay || $companyCnpj)
-                <section class="receipt-business-info" aria-label="Dados comerciais">
-                    <div class="receipt-info-column">
+            @if ($hasBusinessInfo || $receiptMessage)
+                <section class="receipt-business-info {{ $hasBusinessInfo ? '' : 'receipt-business-info-message-only' }}" aria-label="Dados comerciais">
+                    @if ($hasBusinessInfo)
+                        <div class="receipt-info-column">
                         @if ($addressDisplay || $addressUrl)
                             <div class="receipt-info-line">
                                 <span class="receipt-info-icon" aria-hidden="true">
@@ -1398,13 +1413,11 @@
                                 </span>
                             </div>
                         @endif
-                    </div>
+                        </div>
+                    @endif
 
                     <div class="receipt-message-panel" aria-label="Mensagem institucional">
-                        <div class="receipt-message">
-                            Mais que um corte,<br>
-                            &eacute; sobre autoestima.
-                        </div>
+                        <div class="receipt-message">{{ $receiptMessage }}</div>
                     </div>
                 </section>
             @endif
