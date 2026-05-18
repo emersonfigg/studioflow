@@ -6,20 +6,66 @@
         ? \App\Models\Payment::labelForPaymentMethod((string) $paymentMethod)
         : 'Nao informado';
     $notes = $order->productSale?->notes ?? $order->payment?->notes;
+
     $brandColor = $company?->primary_color;
     $brandColor = is_string($brandColor) && preg_match('/^#[0-9a-fA-F]{6}$/', $brandColor) === 1
         ? $brandColor
-        : '#171717';
+        : '#b8913b';
+
     $companyName = $company?->safeDisplayText($company->name ?? null) ?? 'Empresa';
+    $companyNameParts = preg_split('/\s+/', trim($companyName), 2) ?: [$companyName];
+    $companyBrandMain = $companyNameParts[0] ?? $companyName;
+    $companyBrandSub = $companyNameParts[1] ?? null;
     $companyPhone = $company?->safeDisplayText($company->phone ?? null);
     $companyCnpj = $company?->safeDisplayText($company->cnpj ?? null);
     $companyAddress = $company?->safeDisplayText($company->address ?? null);
     $companyInstagram = $company?->safeDisplayText($company->instagram ?? null);
     $logoUrl = $company?->logo_url;
     $closedAt = $order->closed_at?->timezone(config('app.timezone'))->format('d/m/Y H:i');
+    $receiptNumber = str_pad((string) $order->id, 6, '0', STR_PAD_LEFT);
     $paymentStatus = $order->status === \App\Models\ServiceOrder::STATUS_PAID ? 'Pago' : null;
     $hasDiscount = (float) $order->discount > 0;
-    $contactLine = collect([$companyPhone, $companyInstagram])->filter()->implode(' | ');
+
+    $addressIsUrl = $companyAddress && filter_var($companyAddress, FILTER_VALIDATE_URL);
+    $addressUrl = $addressIsUrl
+        ? $companyAddress
+        : ($companyAddress ? 'https://www.google.com/maps/search/?api=1&query='.rawurlencode($companyAddress) : null);
+    $addressDisplay = $addressIsUrl ? null : $companyAddress;
+
+    $phoneDigits = $companyPhone ? preg_replace('/\D+/', '', $companyPhone) : '';
+    if ($phoneDigits !== '' && ! str_starts_with($phoneDigits, '55') && in_array(strlen($phoneDigits), [10, 11], true)) {
+        $phoneDigits = '55'.$phoneDigits;
+    }
+    $whatsAppUrl = $phoneDigits !== '' ? 'https://wa.me/'.$phoneDigits : null;
+
+    $instagramValue = $companyInstagram;
+    $instagramUrl = null;
+    $instagramDisplay = null;
+    if ($instagramValue) {
+        if (filter_var($instagramValue, FILTER_VALIDATE_URL)) {
+            $instagramUrl = $instagramValue;
+            $path = trim((string) parse_url($instagramValue, PHP_URL_PATH), '/');
+            $instagramDisplay = $path !== '' ? '@'.explode('/', $path)[0] : 'Instagram';
+        } else {
+            $handle = ltrim($instagramValue, '@');
+            $instagramUrl = 'https://www.instagram.com/'.$handle;
+            $instagramDisplay = '@'.$handle;
+        }
+    }
+
+    $qrTarget = $whatsAppUrl ?: ($instagramUrl ?: $addressUrl);
+    $qrCodeUrl = $qrTarget
+        ? 'https://quickchart.io/qr?size=148&margin=1&text='.rawurlencode($qrTarget)
+        : null;
+    $qrLabel = $whatsAppUrl
+        ? 'Fale conosco'
+        : ($instagramUrl ? 'Acompanhe no Instagram' : ($addressUrl ? 'Ver localizacao' : null));
+    $footerDetails = collect([
+        $addressDisplay,
+        $companyPhone,
+        $companyCnpj ? 'CNPJ: '.$companyCnpj : null,
+        $instagramDisplay,
+    ])->filter()->values();
 @endphp
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -30,315 +76,650 @@
     <style>
         :root {
             --receipt-brand: {{ $brandColor }};
-            --receipt-ink: #171717;
-            --receipt-muted: #5f6368;
-            --receipt-line: #e5e7eb;
-            --receipt-soft: #f6f7f9;
+            --receipt-ink: #141414;
+            --receipt-muted: #666a70;
+            --receipt-line: #e7e2d8;
+            --receipt-soft: #f5f5f3;
+            --receipt-panel: #f7f7f6;
+            --receipt-black: #111;
         }
 
         * { box-sizing: border-box; }
 
-        html { background: #f3f4f6; }
+        html {
+            background: #ececec;
+        }
 
         body {
             margin: 0;
-            padding: 24px 14px;
+            background: #ececec;
             color: var(--receipt-ink);
-            background: #f3f4f6;
             font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            font-size: 13px;
+            font-size: 14px;
             line-height: 1.45;
         }
 
-        .receipt-shell {
-            width: min(100%, 760px);
+        .receipt-page {
+            min-height: 100vh;
+            padding: 28px 14px 36px;
+        }
+
+        .receipt-sheet {
+            width: min(100%, 940px);
             margin: 0 auto;
-        }
-
-        .receipt-card {
-            overflow: hidden;
-            border: 1px solid rgba(23, 23, 23, 0.08);
+            padding: 48px 56px 36px;
+            border: 1px solid rgba(20, 20, 20, 0.08);
             border-radius: 8px;
             background: #fff;
-            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+            box-shadow: 0 28px 80px rgba(15, 23, 42, 0.15);
         }
 
-        .receipt-topbar {
-            height: 6px;
-            background: var(--receipt-brand);
-        }
-
-        .company-header {
+        .receipt-header {
             display: grid;
-            grid-template-columns: auto 1fr;
-            gap: 18px;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 28px;
             align-items: center;
-            padding: 28px 30px 22px;
-            border-bottom: 1px solid var(--receipt-line);
         }
 
-        .company-logo {
-            width: 72px;
-            height: 72px;
+        .receipt-brand {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            min-width: 0;
+        }
+
+        .receipt-logo {
+            width: 124px;
+            height: 124px;
             object-fit: contain;
-            border: 1px solid var(--receipt-line);
-            border-radius: 8px;
-            padding: 8px;
+            flex: 0 0 auto;
+            border: 0;
+            border-radius: 50%;
+            padding: 0;
             background: #fff;
         }
 
-        .company-title {
-            margin: 0;
-            color: var(--receipt-ink);
-            font-size: 1.65rem;
-            font-weight: 850;
+        .receipt-logo-fallback {
+            display: grid;
+            place-items: center;
+            width: 104px;
+            height: 104px;
+            flex: 0 0 auto;
+            border-radius: 50%;
+            background: #081026;
+            color: var(--receipt-brand);
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 2.7rem;
+            font-weight: 900;
             letter-spacing: 0;
             text-transform: uppercase;
         }
 
-        .company-details {
-            display: grid;
-            gap: 3px;
-            margin-top: 7px;
+        .receipt-company-name {
+            margin: 0;
+            color: var(--receipt-black);
+            font-size: clamp(1.8rem, 4vw, 3.1rem);
+            font-weight: 900;
+            letter-spacing: 0.16em;
+            line-height: 0.98;
+            text-transform: uppercase;
+            overflow-wrap: anywhere;
+        }
+
+        .receipt-tagline {
+            margin: 12px 0 0;
             color: var(--receipt-muted);
-            font-size: 0.83rem;
-        }
-
-        .company-details p,
-        .receipt-meta p,
-        .footer p {
-            margin: 0;
-        }
-
-        .receipt-body {
-            padding: 24px 30px 28px;
-        }
-
-        .receipt-heading {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 14px;
-            align-items: flex-start;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            padding-bottom: 18px;
-            border-bottom: 1px solid var(--receipt-line);
-        }
-
-        .receipt-heading h2 {
-            margin: 0;
-            color: var(--receipt-brand);
-            font-size: 1.05rem;
-            font-weight: 850;
-            letter-spacing: 0.12em;
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 0.55em;
             text-transform: uppercase;
         }
 
-        .receipt-number {
-            margin-top: 3px;
-            font-size: 1.45rem;
-            font-weight: 850;
-        }
-
         .receipt-meta {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px 18px;
-            min-width: min(100%, 360px);
+            min-width: 190px;
+            text-align: right;
         }
 
-        .meta-item {
-            padding: 10px 12px;
-            border: 1px solid var(--receipt-line);
-            border-radius: 8px;
-            background: var(--receipt-soft);
+        .receipt-meta-title {
+            margin: 0;
+            color: var(--receipt-black);
+            font-size: 2.35rem;
+            font-weight: 900;
+            letter-spacing: 0.1em;
+            line-height: 1;
+            text-transform: uppercase;
         }
 
-        .meta-label {
-            display: block;
-            margin-bottom: 2px;
-            color: var(--receipt-muted);
-            font-size: 0.65rem;
+        .receipt-meta-number {
+            margin-top: 12px;
+            color: var(--receipt-brand);
+            font-size: 1.35rem;
+            font-weight: 900;
+        }
+
+        .receipt-meta-label {
+            margin: 18px 0 0;
+            color: var(--receipt-black);
+            font-size: 0.92rem;
             font-weight: 800;
+        }
+
+        .receipt-meta-date {
+            margin-top: 5px;
+            color: var(--receipt-muted);
+            font-size: 0.92rem;
+            font-weight: 700;
+        }
+
+        .receipt-accent-line {
+            height: 3px;
+            margin: 36px 0 34px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--receipt-brand), rgba(184, 145, 59, 0.18));
+        }
+
+        .receipt-business-info {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(280px, 0.86fr);
+            gap: 48px;
+            align-items: center;
+            margin-bottom: 40px;
+            padding: 0 34px;
+        }
+
+        .receipt-info-column {
+            display: grid;
+            gap: 19px;
+            align-content: start;
+            padding-right: 34px;
+            border-right: 2px solid var(--receipt-brand);
+        }
+
+        .receipt-info-line {
+            display: grid;
+            grid-template-columns: 34px minmax(0, 1fr);
+            gap: 18px;
+            align-items: start;
+            color: var(--receipt-black);
+            font-size: 0.98rem;
+        }
+
+        .receipt-info-icon {
+            display: inline-grid;
+            place-items: center;
+            width: 25px;
+            height: 25px;
+            border: 2px solid var(--receipt-black);
+            border-radius: 7px;
+            color: var(--receipt-black);
+            font-size: 0.78rem;
+            font-weight: 950;
+            line-height: 1;
+        }
+
+        .receipt-info-icon-round {
+            border-radius: 50%;
+        }
+
+        .receipt-info-label {
+            display: inline;
+            color: var(--receipt-black);
+            font-size: inherit;
+            font-weight: 800;
+            letter-spacing: 0;
+            text-transform: none;
+        }
+
+        .receipt-info-text {
+            overflow-wrap: anywhere;
+        }
+
+        .receipt-info-text a {
+            color: var(--receipt-ink);
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .receipt-message-panel {
+            display: grid;
+            place-items: center;
+            min-height: 210px;
+            text-align: center;
+        }
+
+        .receipt-message {
+            color: var(--receipt-black);
+            font-family: "Brush Script MT", "Segoe Script", cursive;
+            font-size: 1.75rem;
+            font-weight: 500;
+            line-height: 1.55;
+        }
+
+        .receipt-message::after {
+            display: block;
+            width: 110px;
+            height: 2px;
+            margin: 16px auto 0;
+            border-radius: 999px;
+            background: var(--receipt-brand);
+            content: "";
+        }
+
+        .receipt-sale-box {
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);
+            gap: 40px;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 34px;
+            padding: 28px 32px;
+            border: 1px solid #d9d9d9;
+            border-radius: 0;
+            background: var(--receipt-panel);
+        }
+
+        .receipt-sale-item {
+            min-width: 0;
+            display: grid;
+            grid-template-columns: 170px minmax(0, 1fr);
+            gap: 18px;
+            padding: 0;
+            background: transparent;
+        }
+
+        .receipt-sale-label {
+            display: block;
+            margin-bottom: 4px;
+            color: var(--receipt-black);
+            font-size: 0.76rem;
+            font-weight: 900;
             letter-spacing: 0.08em;
             text-transform: uppercase;
         }
 
-        .meta-value {
-            color: var(--receipt-ink);
-            font-size: 0.9rem;
-            font-weight: 700;
+        .receipt-sale-value {
+            color: var(--receipt-black);
+            font-size: 1.04rem;
+            font-weight: 500;
+            overflow-wrap: anywhere;
         }
 
-        .items-table {
+        .receipt-sale-column {
+            display: grid;
+            gap: 24px;
+            align-content: start;
+        }
+
+        .receipt-status-pill {
+            display: inline-flex;
+            width: fit-content;
+            align-items: center;
+            min-height: 30px;
+            padding: 0 12px;
+            border-radius: 8px;
+            background: #ccf2cd;
+            color: #147a2e;
+            font-weight: 900;
+        }
+
+        .receipt-sale-watermark {
+            position: absolute;
+            right: 58px;
+            top: 50%;
+            color: rgba(17, 17, 17, 0.055);
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 8rem;
+            font-weight: 700;
+            line-height: 1;
+            pointer-events: none;
+            transform: translateY(-50%);
+        }
+
+        .receipt-items {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 8px;
-            font-size: 0.86rem;
+            margin: 0;
+            font-size: 0.94rem;
         }
 
-        .items-table th,
-        .items-table td {
-            padding: 11px 8px;
-            border-bottom: 1px solid var(--receipt-line);
-            vertical-align: top;
-        }
-
-        .items-table th {
-            color: var(--receipt-muted);
-            font-size: 0.68rem;
-            font-weight: 850;
+        .receipt-items thead th {
+            padding: 15px 28px;
+            background: var(--receipt-black);
+            color: #fff;
+            font-size: 0.82rem;
+            font-weight: 900;
             letter-spacing: 0.08em;
             text-align: left;
             text-transform: uppercase;
         }
 
-        .description-cell {
-            color: var(--receipt-ink);
-            font-weight: 700;
+        .receipt-items thead th:first-child {
+            border-top-left-radius: 0;
         }
 
-        .num {
+        .receipt-items thead th:last-child {
+            border-top-right-radius: 0;
+        }
+
+        .receipt-items tbody td {
+            padding: 18px 28px;
+            border-bottom: 1px solid var(--receipt-line);
+            vertical-align: top;
+        }
+
+        .receipt-description {
+            color: var(--receipt-black);
+            font-weight: 800;
+        }
+
+        .receipt-num {
             text-align: right;
             white-space: nowrap;
         }
 
-        .totals {
-            width: min(100%, 340px);
-            margin: 18px 0 0 auto;
-            padding: 14px 16px;
-            border: 1px solid var(--receipt-line);
-            border-radius: 8px;
+        .receipt-summary {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+            gap: 26px;
+            align-items: start;
+            margin-top: 26px;
+        }
+
+        .receipt-payment {
+            padding: 0;
+            border-left: 0;
+            border-radius: 0;
+            background: transparent;
+        }
+
+        .receipt-payment p {
+            margin: 0;
+        }
+
+        .receipt-payment strong {
+            color: var(--receipt-black);
+        }
+
+        .receipt-payment-muted {
+            margin-top: 5px;
+            color: var(--receipt-muted);
+            font-size: 0.86rem;
+        }
+
+        .receipt-totals {
+            display: grid;
+            gap: 8px;
+            padding: 18px 20px;
+            border: 0;
+            border-radius: 0;
             background: #fff;
         }
 
-        .total-row {
+        .receipt-total-row {
             display: flex;
             justify-content: space-between;
-            gap: 16px;
-            padding: 5px 0;
+            gap: 18px;
             color: var(--receipt-muted);
         }
 
-        .total-row span:last-child {
-            color: var(--receipt-ink);
-            font-weight: 750;
+        .receipt-total-row span:last-child {
+            color: var(--receipt-black);
+            font-weight: 850;
             white-space: nowrap;
         }
 
-        .grand {
+        .receipt-total-row-main {
             margin-top: 8px;
-            padding-top: 13px;
-            border-top: 2px solid var(--receipt-ink);
-            color: var(--receipt-ink);
-            font-size: 1.1rem;
+            padding-top: 14px;
+            border-top: 4px solid var(--receipt-black);
+            border-bottom: 2px solid var(--receipt-brand);
+            padding-bottom: 12px;
+            color: var(--receipt-black);
+            font-size: 1.35rem;
+            font-weight: 950;
+        }
+
+        .receipt-total-row-main span:last-child {
+            color: var(--receipt-brand);
+            font-size: 1.5rem;
+            font-weight: 950;
+        }
+
+        .receipt-note {
+            margin-top: 18px;
+            padding: 14px 16px;
+            border-radius: 8px;
+            background: #fff9eb;
+            color: #4f4327;
+            font-size: 0.92rem;
+        }
+
+        .receipt-thankyou {
+            margin: 38px 0 0;
+            text-align: center;
+            color: var(--receipt-black);
+            font-size: 1.25rem;
             font-weight: 900;
         }
 
-        .payment-note {
-            margin-top: 18px;
-            padding: 13px 14px;
-            border-left: 4px solid var(--receipt-brand);
-            border-radius: 8px;
-            background: var(--receipt-soft);
+        .receipt-footer {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 24px;
+            align-items: center;
+            margin-top: 34px;
+            padding: 22px 26px;
+            border-top: 0;
+            background: var(--receipt-panel);
             color: var(--receipt-muted);
+            font-size: 0.82rem;
         }
 
-        .payment-note strong {
-            color: var(--receipt-ink);
+        .receipt-footer p {
+            margin: 0;
         }
 
-        .footer {
-            margin-top: 24px;
-            padding-top: 20px;
-            border-top: 1px dashed #cbd5e1;
+        .receipt-footer-legal {
+            display: grid;
+            gap: 4px;
+            justify-items: center;
+            margin-top: 14px;
+            color: var(--receipt-muted);
             text-align: center;
         }
 
-        .thankyou {
-            color: var(--receipt-ink);
-            font-size: 1rem;
+        .receipt-footer-brand {
+            display: grid;
+            gap: 5px;
+        }
+
+        .receipt-footer-brand strong {
+            color: var(--receipt-brand);
+            font-size: 0.82rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .receipt-footer-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 10px;
+        }
+
+        .receipt-footer-details span + span::before {
+            color: var(--receipt-brand);
+            content: "|";
+            margin-right: 10px;
+        }
+
+        .receipt-footer-qr-wrap {
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 28px;
+            align-items: center;
+            padding-left: 38px;
+            border-left: 2px solid var(--receipt-brand);
+        }
+
+        .receipt-footer-qr-copy {
+            max-width: 120px;
+            color: var(--receipt-muted);
+            font-size: 0.86rem;
+            line-height: 1.35;
+            text-align: right;
+        }
+
+        .receipt-qr {
+            display: grid;
+            gap: 7px;
+            justify-items: center;
+            text-align: center;
+        }
+
+        .receipt-qr img {
+            width: 118px;
+            height: 118px;
+            border: 0;
+            border-radius: 0;
+            padding: 0;
+            background: #fff;
+        }
+
+        .receipt-qr span {
+            color: var(--receipt-black);
+            font-size: 0.72rem;
             font-weight: 850;
         }
 
-        .footer-note {
-            margin-top: 5px;
-            color: var(--receipt-muted);
-            font-size: 0.78rem;
-        }
-
-        .footer-contact {
-            margin-top: 10px;
-            color: var(--receipt-muted);
-            font-size: 0.75rem;
-        }
-
-        .actions {
-            margin-top: 16px;
-            text-align: center;
-        }
-
-        .actions button {
-            display: inline-flex;
-            align-items: center;
+        .receipt-print-button {
+            display: flex;
             justify-content: center;
-            min-height: 42px;
-            padding: 0 18px;
-            border: 1px solid var(--receipt-brand);
+            margin-top: 18px;
+        }
+
+        .receipt-print-button button {
+            min-height: 44px;
+            padding: 0 22px;
+            border: 1px solid var(--receipt-black);
             border-radius: 8px;
-            background: var(--receipt-brand);
+            background: var(--receipt-black);
             color: #fff;
             cursor: pointer;
-            font-weight: 800;
+            font-weight: 850;
         }
 
-        @media (max-width: 640px) {
-            body { padding: 12px; }
+        @media (max-width: 720px) {
+            .receipt-page {
+                padding: 12px;
+            }
 
-            .company-header {
+            .receipt-sheet {
+                padding: 24px 16px;
+            }
+
+            .receipt-header,
+            .receipt-business-info,
+            .receipt-summary,
+            .receipt-footer {
                 grid-template-columns: 1fr;
-                gap: 12px;
-                padding: 22px 18px 18px;
-                text-align: center;
             }
 
-            .company-logo {
-                margin: 0 auto;
+            .receipt-brand {
+                align-items: flex-start;
             }
 
-            .company-title {
-                font-size: 1.35rem;
-            }
-
-            .receipt-body {
-                padding: 20px 16px 22px;
-            }
-
-            .receipt-heading {
-                display: block;
+            .receipt-logo,
+            .receipt-logo-fallback {
+                width: 72px;
+                height: 72px;
+                font-size: 1.7rem;
             }
 
             .receipt-meta {
+                text-align: left;
+            }
+
+            .receipt-meta-title {
+                font-size: 1.75rem;
+            }
+
+            .receipt-business-info {
+                gap: 12px;
+                padding: 0;
+            }
+
+            .receipt-info-column {
+                padding-right: 0;
+                border-right: 0;
+            }
+
+            .receipt-message-panel {
+                min-height: 120px;
+            }
+
+            .receipt-message {
+                font-size: 1.35rem;
+            }
+
+            .receipt-sale-box {
                 grid-template-columns: 1fr;
-                margin-top: 16px;
+                gap: 24px;
+                padding: 22px 18px;
             }
 
-            .items-table {
-                font-size: 0.78rem;
+            .receipt-sale-item {
+                grid-template-columns: 1fr;
+                gap: 4px;
             }
 
-            .items-table th,
-            .items-table td {
-                padding: 9px 5px;
-            }
-
-            .items-table th:nth-child(3),
-            .items-table td:nth-child(3) {
+            .receipt-sale-watermark {
                 display: none;
             }
 
-            .totals {
-                width: 100%;
+            .receipt-items {
+                font-size: 0.82rem;
+            }
+
+            .receipt-items thead th,
+            .receipt-items tbody td {
+                padding: 10px 6px;
+            }
+
+            .receipt-items th:nth-child(3),
+            .receipt-items td:nth-child(3) {
+                display: none;
+            }
+
+            .receipt-totals {
+                padding: 16px;
+            }
+
+            .receipt-total-row-main {
+                font-size: 1.15rem;
+            }
+
+            .receipt-total-row-main span:last-child {
+                font-size: 1.25rem;
+            }
+
+            .receipt-footer {
+                text-align: center;
+            }
+
+            .receipt-footer-qr-wrap {
+                grid-template-columns: 1fr;
+                justify-items: center;
+                gap: 12px;
+                padding-left: 0;
+                border-left: 0;
+            }
+
+            .receipt-footer-qr-copy {
+                text-align: center;
+            }
+
+            .receipt-qr {
+                justify-self: center;
             }
         }
 
@@ -348,11 +729,12 @@
 
         @media print {
             :root {
-                --receipt-brand: #171717;
+                --receipt-brand: {{ $brandColor }};
                 --receipt-ink: #000;
                 --receipt-muted: #333;
-                --receipt-line: #d9d9d9;
-                --receipt-soft: #fff;
+                --receipt-line: #d8d8d8;
+                --receipt-soft: #f4f4f4;
+                --receipt-black: #000;
             }
 
             html,
@@ -366,7 +748,23 @@
                 print-color-adjust: exact;
             }
 
-            .actions,
+            .receipt-page {
+                min-height: auto;
+                padding: 0;
+                background: #fff !important;
+            }
+
+            .receipt-sheet {
+                width: 100%;
+                max-width: none;
+                margin: 0;
+                padding: 0;
+                border: 0;
+                border-radius: 0;
+                box-shadow: none;
+            }
+
+            .receipt-print-button,
             nav,
             aside,
             .navbar,
@@ -377,173 +775,238 @@
                 display: none !important;
             }
 
-            .receipt-shell {
-                width: 100%;
-                max-width: 760px;
-                margin: 0 auto;
-            }
-
-            .receipt-card {
-                border: 0;
-                border-radius: 0;
-                box-shadow: none;
-            }
-
-            .receipt-topbar {
-                display: none;
-            }
-
-            .company-header,
-            .receipt-heading,
-            .totals,
-            .payment-note,
-            .footer,
+            .receipt-header,
+            .receipt-business-info,
+            .receipt-sale-box,
+            .receipt-summary,
+            .receipt-totals,
+            .receipt-footer,
             table,
             tr {
                 page-break-inside: avoid;
                 break-inside: avoid;
             }
 
-            .company-header {
-                padding: 0 0 14px;
-            }
-
-            .receipt-body {
-                padding: 16px 0 0;
+            .receipt-items thead th {
+                background: #000 !important;
+                color: #fff !important;
             }
         }
     </style>
 </head>
 <body>
-    <main class="receipt-shell">
-        <article class="receipt-card">
-            <div class="receipt-topbar"></div>
+    <main class="receipt-page">
+        <article class="receipt-sheet">
+            <header class="receipt-header">
+                <section class="receipt-brand" aria-label="Empresa">
+                    @if ($logoUrl)
+                        <img class="receipt-logo" src="{{ $logoUrl }}" alt="Logo {{ $companyName }}">
+                    @else
+                        <div class="receipt-logo-fallback" aria-hidden="true">{{ mb_substr($companyName, 0, 1) }}</div>
+                    @endif
 
-            <section class="company-header" aria-label="Dados da empresa">
-                @if ($logoUrl)
-                    <img class="company-logo" src="{{ $logoUrl }}" alt="Logo {{ $companyName }}">
-                @endif
-
-                <div>
-                    <h1 class="company-title">{{ $companyName }}</h1>
-                    <div class="company-details">
-                        @if ($companyPhone)
-                            <p>Telefone: {{ $companyPhone }}</p>
-                        @endif
-                        @if ($companyCnpj)
-                            <p>CNPJ: {{ $companyCnpj }}</p>
-                        @endif
-                        @if ($companyAddress)
-                            <p>{{ $companyAddress }}</p>
-                        @endif
-                        @if ($companyInstagram)
-                            <p>Instagram: {{ $companyInstagram }}</p>
+                    <div>
+                        <h1 class="receipt-company-name">{{ $companyBrandMain }}</h1>
+                        @if ($companyBrandSub)
+                            <p class="receipt-tagline">{{ $companyBrandSub }}</p>
                         @endif
                     </div>
+                </section>
+
+                <section class="receipt-meta" aria-label="Dados do recibo">
+                    <p class="receipt-meta-title">Recibo</p>
+                    <p class="receipt-meta-number">N&ordm; {{ $receiptNumber }}</p>
+                    <p class="receipt-meta-label">Data e hora</p>
+                    <p class="receipt-meta-date">{{ $closedAt ?? 'Data nao informada' }}</p>
+                </section>
+            </header>
+
+            <div class="receipt-accent-line"></div>
+
+            @if ($companyPhone || $addressDisplay || $addressUrl || $instagramDisplay || $companyCnpj)
+                <section class="receipt-business-info" aria-label="Dados comerciais">
+                    <div class="receipt-info-column">
+                        @if ($addressDisplay || $addressUrl)
+                            <div class="receipt-info-line">
+                                <span class="receipt-info-icon receipt-info-icon-round">P</span>
+                                <span class="receipt-info-text">
+                                    @if ($addressDisplay)
+                                        {{ $addressDisplay }}
+                                    @elseif ($addressUrl)
+                                        <a href="{{ $addressUrl }}" target="_blank" rel="noopener">Ver localizacao</a>
+                                    @endif
+                                </span>
+                            </div>
+                        @endif
+
+                        @if ($companyPhone)
+                            <div class="receipt-info-line">
+                                <span class="receipt-info-icon receipt-info-icon-round">T</span>
+                                <span class="receipt-info-text">
+                                    {{ $companyPhone }}
+                                </span>
+                            </div>
+                        @endif
+
+                        @if ($companyCnpj)
+                            <div class="receipt-info-line">
+                                <span class="receipt-info-icon">ID</span>
+                                <span class="receipt-info-text">
+                                    <span class="receipt-info-label">CNPJ</span> {{ $companyCnpj }}
+                                </span>
+                            </div>
+                        @endif
+
+                        @if ($instagramDisplay)
+                            <div class="receipt-info-line">
+                                <span class="receipt-info-icon receipt-info-icon-round">IG</span>
+                                <span class="receipt-info-text">
+                                    <span class="receipt-info-label">Instagram:</span>
+                                    <a href="{{ $instagramUrl }}" target="_blank" rel="noopener">{{ $instagramDisplay }}</a>
+                                </span>
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="receipt-message-panel" aria-label="Mensagem institucional">
+                        <div class="receipt-message">
+                            Mais que um corte,<br>
+                            &eacute; sobre autoestima.
+                        </div>
+                    </div>
+                </section>
+            @endif
+
+            <section class="receipt-sale-box" aria-label="Dados da venda">
+                <div class="receipt-sale-column">
+                    <div class="receipt-sale-item">
+                        <span class="receipt-sale-label">Comanda / venda</span>
+                        <span class="receipt-sale-value">#{{ $order->id }}</span>
+                    </div>
+
+                    @if ($order->client)
+                        <div class="receipt-sale-item">
+                            <span class="receipt-sale-label">Cliente</span>
+                            <span class="receipt-sale-value">{{ $order->client->name }}</span>
+                        </div>
+                    @endif
+
+                    @if ($order->professional)
+                        <div class="receipt-sale-item">
+                            <span class="receipt-sale-label">Profissional</span>
+                            <span class="receipt-sale-value">{{ $order->professional->name }}</span>
+                        </div>
+                    @endif
                 </div>
+
+                <div class="receipt-sale-column">
+                    <div class="receipt-sale-item">
+                        <span class="receipt-sale-label">Forma de pagamento</span>
+                        <span class="receipt-sale-value">{{ $paymentLabel }}</span>
+                    </div>
+
+                    <div class="receipt-sale-item">
+                        <span class="receipt-sale-label">Status</span>
+                        <span class="receipt-sale-value">
+                            @if ($paymentStatus)
+                                <span class="receipt-status-pill">{{ $paymentStatus }}</span>
+                            @else
+                                Nao informado
+                            @endif
+                        </span>
+                    </div>
+                </div>
+
+                <div class="receipt-sale-watermark" aria-hidden="true">{{ mb_substr($companyName, 0, 1) }}</div>
             </section>
 
-            <section class="receipt-body">
-                <div class="receipt-heading">
-                    <div>
-                        <h2>Recibo</h2>
-                        <div class="receipt-number">#{{ $order->id }}</div>
+            <table class="receipt-items">
+                <thead>
+                    <tr>
+                        <th>Descri&ccedil;&atilde;o</th>
+                        <th class="receipt-num">Qtd</th>
+                        <th class="receipt-num">Unit.</th>
+                        <th class="receipt-num">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($order->items as $item)
+                        <tr>
+                            <td class="receipt-description">{{ $item->description }}</td>
+                            <td class="receipt-num">{{ $item->quantity }}</td>
+                            <td class="receipt-num">R$ {{ number_format((float) $item->unit_price, 2, ',', '.') }}</td>
+                            <td class="receipt-num">R$ {{ number_format((float) $item->total_price, 2, ',', '.') }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+
+            <section class="receipt-summary">
+                <div>
+                    <div class="receipt-payment">
+                        <p><strong>Forma de pagamento:</strong> {{ $paymentLabel }}</p>
                     </div>
 
-                    <div class="receipt-meta" aria-label="Dados do recibo">
-                        <p class="meta-item">
-                            <span class="meta-label">Data e hora</span>
-                            <span class="meta-value">{{ $closedAt ?? 'Nao informado' }}</span>
-                        </p>
-
-                        @if ($order->client)
-                            <p class="meta-item">
-                                <span class="meta-label">Cliente</span>
-                                <span class="meta-value">{{ $order->client->name }}</span>
-                            </p>
-                        @endif
-
-                        @if ($order->professional)
-                            <p class="meta-item">
-                                <span class="meta-label">Profissional</span>
-                                <span class="meta-value">{{ $order->professional->name }}</span>
-                            </p>
-                        @endif
-
-                        <p class="meta-item">
-                            <span class="meta-label">Forma de pagamento</span>
-                            <span class="meta-value">{{ $paymentLabel }}</span>
-                        </p>
-
-                        @if ($paymentStatus)
-                            <p class="meta-item">
-                                <span class="meta-label">Status</span>
-                                <span class="meta-value">{{ $paymentStatus }}</span>
-                            </p>
-                        @endif
-                    </div>
+                    @if ($notes)
+                        <div class="receipt-note">
+                            <strong>Observa&ccedil;&otilde;es:</strong> {{ $notes }}
+                        </div>
+                    @endif
                 </div>
 
-                <table class="items-table">
-                    <thead>
-                        <tr>
-                            <th>Descri&ccedil;&atilde;o</th>
-                            <th class="num">Qtd</th>
-                            <th class="num">Unit.</th>
-                            <th class="num">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($order->items as $item)
-                            <tr>
-                                <td class="description-cell">{{ $item->description }}</td>
-                                <td class="num">{{ $item->quantity }}</td>
-                                <td class="num">R$ {{ number_format((float) $item->unit_price, 2, ',', '.') }}</td>
-                                <td class="num">R$ {{ number_format((float) $item->total_price, 2, ',', '.') }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-
-                <div class="totals">
-                    <div class="total-row">
+                <div class="receipt-totals">
+                    <div class="receipt-total-row">
                         <span>Subtotal servi&ccedil;os</span>
                         <span>R$ {{ number_format((float) $order->subtotal_services, 2, ',', '.') }}</span>
                     </div>
-                    <div class="total-row">
+                    <div class="receipt-total-row">
                         <span>Subtotal produtos</span>
                         <span>R$ {{ number_format((float) $order->subtotal_products, 2, ',', '.') }}</span>
                     </div>
                     @if ($hasDiscount)
-                        <div class="total-row">
+                        <div class="receipt-total-row">
                             <span>Desconto</span>
                             <span>- R$ {{ number_format((float) $order->discount, 2, ',', '.') }}</span>
                         </div>
                     @endif
-                    <div class="total-row grand">
+                    <div class="receipt-total-row receipt-total-row-main">
                         <span>Total</span>
                         <span>R$ {{ number_format((float) $order->total, 2, ',', '.') }}</span>
                     </div>
                 </div>
+            </section>
 
-                @if ($notes)
-                    <div class="payment-note">
-                        <strong>Observa&ccedil;&otilde;es:</strong> {{ $notes }}
+            <p class="receipt-thankyou">Obrigado pela prefer&ecirc;ncia!</p>
+
+            <div class="receipt-footer-legal">
+                <p>Documento sem valor fiscal.</p>
+                <p>Este recibo n&atilde;o substitui nota fiscal.</p>
+            </div>
+
+            <footer class="receipt-footer">
+                <div class="receipt-footer-brand">
+                    <strong>{{ $companyName }}</strong>
+                    @if ($footerDetails->isNotEmpty())
+                        <div class="receipt-footer-details">
+                            @foreach ($footerDetails as $detail)
+                                <span>{{ $detail }}</span>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+
+                @if ($qrCodeUrl && $qrLabel)
+                    <div class="receipt-footer-qr-wrap">
+                        <div class="receipt-footer-qr-copy">Escaneie para falar conosco</div>
+                        <div class="receipt-qr">
+                            <img src="{{ $qrCodeUrl }}" alt="{{ $qrLabel }}">
+                        </div>
                     </div>
                 @endif
-
-                <footer class="footer">
-                    <p class="thankyou">Obrigado pela prefer&ecirc;ncia!</p>
-                    <p class="footer-note">Documento sem valor fiscal.</p>
-                    <p class="footer-note">Este recibo n&atilde;o substitui nota fiscal.</p>
-                    @if ($contactLine)
-                        <p class="footer-contact">{{ $contactLine }}</p>
-                    @endif
-                </footer>
-            </section>
+            </footer>
         </article>
 
-        <div class="actions">
+        <div class="receipt-print-button">
             <button type="button" onclick="window.print()">Imprimir</button>
         </div>
     </main>
