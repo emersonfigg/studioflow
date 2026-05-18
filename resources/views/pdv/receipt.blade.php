@@ -237,9 +237,9 @@
 
         .receipt-info-line {
             display: grid;
-            grid-template-columns: 34px minmax(0, 1fr);
-            gap: 18px;
-            align-items: start;
+            grid-template-columns: 20px minmax(0, 1fr);
+            gap: 16px;
+            align-items: center;
             color: var(--receipt-black);
             font-size: 0.98rem;
         }
@@ -247,18 +247,17 @@
         .receipt-info-icon {
             display: inline-grid;
             place-items: center;
-            width: 25px;
-            height: 25px;
-            border: 2px solid var(--receipt-black);
-            border-radius: 7px;
-            color: var(--receipt-black);
-            font-size: 0.78rem;
-            font-weight: 950;
+            width: 18px;
+            height: 18px;
+            color: var(--receipt-brand);
             line-height: 1;
         }
 
-        .receipt-info-icon-round {
-            border-radius: 50%;
+        .receipt-info-icon svg {
+            display: block;
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
         }
 
         .receipt-info-label {
@@ -593,7 +592,9 @@
 
         .receipt-print-button {
             display: flex;
+            gap: 10px;
             justify-content: center;
+            flex-wrap: wrap;
             margin-top: 18px;
         }
 
@@ -606,6 +607,11 @@
             color: #fff;
             cursor: pointer;
             font-weight: 850;
+        }
+
+        .receipt-print-button button[data-print-mode="thermal"] {
+            border-color: var(--receipt-brand);
+            background: var(--receipt-brand);
         }
 
         @media (max-width: 720px) {
@@ -724,7 +730,13 @@
         }
 
         @page {
-            margin: 10mm;
+            size: A4 portrait;
+            margin: 8mm;
+        }
+
+        @page thermal-receipt {
+            size: 80mm auto;
+            margin: 3mm;
         }
 
         @media print {
@@ -734,6 +746,7 @@
                 --receipt-muted: #333;
                 --receipt-line: #d8d8d8;
                 --receipt-soft: #f4f4f4;
+                --receipt-panel: #f5f5f5;
                 --receipt-black: #000;
             }
 
@@ -746,6 +759,10 @@
                 color: #000 !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+            }
+
+            body.thermal-print {
+                width: 80mm;
             }
 
             .receipt-page {
@@ -791,6 +808,497 @@
                 background: #000 !important;
                 color: #fff !important;
             }
+
+            body.a4-print .receipt-sheet,
+            body:not(.thermal-print) .receipt-sheet {
+                padding: 0;
+            }
+
+            body.a4-print .receipt-header,
+            body:not(.thermal-print) .receipt-header {
+                gap: 18px;
+            }
+
+            body.a4-print .receipt-logo,
+            body.a4-print .receipt-logo-fallback,
+            body:not(.thermal-print) .receipt-logo,
+            body:not(.thermal-print) .receipt-logo-fallback {
+                width: 72px;
+                height: 72px;
+                font-size: 1.9rem;
+            }
+
+            body.a4-print .receipt-company-name,
+            body:not(.thermal-print) .receipt-company-name {
+                font-size: 2.05rem;
+                line-height: 1;
+            }
+
+            body.a4-print .receipt-tagline,
+            body:not(.thermal-print) .receipt-tagline {
+                margin-top: 6px;
+                font-size: 0.68rem;
+                letter-spacing: 0.42em;
+            }
+
+            body.a4-print .receipt-meta-title,
+            body:not(.thermal-print) .receipt-meta-title {
+                font-size: 1.65rem;
+            }
+
+            body.a4-print .receipt-meta-number,
+            body:not(.thermal-print) .receipt-meta-number {
+                margin-top: 6px;
+                font-size: 1rem;
+            }
+
+            body.a4-print .receipt-meta-label,
+            body:not(.thermal-print) .receipt-meta-label {
+                margin-top: 8px;
+                font-size: 0.76rem;
+            }
+
+            body.a4-print .receipt-meta-date,
+            body:not(.thermal-print) .receipt-meta-date {
+                font-size: 0.78rem;
+            }
+
+            body.a4-print .receipt-accent-line,
+            body:not(.thermal-print) .receipt-accent-line {
+                height: 2px;
+                margin: 14px 0 14px;
+            }
+
+            body.a4-print .receipt-business-info,
+            body:not(.thermal-print) .receipt-business-info {
+                grid-template-columns: minmax(0, 1fr) minmax(220px, 0.75fr);
+                gap: 24px;
+                margin-bottom: 14px;
+                padding: 0 12px;
+            }
+
+            body.a4-print .receipt-info-column,
+            body:not(.thermal-print) .receipt-info-column {
+                gap: 8px;
+                padding-right: 20px;
+            }
+
+            body.a4-print .receipt-info-line,
+            body:not(.thermal-print) .receipt-info-line {
+                grid-template-columns: 16px minmax(0, 1fr);
+                gap: 8px;
+                font-size: 0.78rem;
+            }
+
+            body.a4-print .receipt-info-icon,
+            body:not(.thermal-print) .receipt-info-icon {
+                width: 14px;
+                height: 14px;
+            }
+
+            body.a4-print .receipt-info-icon svg,
+            body:not(.thermal-print) .receipt-info-icon svg {
+                width: 14px;
+                height: 14px;
+            }
+
+            body.a4-print .receipt-message-panel,
+            body:not(.thermal-print) .receipt-message-panel {
+                min-height: 78px;
+            }
+
+            body.a4-print .receipt-message,
+            body:not(.thermal-print) .receipt-message {
+                font-size: 1.15rem;
+                line-height: 1.25;
+            }
+
+            body.a4-print .receipt-message::after,
+            body:not(.thermal-print) .receipt-message::after {
+                width: 70px;
+                margin-top: 7px;
+            }
+
+            body.a4-print .receipt-sale-box,
+            body:not(.thermal-print) .receipt-sale-box {
+                gap: 22px;
+                margin-bottom: 14px;
+                padding: 12px 16px;
+            }
+
+            body.a4-print .receipt-sale-column,
+            body:not(.thermal-print) .receipt-sale-column {
+                gap: 9px;
+            }
+
+            body.a4-print .receipt-sale-item,
+            body:not(.thermal-print) .receipt-sale-item {
+                grid-template-columns: 135px minmax(0, 1fr);
+                gap: 10px;
+            }
+
+            body.a4-print .receipt-sale-label,
+            body:not(.thermal-print) .receipt-sale-label {
+                font-size: 0.68rem;
+            }
+
+            body.a4-print .receipt-sale-value,
+            body:not(.thermal-print) .receipt-sale-value {
+                font-size: 0.82rem;
+            }
+
+            body.a4-print .receipt-sale-watermark,
+            body:not(.thermal-print) .receipt-sale-watermark {
+                right: 34px;
+                font-size: 5.5rem;
+            }
+
+            body.a4-print .receipt-status-pill,
+            body:not(.thermal-print) .receipt-status-pill {
+                min-height: 22px;
+                padding: 0 8px;
+                border-radius: 6px;
+            }
+
+            body.a4-print .receipt-items,
+            body:not(.thermal-print) .receipt-items {
+                font-size: 0.78rem;
+            }
+
+            body.a4-print .receipt-items thead th,
+            body.a4-print .receipt-items tbody td,
+            body:not(.thermal-print) .receipt-items thead th,
+            body:not(.thermal-print) .receipt-items tbody td {
+                padding: 7px 10px;
+            }
+
+            body.a4-print .receipt-summary,
+            body:not(.thermal-print) .receipt-summary {
+                grid-template-columns: minmax(0, 1fr) minmax(250px, 320px);
+                gap: 18px;
+                margin-top: 12px;
+            }
+
+            body.a4-print .receipt-payment,
+            body.a4-print .receipt-note,
+            body:not(.thermal-print) .receipt-payment,
+            body:not(.thermal-print) .receipt-note {
+                font-size: 0.78rem;
+            }
+
+            body.a4-print .receipt-note,
+            body:not(.thermal-print) .receipt-note {
+                margin-top: 8px;
+                padding: 8px 10px;
+            }
+
+            body.a4-print .receipt-totals,
+            body:not(.thermal-print) .receipt-totals {
+                gap: 4px;
+                padding: 8px 10px;
+                font-size: 0.78rem;
+            }
+
+            body.a4-print .receipt-total-row-main,
+            body:not(.thermal-print) .receipt-total-row-main {
+                margin-top: 4px;
+                padding-top: 8px;
+                padding-bottom: 7px;
+                border-top-width: 3px;
+                font-size: 1rem;
+            }
+
+            body.a4-print .receipt-total-row-main span:last-child,
+            body:not(.thermal-print) .receipt-total-row-main span:last-child {
+                font-size: 1.15rem;
+            }
+
+            body.a4-print .receipt-thankyou,
+            body:not(.thermal-print) .receipt-thankyou {
+                margin-top: 18px;
+                font-size: 0.98rem;
+            }
+
+            body.a4-print .receipt-footer-legal,
+            body:not(.thermal-print) .receipt-footer-legal {
+                gap: 2px;
+                margin-top: 8px;
+                font-size: 0.74rem;
+            }
+
+            body.a4-print .receipt-footer,
+            body:not(.thermal-print) .receipt-footer {
+                gap: 16px;
+                margin-top: 14px;
+                padding: 10px 14px;
+                font-size: 0.68rem;
+            }
+
+            body.a4-print .receipt-footer-brand,
+            body:not(.thermal-print) .receipt-footer-brand {
+                gap: 2px;
+            }
+
+            body.a4-print .receipt-footer-qr-wrap,
+            body:not(.thermal-print) .receipt-footer-qr-wrap {
+                gap: 14px;
+                padding-left: 20px;
+            }
+
+            body.a4-print .receipt-footer-qr-copy,
+            body:not(.thermal-print) .receipt-footer-qr-copy {
+                max-width: 92px;
+                font-size: 0.68rem;
+            }
+
+            body.a4-print .receipt-qr img,
+            body:not(.thermal-print) .receipt-qr img {
+                width: 72px;
+                height: 72px;
+            }
+
+            body.thermal-print {
+                font-size: 11px;
+            }
+
+            body.thermal-print .receipt-page {
+                width: 80mm;
+                padding: 0;
+            }
+
+            body.thermal-print .receipt-sheet {
+                width: 80mm;
+                padding: 3mm;
+                page: thermal-receipt;
+            }
+
+            body.thermal-print .receipt-header,
+            body.thermal-print .receipt-business-info,
+            body.thermal-print .receipt-sale-box,
+            body.thermal-print .receipt-summary,
+            body.thermal-print .receipt-footer {
+                grid-template-columns: 1fr;
+            }
+
+            body.thermal-print .receipt-header {
+                gap: 7px;
+            }
+
+            body.thermal-print .receipt-brand {
+                gap: 8px;
+                align-items: center;
+            }
+
+            body.thermal-print .receipt-logo,
+            body.thermal-print .receipt-logo-fallback {
+                width: 42px;
+                height: 42px;
+                font-size: 1.25rem;
+            }
+
+            body.thermal-print .receipt-company-name {
+                font-size: 1.05rem;
+                letter-spacing: 0.08em;
+            }
+
+            body.thermal-print .receipt-tagline {
+                margin-top: 2px;
+                font-size: 0.5rem;
+                letter-spacing: 0.25em;
+            }
+
+            body.thermal-print .receipt-meta {
+                min-width: 0;
+                text-align: left;
+            }
+
+            body.thermal-print .receipt-meta-title {
+                font-size: 1rem;
+                letter-spacing: 0.06em;
+            }
+
+            body.thermal-print .receipt-meta-number {
+                margin-top: 2px;
+                font-size: 0.86rem;
+            }
+
+            body.thermal-print .receipt-meta-label {
+                margin-top: 3px;
+                font-size: 0.66rem;
+            }
+
+            body.thermal-print .receipt-meta-date {
+                margin-top: 1px;
+                font-size: 0.7rem;
+            }
+
+            body.thermal-print .receipt-accent-line {
+                height: 1px;
+                margin: 6px 0 7px;
+            }
+
+            body.thermal-print .receipt-business-info {
+                gap: 5px;
+                margin-bottom: 8px;
+                padding: 0;
+                border-bottom: 1px solid var(--receipt-line);
+                padding-bottom: 6px;
+            }
+
+            body.thermal-print .receipt-info-column {
+                gap: 4px;
+                padding-right: 0;
+                border-right: 0;
+            }
+
+            body.thermal-print .receipt-info-line {
+                display: grid;
+                grid-template-columns: 13px minmax(0, 1fr);
+                gap: 5px;
+                align-items: start;
+                font-size: 0.68rem;
+            }
+
+            body.thermal-print .receipt-message-panel,
+            body.thermal-print .receipt-sale-watermark {
+                display: none;
+            }
+
+            body.thermal-print .receipt-info-icon,
+            body.thermal-print .receipt-info-icon svg {
+                width: 11px;
+                height: 11px;
+            }
+
+            body.thermal-print .receipt-sale-box {
+                gap: 7px;
+                margin-bottom: 8px;
+                padding: 7px;
+                border: 1px solid #ddd;
+            }
+
+            body.thermal-print .receipt-sale-column {
+                gap: 6px;
+            }
+
+            body.thermal-print .receipt-sale-item {
+                display: block;
+            }
+
+            body.thermal-print .receipt-sale-label {
+                margin-bottom: 1px;
+                font-size: 0.58rem;
+            }
+
+            body.thermal-print .receipt-sale-value {
+                font-size: 0.76rem;
+                font-weight: 700;
+            }
+
+            body.thermal-print .receipt-status-pill {
+                min-height: 18px;
+                padding: 0 6px;
+                border-radius: 5px;
+            }
+
+            body.thermal-print .receipt-items {
+                font-size: 0.68rem;
+            }
+
+            body.thermal-print .receipt-items thead th,
+            body.thermal-print .receipt-items tbody td {
+                padding: 5px 3px;
+            }
+
+            body.thermal-print .receipt-items th:nth-child(3),
+            body.thermal-print .receipt-items td:nth-child(3) {
+                display: none;
+            }
+
+            body.thermal-print .receipt-summary {
+                gap: 8px;
+                margin-top: 8px;
+            }
+
+            body.thermal-print .receipt-payment,
+            body.thermal-print .receipt-note {
+                font-size: 0.7rem;
+            }
+
+            body.thermal-print .receipt-note {
+                margin-top: 6px;
+                padding: 6px;
+            }
+
+            body.thermal-print .receipt-totals {
+                gap: 3px;
+                padding: 0;
+                font-size: 0.72rem;
+            }
+
+            body.thermal-print .receipt-total-row-main {
+                margin-top: 4px;
+                padding-top: 6px;
+                padding-bottom: 5px;
+                border-top-width: 2px;
+                font-size: 0.9rem;
+            }
+
+            body.thermal-print .receipt-total-row-main span:last-child {
+                font-size: 1rem;
+            }
+
+            body.thermal-print .receipt-thankyou {
+                margin-top: 10px;
+                font-size: 0.82rem;
+            }
+
+            body.thermal-print .receipt-footer-legal {
+                gap: 1px;
+                margin-top: 5px;
+                font-size: 0.64rem;
+            }
+
+            body.thermal-print .receipt-footer {
+                gap: 7px;
+                margin-top: 8px;
+                padding: 7px;
+                font-size: 0.62rem;
+                text-align: center;
+            }
+
+            body.thermal-print .receipt-footer-brand {
+                gap: 2px;
+            }
+
+            body.thermal-print .receipt-footer-details {
+                display: grid;
+                gap: 1px;
+            }
+
+            body.thermal-print .receipt-footer-details span + span::before {
+                content: "";
+                margin: 0;
+            }
+
+            body.thermal-print .receipt-footer-qr-wrap {
+                grid-template-columns: 1fr;
+                justify-items: center;
+                gap: 4px;
+                padding-left: 0;
+                border-left: 0;
+            }
+
+            body.thermal-print .receipt-footer-qr-copy {
+                max-width: none;
+                font-size: 0.62rem;
+                text-align: center;
+            }
+
+            body.thermal-print .receipt-qr img {
+                width: 58px;
+                height: 58px;
+            }
         }
     </style>
 </head>
@@ -828,7 +1336,12 @@
                     <div class="receipt-info-column">
                         @if ($addressDisplay || $addressUrl)
                             <div class="receipt-info-line">
-                                <span class="receipt-info-icon receipt-info-icon-round">P</span>
+                                <span class="receipt-info-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
+                                        <circle cx="12" cy="10" r="3" />
+                                    </svg>
+                                </span>
                                 <span class="receipt-info-text">
                                     @if ($addressDisplay)
                                         {{ $addressDisplay }}
@@ -841,7 +1354,11 @@
 
                         @if ($companyPhone)
                             <div class="receipt-info-line">
-                                <span class="receipt-info-icon receipt-info-icon-round">T</span>
+                                <span class="receipt-info-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.32 1.77.59 2.61a2 2 0 0 1-.45 2.11L8 9.69a16 16 0 0 0 6.31 6.31l1.25-1.25a2 2 0 0 1 2.11-.45c.84.27 1.71.47 2.61.59A2 2 0 0 1 22 16.92Z" />
+                                    </svg>
+                                </span>
                                 <span class="receipt-info-text">
                                     {{ $companyPhone }}
                                 </span>
@@ -850,7 +1367,16 @@
 
                         @if ($companyCnpj)
                             <div class="receipt-info-line">
-                                <span class="receipt-info-icon">ID</span>
+                                <span class="receipt-info-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M3 21h18" />
+                                        <path d="M5 21V7l8-4v18" />
+                                        <path d="M19 21V11l-6-4" />
+                                        <path d="M9 9h1" />
+                                        <path d="M9 13h1" />
+                                        <path d="M9 17h1" />
+                                    </svg>
+                                </span>
                                 <span class="receipt-info-text">
                                     <span class="receipt-info-label">CNPJ</span> {{ $companyCnpj }}
                                 </span>
@@ -859,7 +1385,13 @@
 
                         @if ($instagramDisplay)
                             <div class="receipt-info-line">
-                                <span class="receipt-info-icon receipt-info-icon-round">IG</span>
+                                <span class="receipt-info-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect width="18" height="18" x="3" y="3" rx="5" />
+                                        <circle cx="12" cy="12" r="4" />
+                                        <path d="M17.5 6.5h.01" />
+                                    </svg>
+                                </span>
                                 <span class="receipt-info-text">
                                     <span class="receipt-info-label">Instagram:</span>
                                     <a href="{{ $instagramUrl }}" target="_blank" rel="noopener">{{ $instagramDisplay }}</a>
@@ -1007,8 +1539,28 @@
         </article>
 
         <div class="receipt-print-button">
-            <button type="button" onclick="window.print()">Imprimir</button>
+            <button type="button" data-print-mode="a4">Imprimir A4</button>
+            <button type="button" data-print-mode="thermal">Imprimir t&eacute;rmica</button>
         </div>
     </main>
+
+    <script>
+        (() => {
+            const printButtons = document.querySelectorAll('[data-print-mode]');
+            const clearPrintMode = () => {
+                document.body.classList.remove('a4-print', 'thermal-print');
+            };
+
+            printButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    clearPrintMode();
+                    document.body.classList.add(button.dataset.printMode === 'thermal' ? 'thermal-print' : 'a4-print');
+                    window.print();
+                });
+            });
+
+            window.addEventListener('afterprint', clearPrintMode);
+        })();
+    </script>
 </body>
 </html>
