@@ -44,13 +44,15 @@
 
                     <div class="mt-5 flex flex-wrap gap-3">
                         <a href="{{ route('super-admin.companies.show', $company) }}" class="sf-button-secondary">Detalhes</a>
-                        <form method="POST" action="{{ route('super-admin.companies.toggle-active', $company) }}">
-                            @csrf
-                            @method('PATCH')
-                            <button type="submit" class="{{ $company->active ? 'inline-flex items-center justify-center rounded-xl border border-rose-300/20 bg-rose-400/12 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-rose-50 transition hover:bg-rose-400/20' : 'sf-button-primary' }}">
-                                {{ $company->active ? 'Inativar empresa' : 'Ativar empresa' }}
-                            </button>
-                        </form>
+                        @unless($company->isInternal())
+                            <form method="POST" action="{{ route('super-admin.companies.toggle-active', $company) }}">
+                                @csrf
+                                @method('PATCH')
+                                <button type="submit" class="{{ $company->active ? 'inline-flex items-center justify-center rounded-xl border border-rose-300/20 bg-rose-400/12 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-rose-50 transition hover:bg-rose-400/20' : 'sf-button-primary' }}">
+                                    {{ $company->active ? 'Inativar empresa' : 'Ativar empresa' }}
+                                </button>
+                            </form>
+                        @endunless
                     </div>
                 </article>
             @endforeach

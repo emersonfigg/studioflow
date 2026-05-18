@@ -27,6 +27,7 @@ class CompanyFactory extends Factory
             'receipt_message' => null,
             'logo' => null,
             'active' => true,
+            'is_internal' => false,
             'onboarding_completed_at' => now(),
             'auto_print_receipt' => false,
             'brand_enabled' => true,

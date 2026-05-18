@@ -16,6 +16,7 @@ class SuperAdminCompanyController extends Controller
     public function index(): View
     {
         $companies = Company::query()
+            ->customer()
             ->withCount(['users', 'appointments'])
             ->withSum('payments', 'gross_amount')
             ->orderByDesc('active')
@@ -32,6 +33,8 @@ class SuperAdminCompanyController extends Controller
      */
     public function show(Company $company): View
     {
+        abort_if($company->isInternal(), 404);
+
         $monthStart = now()->startOfMonth();
         $monthEnd = now()->endOfMonth();
 
@@ -70,6 +73,8 @@ class SuperAdminCompanyController extends Controller
      */
     public function toggleActive(Company $company): RedirectResponse
     {
+        abort_if($company->isInternal(), 403);
+
         $company->update([
             'active' => ! $company->active,
         ]);

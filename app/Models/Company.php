@@ -39,6 +39,7 @@ class Company extends Model
         'receipt_message',
         'brand_enabled',
         'active',
+        'is_internal',
         'onboarding_completed_at',
         'auto_print_receipt',
         'online_booking_payment_enabled',
@@ -60,6 +61,7 @@ class Company extends Model
     {
         return [
             'active' => 'boolean',
+            'is_internal' => 'boolean',
             'brand_enabled' => 'boolean',
             'auto_print_receipt' => 'boolean',
             'online_booking_payment_enabled' => 'boolean',
@@ -149,6 +151,28 @@ class Company extends Model
     public function appointmentReviews(): HasMany
     {
         return $this->hasMany(AppointmentReview::class);
+    }
+
+    public function scopeCustomer($query)
+    {
+        return $query
+            ->where('is_internal', false)
+            ->whereDoesntHave('users', fn ($userQuery) => $userQuery->where('global_role', 'super_admin'));
+    }
+
+    public function isInternal(): bool
+    {
+        if ((bool) $this->is_internal) {
+            return true;
+        }
+
+        if ($this->relationLoaded('users')) {
+            return $this->users->contains(fn (User $user): bool => $user->isSuperAdmin());
+        }
+
+        return $this->users()
+            ->where('global_role', 'super_admin')
+            ->exists();
     }
 
     /**

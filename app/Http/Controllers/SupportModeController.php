@@ -13,6 +13,8 @@ class SupportModeController extends Controller
      */
     public function start(Request $request, Company $company): RedirectResponse
     {
+        abort_if($company->isInternal(), 403);
+
         $supportUser = $company->users()
             ->orderByRaw("case when role = 'admin' then 0 else 1 end")
             ->orderByDesc('active')

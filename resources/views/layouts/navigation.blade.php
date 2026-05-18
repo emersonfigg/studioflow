@@ -35,6 +35,8 @@
                                 <div class="max-w-36 truncate text-xs sf-text-muted">
                                     @if (request()->attributes->get('support_mode_active'))
                                         Modo suporte
+                                    @elseif (Auth::user()->isSuperAdmin())
+                                        Painel Global
                                     @else
                                         {{ Auth::user()->company?->name }}
                                     @endif
@@ -142,6 +144,8 @@
                 <div class="text-sm font-medium sf-text-muted">
                     @if (request()->attributes->get('support_mode_active'))
                         Modo suporte
+                    @elseif (Auth::user()->isSuperAdmin())
+                        Painel Global
                     @else
                         {{ Auth::user()->company?->name }}
                     @endif

@@ -94,6 +94,63 @@ class SuperAdminTest extends TestCase
             ->assertSee('Empresa Inativa');
     }
 
+    public function test_super_admin_company_is_hidden_from_customer_company_list(): void
+    {
+        $internalCompany = Company::factory()->create([
+            'name' => 'Empresa de Emerson',
+        ]);
+        $customerCompany = Company::factory()->create([
+            'name' => 'DIGNUS',
+        ]);
+        $superAdmin = User::factory()->superAdmin()->create([
+            'company_id' => $internalCompany->id,
+        ]);
+
+        $this
+            ->actingAs($superAdmin)
+            ->get(route('super-admin.companies.index', absolute: false))
+            ->assertOk()
+            ->assertSee('DIGNUS')
+            ->assertDontSee('Empresa de Emerson')
+            ->assertSee('Inativar empresa');
+
+        $this->assertFalse($customerCompany->fresh()->isInternal());
+    }
+
+    public function test_super_admin_cannot_toggle_internal_company_even_by_url(): void
+    {
+        $internalCompany = Company::factory()->create([
+            'name' => 'Empresa Interna',
+            'active' => true,
+        ]);
+        $superAdmin = User::factory()->superAdmin()->create([
+            'company_id' => $internalCompany->id,
+        ]);
+
+        $this
+            ->actingAs($superAdmin)
+            ->patch(route('super-admin.companies.toggle-active', $internalCompany, false))
+            ->assertForbidden();
+
+        $this->assertTrue($internalCompany->fresh()->active);
+    }
+
+    public function test_super_admin_cannot_enter_support_mode_for_internal_company(): void
+    {
+        $internalCompany = Company::factory()->create([
+            'name' => 'Empresa Global',
+            'is_internal' => true,
+        ]);
+        $superAdmin = User::factory()->superAdmin()->create();
+
+        $this
+            ->actingAs($superAdmin)
+            ->post(route('super-admin.companies.support.start', $internalCompany, false))
+            ->assertForbidden();
+
+        $this->assertFalse(session()->has('support_mode'));
+    }
+
     public function test_super_admin_can_enter_support_mode_for_company(): void
     {
         $superAdmin = User::factory()->superAdmin()->create([
