@@ -21,7 +21,7 @@
                         </div>
                         <div class="min-w-0">
                             <p class="truncate text-base font-semibold text-[var(--text-main)]">StudioFlow</p>
-                            <p class="text-xs leading-5 sf-text-muted">Agenda inteligente para barbearias, salões e estética</p>
+                            <p class="text-xs leading-5 sf-text-muted">Agenda inteligente para negócios de serviços</p>
                         </div>
                     </a>
 

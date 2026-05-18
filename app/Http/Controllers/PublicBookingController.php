@@ -359,7 +359,7 @@ class PublicBookingController extends Controller
 
             if (! $client->isOperationallyActive()) {
                 throw ValidationException::withMessages([
-                    'client_phone' => 'Este cadastro esta desativado. Entre em contato com a barbearia.',
+                    'client_phone' => 'Este cadastro esta desativado. Entre em contato com a empresa.',
                 ]);
             }
 
@@ -578,7 +578,7 @@ class PublicBookingController extends Controller
 
         if ($client && $client->exists && ! $client->isOperationallyActive()) {
             throw ValidationException::withMessages([
-                'client_email' => 'Este cadastro esta desativado. Entre em contato com a barbearia.',
+                'client_email' => 'Este cadastro esta desativado. Entre em contato com a empresa.',
             ]);
         }
 
@@ -655,7 +655,7 @@ class PublicBookingController extends Controller
 
         if ($client && $client->exists && ! $client->isOperationallyActive()) {
             throw ValidationException::withMessages([
-                'client_email' => 'Este cadastro esta desativado. Entre em contato com a barbearia.',
+                'client_email' => 'Este cadastro esta desativado. Entre em contato com a empresa.',
             ]);
         }
 

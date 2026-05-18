@@ -33,7 +33,7 @@
                             @endif
                             <div>
                                 <p class="text-base font-semibold sf-text">{{ auth()->user()->isSuperAdmin() ? 'StudioFlow' : (auth()->user()->company?->name ?? 'StudioFlow') }}</p>
-                                <p class="text-xs leading-5 sf-text-muted">{{ auth()->user()->isSuperAdmin() ? 'Agenda inteligente para barbearias, salões e estética' : (auth()->user()->company?->safeDescription() ?: 'Agenda inteligente para barbearias, salões e estética') }}</p>
+                                <p class="text-xs leading-5 sf-text-muted">{{ auth()->user()->isSuperAdmin() ? 'Agenda inteligente para negócios de serviços' : (auth()->user()->company?->safeDescription() ?: 'Agenda inteligente para negócios de serviços') }}</p>
                             </div>
                         </div>
 

@@ -4,7 +4,7 @@
             <div>
                 <p class="text-sm font-semibold uppercase tracking-[0.18em] brand-text">Relatórios</p>
                 <h2 class="mt-2 text-3xl font-semibold tracking-tight text-[var(--text-main)]">
-                    Produção por barbeiro
+                    Produção por profissional
                 </h2>
             </div>
 

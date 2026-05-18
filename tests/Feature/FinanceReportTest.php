@@ -82,7 +82,7 @@ class FinanceReportTest extends TestCase
             ->assertSee('R$ 100,00')
             ->assertSee('R$ 50,00')
             ->assertSee('R$ 150,00')
-            ->assertSee('Acertos com barbeiros')
+            ->assertSee('Acertos com profissionais')
             ->assertSee('Pomada Black');
     }
 }

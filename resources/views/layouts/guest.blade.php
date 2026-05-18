@@ -38,7 +38,7 @@
                             </div>
 
                             <h1 class="sf-page-title mt-6 text-[var(--text-main)]">
-                                {{ $tenantBranding['hero_title'] ?? 'Agenda inteligente para barbearias, salões e estética' }}
+                                {{ $tenantBranding['hero_title'] ?? 'Agenda inteligente para negócios de serviços' }}
                             </h1>
 
                             <p class="sf-page-subtitle mt-4 max-w-lg">
@@ -75,7 +75,7 @@
                                 @endif
                                 <div>
                                     <p class="text-lg font-semibold text-[var(--text-main)]">{{ $tenantBranding['company_name'] }}</p>
-                                    <p class="text-sm sf-text-muted">{{ $tenantBranding['hero_subtitle'] ?? $tenantBranding['description_fallback'] ?? 'Agenda inteligente para barbearias, salões e estética' }}</p>
+                                    <p class="text-sm sf-text-muted">{{ $tenantBranding['hero_subtitle'] ?? $tenantBranding['description_fallback'] ?? 'Agenda inteligente para negócios de serviços' }}</p>
                                 </div>
                             </a>
                         </div>

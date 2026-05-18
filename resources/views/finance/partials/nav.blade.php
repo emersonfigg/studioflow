@@ -4,7 +4,7 @@
             Faturamento
         </a>
         <a href="{{ route('finance.production', request()->query()) }}" class="{{ $page === 'production' ? 'sf-tab sf-tab--active' : 'sf-tab' }}">
-            Produção por barbeiro
+            Produção por profissional
         </a>
         <a href="{{ route('finance.commissions', request()->query()) }}" class="{{ $page === 'commissions' ? 'sf-tab sf-tab--active' : 'sf-tab' }}">
             Comissões

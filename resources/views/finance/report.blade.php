@@ -99,7 +99,7 @@
 
         <section class="sf-card overflow-hidden">
             <div class="border-b border-white/10 px-6 py-5">
-                <h3 class="text-base font-semibold text-[var(--text-main)]">Acertos com barbeiros</h3>
+                <h3 class="text-base font-semibold text-[var(--text-main)]">Acertos com profissionais</h3>
             </div>
             <div class="space-y-3 px-5 py-5">
                 @forelse ($settlements as $settlement)
