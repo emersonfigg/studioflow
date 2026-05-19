@@ -93,7 +93,7 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="public-booking-page min-h-screen font-sans text-white antialiased">
-        <main class="mx-auto min-h-screen w-full max-w-full px-4 pb-28 pt-4 sm:px-5 md:max-w-none lg:max-w-7xl lg:px-8 lg:pb-10">
+        <main class="mx-auto min-h-screen w-full max-w-full overflow-hidden px-4 pb-28 pt-4 sm:px-5 md:max-w-none lg:max-w-7xl lg:px-8 lg:pb-10">
             <div
                 x-data="{
                     selectedServiceIds: @js($selectedServiceIdStrings),
@@ -229,14 +229,14 @@
                         return this.totalPrice().toFixed(2).replace('.', ',');
                     }
                 }"
-                class="grid w-full max-w-full gap-5 xl:grid-cols-[minmax(0,1fr)_360px]"
+                class="grid min-w-0 w-full max-w-full gap-5 xl:grid-cols-[minmax(0,1fr)_360px]"
             >
-                <section class="space-y-5">
+                <section class="min-w-0 space-y-5">
                     <header class="booking-hero overflow-hidden px-4 py-5 sm:px-6">
                         @if (! empty($publicBranding['cover_url']))
                             <div class="-mx-4 -mt-5 mb-5 h-36 bg-[var(--brand-secondary)] bg-cover bg-center sm:-mx-6 sm:-mt-5 sm:mb-6 sm:h-44" style="background-image: url({{ \Illuminate\Support\Js::from($publicBranding['cover_url']) }});"></div>
                         @endif
-                        <div class="flex items-start gap-4">
+                        <div class="flex min-w-0 items-start gap-4">
                             @if (! empty($publicBranding['logo_url']))
                                 <img src="{{ $publicBranding['logo_url'] }}" alt="Logo de {{ $company->name }}" class="h-14 w-14 rounded-2xl object-cover ring-1 ring-white/10" loading="lazy" decoding="async">
                             @else
@@ -245,7 +245,7 @@
                                 </div>
                             @endif
                             <div class="min-w-0 flex-1">
-                                <div class="inline-flex items-center rounded-full border border-[color:color-mix(in_srgb,var(--brand-primary)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--brand-primary)_12%,transparent)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)] shadow-[var(--shadow-soft)]">
+                                <div class="inline-flex max-w-full items-center rounded-full border border-[color:color-mix(in_srgb,var(--brand-primary)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--brand-primary)_12%,transparent)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)] shadow-[var(--shadow-soft)]">
                                     Agendamento · {{ $company->name }}
                                 </div>
                                 <h1 class="sf-page-title mt-3 text-white sm:text-3xl">
@@ -265,14 +265,14 @@
                             </div>
                         </div>
 
-                        <div class="mt-5 grid grid-cols-3 gap-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] brand-muted sm:grid-cols-6">
+                        <div class="mt-5 grid min-w-0 grid-cols-3 gap-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] brand-muted sm:grid-cols-6">
                             @foreach (['Serviços', 'Profissional', 'Data', 'Horário', 'Dados', 'Confirmar'] as $index => $step)
                                 @php
                                     $stepDone = $bookingStepDone[$index] ?? false;
                                     $stepActive = $index === $bookingActiveStep;
                                     $stepTone = $stepDone ? 'booking-step--complete' : ($stepActive ? 'booking-step--active' : 'booking-step--pending');
                                 @endphp
-                                <div class="booking-step rounded-2xl px-2 py-3 {{ $stepTone }}">
+                                <div class="booking-step min-w-0 rounded-2xl px-2 py-3 {{ $stepTone }}">
                                     <span class="booking-step-num block font-semibold">{{ $index + 1 }}</span>
                                     <span class="mt-1 block">{{ $step }}</span>
                                 </div>
@@ -297,7 +297,7 @@
                                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-primary)]">Selecionados</p>
                                 <div class="mt-3 flex gap-2 overflow-x-auto pb-1">
                                     <template x-for="service in selectedServices()" :key="service.id">
-                                        <div class="flex min-w-[190px] items-center justify-between gap-3 rounded-2xl border border-[color:color-mix(in_srgb,var(--brand-primary)_18%,transparent)] bg-[var(--brand-surface)] px-3 py-3">
+                                        <div class="flex min-w-[190px] max-w-[calc(100vw-4.5rem)] items-center justify-between gap-3 rounded-2xl border border-[color:color-mix(in_srgb,var(--brand-primary)_18%,transparent)] bg-[var(--brand-surface)] px-3 py-3">
                                             <div class="min-w-0">
                                                 <p class="truncate text-sm font-semibold text-white" x-text="service.name"></p>
                                                 <p class="mt-1 text-xs brand-muted" x-text="`${service.duration} min · R$ ${service.price}`"></p>
@@ -404,7 +404,7 @@
                                             @change="$nextTick(() => applyFilters())"
                                             @checked($selected)
                                         >
-                                        <span class="{{ $selected ? 'border-[var(--brand-primary)] bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] ring-2 ring-[color-mix(in_srgb,var(--brand-primary)_35%,transparent)]' : 'border-[color:color-mix(in_srgb,white_10%,transparent)] bg-[var(--brand-surface)] hover:border-[color-mix(in_srgb,var(--brand-primary)_35%,transparent)]' }} flex items-center justify-between gap-3 rounded-[20px] border p-3 transition">
+                                        <span class="{{ $selected ? 'border-[var(--brand-primary)] bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] ring-2 ring-[color-mix(in_srgb,var(--brand-primary)_35%,transparent)]' : 'border-[color:color-mix(in_srgb,white_10%,transparent)] bg-[var(--brand-surface)] hover:border-[color-mix(in_srgb,var(--brand-primary)_35%,transparent)]' }} flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-[20px] border p-3 transition">
                                             <span class="flex min-w-0 items-center gap-3">
                                                 @if ($user->photo_url)
                                                     <img src="{{ $user->photo_url }}" alt="Foto de {{ $user->name }}" class="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-white/10">
@@ -584,7 +584,7 @@
                                 @endif
 
                                 @if ($onlineBookingPaymentEnabled)
-                                    <div class="grid grid-cols-2 gap-3">
+                                    <div class="grid gap-3 sm:grid-cols-2">
                                         <div class="booking-summary-row px-4 py-4">
                                             <p class="text-xs brand-muted">{{ $bookingPaymentMode === 'full' ? 'Pagamento online' : 'Sinal' }}</p>
                                             <p class="mt-1 text-lg font-semibold text-[var(--brand-primary)]">{{ $depositSummaryText }}</p>

@@ -73,9 +73,16 @@
     }
 
     body {
+        max-width: 100%;
+        overflow-x: hidden;
         background-color: var(--app-bg);
         color: var(--text-main);
         text-rendering: optimizeLegibility;
+    }
+
+    html {
+        max-width: 100%;
+        overflow-x: hidden;
     }
 
     a {
@@ -547,6 +554,27 @@ body.public-booking-page {
         );
     background-color: var(--brand-secondary);
     color: #fff;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.public-booking-page *,
+.public-booking-page *::before,
+.public-booking-page *::after {
+    box-sizing: border-box;
+}
+
+.public-booking-page main,
+.public-booking-page section,
+.public-booking-page form,
+.public-booking-page header,
+.public-booking-page aside,
+.public-booking-page .sf-card,
+.public-booking-page .booking-hero,
+.public-booking-page .booking-summary-panel {
+    min-width: 0;
+    max-width: 100%;
 }
 
 .public-booking-page .brand-muted {
@@ -631,9 +659,16 @@ body.public-booking-page {
 }
 
 .booking-step {
+    min-width: 0;
+    overflow: hidden;
     border-width: 1px;
     border-style: solid;
     transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.booking-step span,
+.public-booking-page .booking-date-tile span {
+    overflow-wrap: anywhere;
 }
 
 .booking-step--pending {
@@ -674,6 +709,8 @@ body.public-booking-page {
 }
 
 .public-booking-page .booking-service-selectable {
+    min-width: 0;
+    max-width: 100%;
     border: 1px solid color-mix(in srgb, white 10%, transparent);
     background: var(--brand-surface);
 }
@@ -697,6 +734,7 @@ body.public-booking-page {
 }
 
 .public-booking-page .booking-summary-row {
+    min-width: 0;
     background: var(--brand-surface);
     border: 1px solid color-mix(in srgb, white 8%, transparent);
     border-radius: 1rem;
@@ -739,6 +777,7 @@ body.public-booking-page {
 }
 
 .public-booking-page .booking-date-tile {
+    min-width: 0;
     border-radius: 1rem;
     border: 1px solid color-mix(in srgb, white 10%, transparent);
     background: var(--brand-surface);
@@ -788,6 +827,19 @@ html[data-theme='light'] .public-booking-page .booking-step--active {
 html[data-theme='light'] .public-booking-page .booking-pill-slot,
 html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     color: var(--text-main);
+}
+
+@media (max-width: 639px) {
+    .public-booking-page .sf-card,
+    .public-booking-page .booking-hero,
+    .public-booking-page .booking-summary-panel {
+        border-radius: 1rem;
+    }
+
+    .public-booking-page .brand-cta,
+    .public-booking-page .sf-button-secondary {
+        white-space: normal;
+    }
 }
 
 /* Preview /company: usa as mesmas variáveis estruturais do tema */
