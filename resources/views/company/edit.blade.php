@@ -49,7 +49,7 @@
                         <a href="{{ route('company.payment-integrations.index') }}" class="sf-button-secondary text-sm">Integracoes de pagamento</a>
                     @endif
                 @endunless
-                <button type="submit" form="company-edit-form" class="brand-cta">
+                <button type="submit" form="company-edit-form" class="sf-button-primary">
                     {{ $isOnboarding ? 'Concluir configuracao' : 'Salvar empresa' }}
                 </button>
             </div>
@@ -265,14 +265,16 @@
 
                         <div class="mt-4 grid gap-4 lg:grid-cols-2">
                             <div class="lg:col-span-2">
-                                <label for="public_headline" class="text-sm font-medium text-[var(--text-main)]">Frase principal (publico)</label>
-                                <input id="public_headline" name="public_headline" type="text" value="{{ $formValues['public_headline'] }}" class="sf-input mt-2 block w-full" @input="refreshPreviewContent()" maxlength="255">
+                                <label for="public_headline" class="text-sm font-medium text-[var(--text-main)]">Titulo do topo do agendamento</label>
+                                <input id="public_headline" name="public_headline" type="text" value="{{ $formValues['public_headline'] }}" class="sf-input mt-2 block w-full" placeholder="Ex: Agende seu horario com estilo" @input="refreshPreviewContent()" maxlength="255">
+                                <p class="mt-2 text-xs sf-muted">Aparece em destaque sobre os banners do link publico. Se ficar vazio, o nome da empresa sera usado.</p>
                                 <x-input-error class="mt-2" :messages="$errors->get('public_headline')" />
                             </div>
 
                             <div class="lg:col-span-2">
-                                <label for="public_subheadline" class="text-sm font-medium text-[var(--text-main)]">Subtitulo (publico)</label>
-                                <input id="public_subheadline" name="public_subheadline" type="text" value="{{ $formValues['public_subheadline'] }}" class="sf-input mt-2 block w-full" @input="refreshPreviewContent()" maxlength="500">
+                                <label for="public_subheadline" class="text-sm font-medium text-[var(--text-main)]">Texto abaixo do titulo</label>
+                                <input id="public_subheadline" name="public_subheadline" type="text" value="{{ $formValues['public_subheadline'] }}" class="sf-input mt-2 block w-full" placeholder="Ex: Cortes, barba e atendimento premium." @input="refreshPreviewContent()" maxlength="500">
+                                <p class="mt-2 text-xs sf-muted">Use uma frase curta para vender a experiencia. Se ficar vazio, a descricao curta da empresa sera usada.</p>
                                 <x-input-error class="mt-2" :messages="$errors->get('public_subheadline')" />
                             </div>
 
@@ -302,6 +304,54 @@
                                 <input id="cover_image" name="cover_image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="sf-input mt-2 block w-full px-3 py-3" @change="updateFileLabel($event, 'cover-file-name')">
                                 <p id="cover-file-name" class="mt-2 hidden text-xs sf-text-muted"></p>
                                 <x-input-error class="mt-2" :messages="$errors->get('cover_image')" />
+                            </div>
+                        </div>
+
+                        <div class="mt-4 rounded-2xl border border-[color-mix(in_srgb,var(--text-main)_10%,transparent)] bg-[var(--card-soft-bg)] p-4">
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <p class="sf-section-title">Banners do agendamento</p>
+                                    <p class="mt-1 text-xs sf-muted">Envie ate 5 imagens para o topo do link publico; recomendamos de 3 a 5. A imagem de capa acima continua como fallback.</p>
+                                </div>
+                                <span class="rounded-full border border-[color-mix(in_srgb,var(--text-main)_12%,transparent)] px-3 py-1 text-xs font-semibold sf-muted">
+                                    {{ $company->bookingCoverImages->count() }}/5
+                                </span>
+                            </div>
+
+                            @if ($company->bookingCoverImages->isNotEmpty())
+                                <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                    @foreach ($company->bookingCoverImages as $coverMedia)
+                                        <label class="group overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--text-main)_10%,transparent)] bg-[var(--input-bg)]">
+                                            <img src="{{ $coverMedia->url }}" alt="Banner do agendamento {{ $loop->iteration }}" class="h-28 w-full object-cover">
+                                            <span class="flex items-start gap-3 px-3 py-3 text-xs sf-muted">
+                                                <input
+                                                    type="checkbox"
+                                                    name="remove_booking_cover_media[]"
+                                                    value="{{ $coverMedia->id }}"
+                                                    class="mt-0.5 rounded border-[color-mix(in_srgb,var(--text-main)_14%,transparent)] bg-[var(--app-shell-bg)] text-[var(--brand-primary)] focus:ring-[var(--brand-primary)]"
+                                                >
+                                                <span>Remover este banner ao salvar</span>
+                                            </span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            @endif
+
+                            <div class="mt-4">
+                                <label for="booking_cover_images" class="text-sm font-medium text-[var(--text-main)]">Adicionar banners</label>
+                                <input
+                                    id="booking_cover_images"
+                                    name="booking_cover_images[]"
+                                    type="file"
+                                    multiple
+                                    accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                    class="sf-input mt-2 block w-full px-3 py-3"
+                                    @change="updateFileLabel($event, 'booking-cover-file-name')"
+                                >
+                                <p id="booking-cover-file-name" class="mt-2 hidden text-xs sf-text-muted"></p>
+                                <p class="mt-2 text-xs sf-muted">Formatos JPG, PNG ou WEBP, ate 4MB por imagem. O booking usa overlay escuro para preservar leitura.</p>
+                                <x-input-error class="mt-2" :messages="$errors->get('booking_cover_images')" />
+                                <x-input-error class="mt-2" :messages="$errors->get('booking_cover_images.*')" />
                             </div>
                         </div>
 

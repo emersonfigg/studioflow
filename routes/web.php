@@ -36,6 +36,8 @@ Route::get('/', function () {
 
 Route::get('/agendar/{company}', [PublicBookingController::class, 'create'])
     ->name('public-bookings.create');
+Route::get('/agendar/{company}/horarios', [PublicBookingController::class, 'slots'])
+    ->name('public-bookings.slots');
 Route::get('/agendar/{company}/google', [PublicBookingController::class, 'redirectToGoogle'])
     ->name('public-bookings.google.redirect');
 Route::get('/agendar/google/callback', [PublicBookingController::class, 'handleGoogleCallback'])

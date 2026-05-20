@@ -6,12 +6,14 @@ use App\Http\Requests\StorePublicBookingRequest;
 use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Company;
+use App\Models\MembershipPlan;
 use App\Models\Service;
 use App\Models\User;
 use App\Services\AvailabilityService;
 use App\Services\BookingPaymentService;
 use App\Services\BrandingService;
 use App\Services\CustomerBlockService;
+use App\Services\ReviewService;
 use App\Services\ServiceOrderService;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
@@ -34,7 +36,10 @@ class PublicBookingController extends Controller
      */
     public function create(Request $request, Company $company, AvailabilityService $availabilityService): View
     {
+        $company->load(['bookingCoverImages']);
+
         $bookingPaymentService = app(BookingPaymentService::class);
+        $reviewService = app(ReviewService::class);
         $services = Service::query()
             ->where('company_id', $company->id)
             ->where('active', true)
@@ -44,8 +49,17 @@ class PublicBookingController extends Controller
         $users = User::query()
             ->where('company_id', $company->id)
             ->where('active', true)
+            ->with('workingHours')
             ->orderBy('name')
             ->get();
+        $membershipPlans = MembershipPlan::query()
+            ->where('company_id', $company->id)
+            ->where('active', true)
+            ->with('services')
+            ->orderBy('price')
+            ->orderBy('name')
+            ->get();
+        $reviewSummary = $reviewService->getCompanyReviewSummary((int) $company->id);
 
         $rawSelectedServiceIds = collect($request->old('service_ids', $request->input('service_ids', [])))
             ->map(fn (mixed $id): int => (int) $id)
@@ -124,6 +138,8 @@ class PublicBookingController extends Controller
             'publicFaviconHref' => $brandingService->faviconHrefFor($company),
             'services' => $services,
             'users' => $users,
+            'membershipPlans' => $membershipPlans,
+            'reviewSummary' => $reviewSummary,
             'selectedServices' => $selectedServices,
             'selectedServiceIds' => $selectedServiceIds,
             'selectedUser' => $selectedUser,
@@ -161,6 +177,69 @@ class PublicBookingController extends Controller
                 'price_value' => (float) $service->price,
                 'image_url' => $service->image_url,
             ])->values(),
+        ]);
+    }
+
+    /**
+     * Return available public booking slots without refreshing the wizard.
+     */
+    public function slots(Request $request, Company $company, AvailabilityService $availabilityService): \Illuminate\Http\JsonResponse
+    {
+        $serviceIds = collect($request->input('service_ids', []))
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter()
+            ->values();
+
+        $services = Service::query()
+            ->where('company_id', $company->id)
+            ->where('active', true)
+            ->whereIn('id', $serviceIds)
+            ->get();
+
+        $user = User::query()
+            ->where('company_id', $company->id)
+            ->where('active', true)
+            ->find((int) $request->input('user_id'));
+
+        $selectedDate = $request->filled('date')
+            ? CarbonImmutable::parse((string) $request->input('date'))->toDateString()
+            : CarbonImmutable::today()->toDateString();
+
+        if ($services->isEmpty() || ! $user) {
+            return response()->json([
+                'slots' => [],
+                'available_slots' => [],
+                'next_available_slot' => null,
+            ]);
+        }
+
+        $slotOptions = $availabilityService->slotOptionsForDuration(
+            $company,
+            $user,
+            (int) $services->sum('duration_minutes'),
+            $selectedDate,
+            true,
+            null,
+            $this->identifiedClient($company)?->id,
+        );
+
+        $availableSlotOptions = collect($slotOptions)
+            ->where('available', true)
+            ->map(fn (array $slot): array => [
+                'time' => $slot['time'],
+                'available' => true,
+                'public_label' => $slot['public_label'] ?? null,
+            ])
+            ->values();
+        $availableSlots = $availableSlotOptions
+            ->where('available', true)
+            ->pluck('time')
+            ->values();
+
+        return response()->json([
+            'slots' => $availableSlotOptions,
+            'available_slots' => $availableSlots,
+            'next_available_slot' => $availableSlots->first(),
         ]);
     }
 

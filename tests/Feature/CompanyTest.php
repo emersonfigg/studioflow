@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\CompanyPublicMedia;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -55,6 +56,112 @@ class CompanyTest extends TestCase
         $this->assertSame('Mais que um corte, e sobre autoestima.', $company->receipt_message);
         $this->assertNotNull($company->logo);
         Storage::disk('public')->assertExists($company->logo);
+    }
+
+    public function test_admin_can_manage_public_booking_cover_banners(): void
+    {
+        Storage::fake('public');
+
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+
+        $existing = CompanyPublicMedia::create([
+            'company_id' => $company->id,
+            'type' => 'booking_cover',
+            'path' => 'companies/booking-covers/old.jpg',
+            'position' => 0,
+            'is_active' => true,
+        ]);
+        Storage::disk('public')->put($existing->path, 'old-cover');
+
+        $this
+            ->actingAs($admin)
+            ->get(route('company.edit', absolute: false))
+            ->assertOk()
+            ->assertSee('Banners do agendamento')
+            ->assertSee('/storage/companies/booking-covers/old.jpg');
+
+        $this
+            ->actingAs($admin)
+            ->patch(route('company.update', absolute: false), [
+                'name' => $company->name,
+                'remove_booking_cover_media' => [$existing->id],
+                'booking_cover_images' => [
+                    UploadedFile::fake()->image('cover-1.webp', 1200, 600),
+                    UploadedFile::fake()->image('cover-2.jpg', 1200, 600),
+                ],
+            ])
+            ->assertRedirect(route('company.edit', absolute: false))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseMissing('company_public_media', [
+            'id' => $existing->id,
+        ]);
+        Storage::disk('public')->assertMissing($existing->path);
+
+        $covers = $company->fresh()->bookingCoverImages()->get();
+
+        $this->assertCount(2, $covers);
+        $this->assertSame([1, 2], $covers->pluck('position')->all());
+        $covers->each(fn (CompanyPublicMedia $cover) => Storage::disk('public')->assertExists($cover->path));
+    }
+
+    public function test_admin_can_customize_public_booking_hero_texts(): void
+    {
+        $company = Company::factory()->create([
+            'name' => 'Barbearia Raiz',
+            'description' => 'Descricao antiga',
+        ]);
+        $admin = User::factory()->admin()->for($company)->create();
+
+        $this
+            ->actingAs($admin)
+            ->patch(route('company.update', absolute: false), [
+                'name' => 'Barbearia Raiz',
+                'public_headline' => 'Seu visual novo começa aqui',
+                'public_subheadline' => 'Corte, barba e cuidado com hora marcada.',
+            ])
+            ->assertRedirect(route('company.edit', absolute: false))
+            ->assertSessionHasNoErrors();
+
+        $company->refresh();
+
+        $this->assertSame('Seu visual novo começa aqui', $company->public_headline);
+        $this->assertSame('Corte, barba e cuidado com hora marcada.', $company->public_subheadline);
+    }
+
+    public function test_admin_cannot_keep_more_than_five_public_booking_cover_banners(): void
+    {
+        Storage::fake('public');
+
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+
+        foreach (range(1, 4) as $index) {
+            CompanyPublicMedia::create([
+                'company_id' => $company->id,
+                'type' => 'booking_cover',
+                'path' => "companies/booking-covers/existing-{$index}.jpg",
+                'position' => $index,
+                'is_active' => true,
+            ]);
+        }
+
+        $this
+            ->actingAs($admin)
+            ->from(route('company.edit', absolute: false))
+            ->patch(route('company.update', absolute: false), [
+                'name' => 'Nao deve salvar parcialmente',
+                'booking_cover_images' => [
+                    UploadedFile::fake()->image('cover-1.webp', 1200, 600),
+                    UploadedFile::fake()->image('cover-2.jpg', 1200, 600),
+                ],
+            ])
+            ->assertRedirect(route('company.edit', absolute: false))
+            ->assertSessionHasErrors('booking_cover_images');
+
+        $this->assertSame($company->name, $company->fresh()->name);
+        $this->assertCount(4, $company->fresh()->bookingCoverImages()->get());
     }
 
     public function test_admin_is_redirected_to_onboarding_when_company_setup_is_incomplete(): void

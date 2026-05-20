@@ -5,9 +5,9 @@ namespace App\Models;
 use App\Enums\PaymentProvider;
 use App\Support\MediaStorage;
 use Database\Factories\CompanyFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Company extends Model
 {
@@ -143,6 +143,19 @@ class Company extends Model
     public function bookingPayments(): HasMany
     {
         return $this->hasMany(BookingPayment::class);
+    }
+
+    public function publicMedia(): HasMany
+    {
+        return $this->hasMany(CompanyPublicMedia::class);
+    }
+
+    public function bookingCoverImages(): HasMany
+    {
+        return $this->publicMedia()
+            ->where('type', 'booking_cover')
+            ->where('is_active', true)
+            ->orderBy('position');
     }
 
     /**

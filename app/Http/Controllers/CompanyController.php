@@ -9,6 +9,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class CompanyController extends Controller
 {
@@ -42,7 +43,7 @@ class CompanyController extends Controller
         abort_unless($company, 404);
 
         return view('company.edit', [
-            'company' => $company,
+            'company' => $company->loadMissing('bookingCoverImages'),
             'formValues' => $this->companyFormValues($request, $company),
             'isOnboarding' => false,
             'brandingPreviewVars' => $brandingService->previewThemeStylePairs(
@@ -69,7 +70,7 @@ class CompanyController extends Controller
         }
 
         return view('company.edit', [
-            'company' => $company,
+            'company' => $company->loadMissing('bookingCoverImages'),
             'formValues' => $this->companyFormValues($request, $company),
             'isOnboarding' => true,
             'brandingPreviewVars' => $brandingService->previewThemeStylePairs(
@@ -115,7 +116,13 @@ class CompanyController extends Controller
         $company = $request->user()->company;
         abort_unless($company, 404);
 
-        $data = $request->safe()->except(['logo', 'favicon', 'cover_image']);
+        $data = $request->safe()->except([
+            'logo',
+            'favicon',
+            'cover_image',
+            'booking_cover_images',
+            'remove_booking_cover_media',
+        ]);
 
         foreach (self::TEXT_FIELDS as $field) {
             $sanitized = $this->sanitizeTextualField($data[$field] ?? null, $field === 'name');
@@ -130,6 +137,8 @@ class CompanyController extends Controller
         foreach (['primary_color', 'secondary_color', 'accent_color'] as $colorField) {
             $data[$colorField] = $brandingService->sanitizeColors($data[$colorField] ?? null);
         }
+
+        $this->ensureBookingCoverImageLimit($request, $company);
 
         if ($request->hasFile('logo')) {
             if ($company->normalizedLogoPath()) {
@@ -163,6 +172,8 @@ class CompanyController extends Controller
 
         $company->update($data);
 
+        $this->syncBookingCoverImages($request, $company);
+
         $company->refresh();
 
         $request->user()->unsetRelation('company');
@@ -170,6 +181,63 @@ class CompanyController extends Controller
         return redirect()
             ->route($wasOnboardingIncomplete ? 'dashboard' : 'company.edit')
             ->with('status', $wasOnboardingIncomplete ? 'company-onboarded' : 'company-updated');
+    }
+
+    private function syncBookingCoverImages(UpdateCompanyRequest $request, $company): void
+    {
+        $removeIds = collect($request->input('remove_booking_cover_media', []))
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+        $uploads = collect($request->file('booking_cover_images', []))->filter()->values();
+
+        if ($removeIds->isNotEmpty()) {
+            $mediaToRemove = $company->publicMedia()
+                ->whereKey($removeIds->all())
+                ->where('type', 'booking_cover')
+                ->get();
+
+            MediaStorage::delete($mediaToRemove->pluck('path')->all());
+
+            $mediaToRemove->each->delete();
+        }
+
+        if ($uploads->isEmpty()) {
+            return;
+        }
+
+        $nextPosition = (int) $company->publicMedia()
+            ->where('type', 'booking_cover')
+            ->max('position') + 1;
+
+        foreach ($uploads as $index => $file) {
+            $company->publicMedia()->create([
+                'type' => 'booking_cover',
+                'path' => MediaStorage::putFile('companies/booking-covers', $file),
+                'position' => $nextPosition + $index,
+                'is_active' => true,
+            ]);
+        }
+    }
+
+    private function ensureBookingCoverImageLimit(UpdateCompanyRequest $request, $company): void
+    {
+        $removeIds = collect($request->input('remove_booking_cover_media', []))
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+        $uploads = collect($request->file('booking_cover_images', []))->filter();
+        $remainingCount = $company->bookingCoverImages()
+            ->when($removeIds->isNotEmpty(), fn ($query) => $query->whereKeyNot($removeIds->all()))
+            ->count();
+
+        if ($remainingCount + $uploads->count() > 5) {
+            throw ValidationException::withMessages([
+                'booking_cover_images' => 'Mantenha no maximo 5 banners ativos no agendamento publico.',
+            ]);
+        }
     }
 
     /**

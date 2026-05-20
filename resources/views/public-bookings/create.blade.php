@@ -1,7 +1,15 @@
 @php
     $selectedServiceIdStrings = $selectedServiceIds->map(fn ($id) => (string) $id)->all();
     $today = \Carbon\CarbonImmutable::today()->toDateString();
-    $slotPeriods = collect($slotOptions ?? [])->where('available', true)->groupBy(function (array $slot): string {
+    $availableSlotOptions = collect($slotOptions ?? [])
+        ->where('available', true)
+        ->map(fn (array $slot): array => [
+            'time' => $slot['time'],
+            'available' => true,
+            'public_label' => $slot['public_label'] ?? null,
+        ])
+        ->values();
+    $slotPeriods = $availableSlotOptions->groupBy(function (array $slot): string {
         $hour = (int) substr($slot['time'], 0, 2);
 
         return match (true) {
@@ -10,7 +18,7 @@
             default => 'Noite',
         };
     });
-    $nextAvailableSlot = collect($slotOptions ?? [])->firstWhere('available', true)['time'] ?? null;
+    $nextAvailableSlot = $availableSlotOptions->first()['time'] ?? null;
     $bookingQuery = [
         'service_ids' => $selectedServiceIds->all(),
         'user_id' => $selectedUserId,
@@ -63,6 +71,110 @@
     if ($bookingStepDone[0] && $bookingStepDone[1] && $bookingStepDone[2] && $bookingStepDone[3] && $bookingStepDone[4]) {
         $bookingActiveStep = 5;
     }
+    $requestedVisualStep = request('visual_step');
+    $validBookingSteps = ['services', 'professionals', 'date', 'time', 'data', 'confirm'];
+    $initialBookingStep = match (true) {
+        $errors->has('client_name') || $errors->has('client_phone') || $errors->has('client_email') || $errors->has('notes') || $errors->has('payment_choice') => 'data',
+        $errors->has('time') => 'time',
+        $errors->has('date') => 'date',
+        ! $hasBookingPro => 'professionals',
+        ! $hasBookingServices => 'services',
+        ! $hasBookingDate => 'date',
+        ! $hasBookingTime => 'date',
+        ! $hasBookingClient => 'data',
+        default => 'confirm',
+    };
+    if (in_array($requestedVisualStep, $validBookingSteps, true)) {
+        $initialBookingStep = match ($requestedVisualStep) {
+            'professionals' => 'professionals',
+            'date' => $hasBookingServices && $hasBookingPro ? 'date' : ($hasBookingServices ? 'professionals' : 'services'),
+            'time' => $hasBookingServices && $hasBookingPro && $hasBookingDate ? 'time' : ($hasBookingServices && $hasBookingPro ? 'date' : ($hasBookingServices ? 'professionals' : 'services')),
+            'data' => $hasBookingServices && $hasBookingPro && $hasBookingDate && $hasBookingTime ? 'data' : $initialBookingStep,
+            'confirm' => $hasBookingServices && $hasBookingPro && $hasBookingDate && $hasBookingTime && $hasBookingClient ? 'confirm' : $initialBookingStep,
+            default => 'services',
+        };
+    }
+    $initialAssistantStep = $initialBookingStep;
+    $brandingService = app(\App\Services\BrandingService::class);
+    $bookingPrimaryRaw = $brandingService->sanitizeColors($company->primary_color ?? null)
+        ?? $brandingService->sanitizeColors($publicBranding['primary'] ?? null)
+        ?? '#0F3D3A';
+    $bookingSecondary = $brandingService->sanitizeColors($company->secondary_color ?? null)
+        ?? $brandingService->sanitizeColors($publicBranding['secondary'] ?? null)
+        ?? '#0F172A';
+    $bookingAccent = $brandingService->sanitizeColors($company->accent_color ?? null)
+        ?? $brandingService->sanitizeColors($publicBranding['accent'] ?? null)
+        ?? $bookingPrimaryRaw;
+    $bookingPrimaryAction = $brandingService->relativeLuminance($bookingPrimaryRaw) > 0.58
+        ? $brandingService->mixColor($bookingPrimaryRaw, '#000000', 36)
+        : $bookingPrimaryRaw;
+    $bookingPrimaryDark = $brandingService->mixColor($bookingPrimaryAction, '#000000', 28);
+    $bookingPrimarySoft = $brandingService->mixColor($bookingPrimaryAction, '#FFFFFF', 88);
+    $bookingOnPrimary = $brandingService->contrastingForegroundOnPrimary($bookingPrimaryAction);
+    $bookingHeroText = $brandingService->readableTextColor($bookingSecondary);
+    $bookingSurface = 'color-mix(in srgb, var(--booking-secondary) 88%, white 12%)';
+    $bookingCardBase = 'color-mix(in srgb, var(--booking-secondary) 82%, white 18%)';
+    $bookingCardSoft = 'color-mix(in srgb, var(--booking-secondary) 74%, white 26%)';
+    $bookingText = '#FFFFFF';
+    $bookingMuted = 'rgba(255, 255, 255, 0.68)';
+    $bookingBorder = 'rgba(255, 255, 255, 0.14)';
+    $bookingThemeStyle = collect([
+        '--booking-primary' => $bookingPrimaryRaw,
+        '--booking-primary-action' => $bookingPrimaryAction,
+        '--booking-primary-dark' => $bookingPrimaryDark,
+        '--booking-primary-soft' => $bookingPrimarySoft,
+        '--booking-secondary' => $bookingSecondary,
+        '--booking-accent' => $bookingAccent,
+        '--company-primary' => $bookingPrimaryRaw,
+        '--company-secondary' => $bookingSecondary,
+        '--company-accent' => $bookingAccent,
+        '--booking-bg' => 'var(--booking-secondary)',
+        '--booking-surface' => $bookingSurface,
+        '--booking-card-base' => $bookingCardBase,
+        '--booking-card' => $bookingCardBase,
+        '--booking-card-soft' => $bookingCardSoft,
+        '--booking-card-strong' => $bookingCardSoft,
+        '--booking-text' => $bookingText,
+        '--booking-muted' => $bookingMuted,
+        '--booking-border' => $bookingBorder,
+        '--booking-on-primary' => $bookingOnPrimary,
+        '--booking-hero-text' => $bookingHeroText,
+        '--brand-primary' => 'var(--booking-primary-action)',
+        '--brand-on-primary' => 'var(--booking-on-primary)',
+        '--btn-primary-bg' => 'var(--booking-primary-action)',
+        '--btn-primary-text' => 'var(--booking-on-primary)',
+    ])->map(fn ($value, $key) => $key.': '.$value)->implode('; ');
+    $publicDescription = $publicBranding['hero_subtitle'] ?? ($publicBranding['description_fallback'] ?: $company->safeDescription());
+    $configuredBookingCoverImages = $company->bookingCoverImages()
+        ->get()
+        ->map(fn ($media) => $media->url)
+        ->filter(fn ($image) => filled($image))
+        ->values();
+    $bookingCoverImages = ($configuredBookingCoverImages->isNotEmpty() ? $configuredBookingCoverImages : collect([$publicBranding['cover_url'] ?? null]))
+        ->filter(fn ($image) => filled($image))
+        ->unique()
+        ->take(5)
+        ->values();
+    $weekdayNames = [0 => 'Dom', 1 => 'Seg', 2 => 'Ter', 3 => 'Qua', 4 => 'Qui', 5 => 'Sex', 6 => 'Sab'];
+    $weeklyHours = $users
+        ->flatMap(fn ($user) => $user->workingHours)
+        ->groupBy('weekday')
+        ->map(function ($hours, $weekday) use ($weekdayNames) {
+            return [
+                'day' => $weekdayNames[(int) $weekday] ?? (string) $weekday,
+                'intervals' => $hours
+                    ->map(fn ($hour) => substr((string) $hour->start_time, 0, 5).' - '.substr((string) $hour->end_time, 0, 5))
+                    ->unique()
+                    ->values(),
+            ];
+        })
+        ->sortKeys();
+    $hasAboutDetails = filled($company->safeDescription())
+        || filled($publicBranding['welcome_message'] ?? null)
+        || filled($company->address)
+        || filled($company->phone)
+        || filled($company->instagram)
+        || $weeklyHours->isNotEmpty();
 @endphp
 
 <!DOCTYPE html>
@@ -92,15 +204,19 @@
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="public-booking-page min-h-screen font-sans text-white antialiased">
-        <main class="mx-auto min-h-screen w-full max-w-full overflow-hidden px-4 pb-28 pt-4 sm:px-5 md:max-w-none lg:max-w-7xl lg:px-8 lg:pb-10">
+    <body class="public-booking-page public-booking-v3 min-h-screen font-sans text-white antialiased" style="{{ $bookingThemeStyle }}">
+        <main class="public-booking-app mx-auto min-h-screen w-full max-w-full overflow-hidden px-0 pb-28 lg:pb-10" style="{{ $bookingThemeStyle }}">
             <div
                 x-data="{
                     selectedServiceIds: @js($selectedServiceIdStrings),
+                    selectedProfessionalId: @js($selectedUserId ? (string) $selectedUserId : null),
                     serviceSearch: '',
                     selectedDate: @js($selectedDate),
                     selectedTime: @js(old('time', $selectedTime)),
                     paymentChoice: @js($selectedPaymentChoice),
+                    currentStep: @js($initialAssistantStep),
+                    stepOrder: ['services', 'professionals', 'date', 'time', 'data', 'confirm'],
+                    bookingActiveTabStyle: @js('background-color: '.$bookingPrimaryAction.'; color: '.$bookingOnPrimary.'; box-shadow: inset 0 0 0 999px '.$bookingPrimaryAction.';'),
                     hasProfessional: @js((bool) $selectedUser),
                     clientName: @js(old('client_name', $identifiedClient?->name)),
                     clientPhone: @js(old('client_phone', $identifiedClient?->phone)),
@@ -108,17 +224,196 @@
                     catalog: @js($servicesCatalog),
                     categories: ['Todos', 'Serviços'],
                     selectedCategory: 'Todos',
+                    slotOptions: @js($availableSlotOptions),
+                    loadingTimes: false,
+                    slotsLoaded: @js(! empty($slotOptions ?? [])),
+                    slotsError: null,
+                    slotsEndpoint: @js(route('public-bookings.slots', $company)),
                     visibleSlotLimits: { Manha: 8, Tarde: 8, Noite: 8 },
                     showMoreSlots(period) {
                         this.visibleSlotLimits[period] = (this.visibleSlotLimits[period] || 8) + 8;
                     },
-                    applyFilters() {
-                        sessionStorage.setItem('publicBookingScrollY', String(window.scrollY));
+                    markSlotsDirty() {
+                        this.selectedTime = '';
+                        this.slotOptions = [];
+                        this.slotsLoaded = false;
+                        this.slotsError = null;
+                    },
+                    selectService(serviceId) {
+                        const normalized = String(serviceId);
+                        if (this.selectedServiceIds.includes(normalized)) {
+                            this.selectedServiceIds = this.selectedServiceIds.filter((id) => id !== normalized);
+                        } else {
+                            this.selectedServiceIds.push(normalized);
+                        }
+                        this.markSlotsDirty();
+                    },
+                    selectProfessional(userId) {
+                        this.selectedProfessionalId = String(userId);
+                        this.hasProfessional = true;
+                        this.markSlotsDirty();
+                    },
+                    selectDate(date) {
+                        this.selectedDate = date;
+                        this.markSlotsDirty();
+                    },
+                    visualStepAfterFilter() {
+                        return this.currentStep;
+                    },
+                    preserveScroll(callback) {
+                        const currentY = window.scrollY;
+                        callback();
+                        this.$nextTick(() => window.scrollTo({ top: currentY, left: 0, behavior: 'auto' }));
+                    },
+                    scrollWizardTop() {
+                        document.querySelector('.public-booking-shell')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    },
+                    tabIsActive(tab) {
+                        return tab === 'date' ? ['date', 'time'].includes(this.currentStep) : this.currentStep === tab;
+                    },
+                    canOpenStep(step) {
+                        if (step === 'services') {
+                            return true;
+                        }
+                        if (step === 'professionals') {
+                            return true;
+                        }
+                        if (step === 'date') {
+                            return this.hasSelectedServices() && this.hasProfessional;
+                        }
+                        if (step === 'time') {
+                            return this.readyForSlots();
+                        }
+                        if (step === 'data') {
+                            return this.readyForSlots() && Boolean(this.selectedTime);
+                        }
+                        if (step === 'confirm') {
+                            return this.readyToConfirm();
+                        }
+
+                        return false;
+                    },
+                    goToStep(step) {
+                        if (!this.canOpenStep(step)) {
+                            return;
+                        }
+                        this.currentStep = step;
+                        this.afterStepChange();
+                    },
+                    previousStep() {
+                        const previous = {
+                            services: 'professionals',
+                            professionals: 'professionals',
+                            date: this.hasProfessional ? 'professionals' : 'services',
+                            time: 'date',
+                            data: 'time',
+                            confirm: 'data',
+                        }[this.currentStep] || 'professionals';
+
+                        this.currentStep = previous;
+                        this.afterStepChange();
+                    },
+                    canContinueCurrentStep() {
+                        if (this.currentStep === 'services') {
+                            return this.hasSelectedServices();
+                        }
+                        if (this.currentStep === 'professionals') {
+                            return this.hasProfessional;
+                        }
+                        if (this.currentStep === 'date') {
+                            return this.readyForSlots();
+                        }
+                        if (this.currentStep === 'time') {
+                            return Boolean(this.selectedTime);
+                        }
+                        if (this.currentStep === 'data') {
+                            return this.readyToConfirm();
+                        }
+
+                        return false;
+                    },
+                    continueLabel() {
+                        if (this.currentStep === 'data') {
+                            return 'Revisar agendamento';
+                        }
+
+                        return 'Continuar';
+                    },
+                    continueWizard() {
+                        if (!this.canContinueCurrentStep()) {
+                            if (this.currentStep === 'data' && this.blockedByIncompleteFullNameOnly()) {
+                                this.focusClientNameField();
+                            }
+                            return;
+                        }
+                        const next = {
+                            services: this.hasProfessional ? 'date' : 'professionals',
+                            professionals: 'services',
+                            date: 'time',
+                            time: 'data',
+                            data: 'confirm',
+                        }[this.currentStep];
+                        if (!next) {
+                            return;
+                        }
+                        this.currentStep = next;
+                        this.afterStepChange();
+                    },
+                    afterStepChange() {
                         this.$nextTick(() => {
-                            if (this.$refs.bookingFilters) {
-                                this.$refs.bookingFilters.submit();
+                            this.scrollWizardTop();
+                            this.scrollActiveTabIntoView();
+                        });
+                        if (this.currentStep === 'time') {
+                            this.loadAvailableTimes();
+                        }
+                    },
+                    scrollActiveTabIntoView() {
+                        const visibleTabs = Array.from(document.querySelectorAll('.booking-browser-tabs'))
+                            .find((tabs) => tabs.offsetParent !== null);
+                        const activeTab = visibleTabs?.querySelector('.booking-browser-tab.is-active');
+
+                        if (!visibleTabs || !activeTab) {
+                            return;
+                        }
+
+                        activeTab.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'nearest',
+                            inline: 'center',
+                        });
+
+                        window.requestAnimationFrame(() => {
+                            const activeRect = activeTab.getBoundingClientRect();
+                            const tabsRect = visibleTabs.getBoundingClientRect();
+                            const rightOverflow = activeRect.right - (tabsRect.right - 12);
+                            const leftOverflow = (tabsRect.left + 12) - activeRect.left;
+
+                            if (rightOverflow > 0) {
+                                visibleTabs.scrollLeft += rightOverflow;
+                            } else if (leftOverflow > 0) {
+                                visibleTabs.scrollLeft -= leftOverflow;
                             }
                         });
+                    },
+                    stepIsComplete(step) {
+                        if (step === 'services') {
+                            return this.hasSelectedServices();
+                        }
+                        if (step === 'professionals') {
+                            return this.hasProfessional;
+                        }
+                        if (step === 'date') {
+                            return this.readyForSlots() && Boolean(this.selectedTime);
+                        }
+                        if (step === 'time') {
+                            return this.readyForSlots() && Boolean(this.selectedTime);
+                        }
+                        if (step === 'data') {
+                            return this.readyToConfirm();
+                        }
+
+                        return false;
                     },
                     clientNameTokens() {
                         return String(this.clientName || '')
@@ -208,7 +503,7 @@
                         return this.selectedServiceIds.length > 0;
                     },
                     readyForSlots() {
-                        return this.hasSelectedServices() && this.hasProfessional && this.selectedDate;
+                        return this.hasSelectedServices() && Boolean(this.selectedProfessionalId) && this.selectedDate;
                     },
                     readyToConfirm() {
                         if (! this.readyForSlots() || ! this.selectedTime) {
@@ -227,16 +522,87 @@
                     },
                     formattedTotalPrice() {
                         return this.totalPrice().toFixed(2).replace('.', ',');
+                    },
+                    selectedProfessionalName() {
+                        const option = document.querySelector(`input[name='user_id'][value='${this.selectedProfessionalId}']`);
+
+                        return option?.dataset?.professionalName || '-';
+                    },
+                    availableSlots() {
+                        return this.slotOptions.filter((slot) => slot.available);
+                    },
+                    slotPeriods() {
+                        return this.availableSlots().reduce((periods, slot) => {
+                            const hour = Number(String(slot.time).slice(0, 2));
+                            const period = hour < 12 ? 'Manha' : (hour < 18 ? 'Tarde' : 'Noite');
+                            periods[period] = periods[period] || [];
+                            periods[period].push(slot);
+
+                            return periods;
+                        }, {});
+                    },
+                    periodLabel(period) {
+                        return period === 'Manha' ? 'Manhã' : period;
+                    },
+                    nextAvailableSlot() {
+                        return this.availableSlots()[0]?.time || null;
+                    },
+                    async loadAvailableTimes() {
+                        if (!this.readyForSlots()) {
+                            return;
+                        }
+                        if (this.slotsLoaded) {
+                            return;
+                        }
+
+                        this.loadingTimes = true;
+                        this.slotsError = null;
+
+                        const params = new URLSearchParams();
+                        this.selectedServiceIds.forEach((id) => params.append('service_ids[]', id));
+                        params.set('user_id', this.selectedProfessionalId);
+                        params.set('date', this.selectedDate);
+
+                        try {
+                            const response = await fetch(`${this.slotsEndpoint}?${params.toString()}`, {
+                                headers: { 'Accept': 'application/json' },
+                            });
+
+                            if (!response.ok) {
+                                throw new Error('Falha ao carregar horarios.');
+                            }
+
+                            const payload = await response.json();
+                            this.slotOptions = Array.isArray(payload.slots) ? payload.slots : [];
+                            this.slotsLoaded = true;
+                        } catch (error) {
+                            this.slotOptions = [];
+                            this.slotsError = 'Não foi possível carregar os horários agora. Tente novamente.';
+                        } finally {
+                            this.loadingTimes = false;
+                        }
                     }
                 }"
-                class="grid min-w-0 w-full max-w-full gap-5 xl:grid-cols-[minmax(0,1fr)_360px]"
+                class="public-booking-shell grid min-w-0 w-full max-w-full gap-5"
             >
-                <section class="min-w-0 space-y-5">
-                    <header class="booking-hero overflow-hidden px-4 py-5 sm:px-6">
-                        @if (! empty($publicBranding['cover_url']))
-                            <div class="-mx-4 -mt-5 mb-5 h-36 bg-[var(--brand-secondary)] bg-cover bg-center sm:-mx-6 sm:-mt-5 sm:mb-6 sm:h-44" style="background-image: url({{ \Illuminate\Support\Js::from($publicBranding['cover_url']) }});"></div>
+                <section class="min-w-0 space-y-0 lg:space-y-5">
+                    <header class="booking-hero booking-profile-header">
+                        @if ($bookingCoverImages->isNotEmpty())
+                            <div class="booking-hero-slider {{ $bookingCoverImages->count() > 1 ? 'has-carousel' : '' }}" style="--slide-count: {{ max(1, $bookingCoverImages->count()) }};">
+                                @foreach ($bookingCoverImages as $coverIndex => $coverImage)
+                                    <div
+                                        class="booking-hero-slide {{ $coverIndex === 0 ? 'active' : '' }}"
+                                        role="img"
+                                        aria-label="Imagem de capa de {{ $company->name }}"
+                                        style="--slide-index: {{ $coverIndex }}; background-image: url('{{ $coverImage }}');"
+                                    ></div>
+                                @endforeach
+                            </div>
                         @endif
-                        <div class="flex min-w-0 items-start gap-4">
+
+                        <div class="booking-hero-overlay"></div>
+
+                        <div class="booking-hero-content flex min-w-0 items-start gap-4">
                             @if (! empty($publicBranding['logo_url']))
                                 <img src="{{ $publicBranding['logo_url'] }}" alt="Logo de {{ $company->name }}" class="h-14 w-14 rounded-2xl object-cover ring-1 ring-white/10" loading="lazy" decoding="async">
                             @else
@@ -249,11 +615,13 @@
                                     Agendamento · {{ $company->name }}
                                 </div>
                                 <h1 class="sf-page-title mt-3 text-white sm:text-3xl">
-                                    {{ $publicBranding['hero_title'] }}
+                                    {{ $publicBranding['hero_title'] ?? $company->name }}
                                 </h1>
-                                <p class="sf-page-subtitle mt-2 max-w-2xl brand-muted">
-                                    {{ $publicBranding['hero_subtitle'] ?? ($publicBranding['description_fallback'] ?: 'Escolha serviços, profissional, data e horário em poucos passos.') }}
-                                </p>
+                                @if (filled($publicDescription))
+                                    <p class="sf-page-subtitle mt-2 max-w-2xl brand-muted">
+                                        {{ $publicDescription }}
+                                    </p>
+                                @endif
                                 @if (! empty($publicBranding['welcome_message']))
                                     <p class="mt-3 max-w-2xl rounded-2xl border border-[color:color-mix(in_srgb,var(--brand-primary)_15%,transparent)] bg-[color:color-mix(in_srgb,var(--brand-accent)_55%,transparent)] px-3 py-2 text-sm leading-6 brand-muted">
                                         {{ $publicBranding['welcome_message'] }}
@@ -262,6 +630,24 @@
                                 @if ($company->instagram)
                                     <p class="mt-2 text-sm font-semibold text-[var(--brand-primary)]">{{ $company->instagram }}</p>
                                 @endif
+                                @if (($reviewSummary['count'] ?? 0) > 0)
+                                    <div class="booking-rating-badge">
+                                        <span>★</span>
+                                        <strong>{{ number_format((float) $reviewSummary['avg_rating'], 1, ',', '.') }}</strong>
+                                        <span>{{ $reviewSummary['count'] }} avaliações</span>
+                                    </div>
+                                @endif
+                                <div class="booking-profile-chips">
+                                    @if ($company->instagram)
+                                        <span>{{ $company->instagram }}</span>
+                                    @endif
+                                    @if (filled($company->phone))
+                                        <span>{{ $company->phone }}</span>
+                                    @endif
+                                    @if (filled($company->address))
+                                        <span>{{ \Illuminate\Support\Str::limit($company->address, 34) }}</span>
+                                    @endif
+                                </div>
                             </div>
                         </div>
 
@@ -280,15 +666,118 @@
                         </div>
                     </header>
 
-                    <form id="booking-filters" x-ref="bookingFilters" method="GET" action="{{ route('public-bookings.create', $company) }}" class="w-full max-w-full space-y-5">
-                        <input type="hidden" name="filters_submitted" value="1">
+                    <form id="booking-filters" x-ref="bookingFilters" class="booking-app-main-card mx-3 -mt-8 w-auto max-w-full space-y-5 p-4 sm:mx-5 sm:p-5 lg:mx-0 lg:p-6" x-show="['professionals', 'services', 'date'].includes(currentStep)" x-cloak @submit.prevent>
+                        @if (false)
+                        <section class="booking-assistant-home" x-show="currentStep === 'overview'" x-cloak>
+                            <div class="booking-assistant-intro">
+                                <p class="sf-page-eyebrow">Agendamento online</p>
+                                <h2>Selecione os detalhes do seu agendamento</h2>
+                            </div>
 
-                        <section class="sf-card p-4 sm:p-5">
+                            <div class="booking-assistant-list">
+                                <button type="button" class="booking-assistant-row" @click="goToStep('professionals')">
+                                    <span class="booking-assistant-icon">1</span>
+                                    <span class="min-w-0 flex-1">
+                                        <strong>Selecione um profissional</strong>
+                                        <small x-text="selectedProfessionalId ? selectedProfessionalName() : 'Escolha quem vai atender'">{{ $selectedUser?->name ?? 'Escolha quem vai atender' }}</small>
+                                    </span>
+                                    <span class="booking-assistant-status" :class="hasProfessional ? 'is-done' : ''" x-text="hasProfessional ? 'Concluido' : 'Pendente'"></span>
+                                </button>
+
+                                <button type="button" class="booking-assistant-row" @click="goToStep('services')">
+                                    <span class="booking-assistant-icon">2</span>
+                                    <span class="min-w-0 flex-1">
+                                        <strong>Selecione os serviços</strong>
+                                        <small x-text="hasSelectedServices() ? `${selectedServiceIds.length} serviço(s) selecionado(s)` : 'Escolha um ou mais serviços'"></small>
+                                    </span>
+                                    <span class="booking-assistant-status" :class="hasSelectedServices() ? 'is-done' : ''" x-text="hasSelectedServices() ? 'Concluido' : 'Pendente'"></span>
+                                </button>
+
+                                <button type="button" class="booking-assistant-row" :class="{ 'is-locked': !canOpenStep('date') }" :disabled="!canOpenStep('date')" @click="goToStep(selectedTime ? 'time' : 'date')">
+                                    <span class="booking-assistant-icon">3</span>
+                                    <span class="min-w-0 flex-1">
+                                        <strong>Selecione data e horario</strong>
+                                        <small x-text="selectedTime ? `${selectedDate} - ${selectedTime}` : 'Veja os horarios disponiveis'"></small>
+                                    </span>
+                                    <span class="booking-assistant-status" :class="selectedTime ? 'is-done' : ''" x-text="selectedTime ? 'Concluido' : 'Pendente'"></span>
+                                </button>
+
+                                <button type="button" class="booking-assistant-row" :class="{ 'is-locked': !canOpenStep('data') }" :disabled="!canOpenStep('data')" @click="goToStep('data')">
+                                    <span class="booking-assistant-icon">4</span>
+                                    <span class="min-w-0 flex-1">
+                                        <strong>Informe seus dados</strong>
+                                        <small x-text="readyToConfirm() ? 'Dados preenchidos' : 'Nome, WhatsApp e contato'"></small>
+                                    </span>
+                                    <span class="booking-assistant-status" :class="readyToConfirm() ? 'is-done' : ''" x-text="readyToConfirm() ? 'Concluido' : 'Pendente'"></span>
+                                </button>
+                            </div>
+                        </section>
+                        @endif
+
+                        <div class="booking-stage-head hidden" x-show="false" x-cloak>
+                            <button type="button" class="booking-back-button" @click="previousStep()">Voltar</button>
+                            <span x-show="currentStep === 'professionals'">Profissional</span>
+                            <span x-show="currentStep === 'services'">Serviços</span>
+                            <span x-show="currentStep === 'date' || currentStep === 'time'">Data e horario</span>
+                            <span x-show="currentStep === 'data'">Dados do cliente</span>
+                            <span x-show="currentStep === 'confirm'">Confirmacao</span>
+                        </div>
+
+                        <div class="booking-browser-tabs-wrap">
+                            <nav class="booking-browser-tabs" aria-label="Navegacao do agendamento">
+                                <button type="button" class="booking-browser-tab" :class="{ 'is-active': tabIsActive('professionals'), 'is-complete': stepIsComplete('professionals'), 'is-disabled': !canOpenStep('professionals') }" :disabled="!canOpenStep('professionals')" @click="goToStep('professionals')">
+                                    <span>Profissional</span>
+                                </button>
+                                <button type="button" class="booking-browser-tab" :class="{ 'is-active': tabIsActive('services'), 'is-complete': stepIsComplete('services'), 'is-disabled': !canOpenStep('services') }" :disabled="!canOpenStep('services')" @click="goToStep('services')">
+                                    <span>Servi&ccedil;os</span>
+                                </button>
+                                <button type="button" class="booking-browser-tab" :class="{ 'is-active': tabIsActive('date'), 'is-complete': stepIsComplete('time'), 'is-disabled': !canOpenStep('date') }" :disabled="!canOpenStep('date')" @click="goToStep(selectedTime ? 'time' : 'date')">
+                                    <span>Data</span>
+                                </button>
+                                <button type="button" class="booking-browser-tab" :class="{ 'is-active': tabIsActive('data'), 'is-complete': stepIsComplete('data'), 'is-disabled': !canOpenStep('data') }" :disabled="!canOpenStep('data')" @click="goToStep('data')">
+                                    <span>Dados</span>
+                                </button>
+                                <button type="button" class="booking-browser-tab" :class="{ 'is-active': tabIsActive('confirm'), 'is-complete': stepIsComplete('confirm'), 'is-disabled': !canOpenStep('confirm') }" :disabled="!canOpenStep('confirm')" @click="goToStep('confirm')">
+                                    <span>Confirmar</span>
+                                </button>
+                            </nav>
+                        </div>
+
+                        @if (false)
+                        <nav class="booking-app-tabs" aria-label="Navegacao do agendamento antigo" hidden>
+                            <button type="button" class="booking-app-tab" :class="{ 'booking-app-tab--active': currentStep === 'services' }" :style="currentStep === 'services' ? bookingActiveTabStyle : ''" @click="goToStep('services')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h10" /></svg>
+                                <span>Serviços</span>
+                            </button>
+                            <button type="button" class="booking-app-tab" :class="{ 'booking-app-tab--active': currentStep === 'professionals', 'opacity-45': !canOpenStep('professionals') }" :style="currentStep === 'professionals' ? bookingActiveTabStyle : ''" :disabled="!canOpenStep('professionals')" @click="goToStep('professionals')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM5 20a7 7 0 0 1 14 0" /></svg>
+                                <span>Profissionais</span>
+                            </button>
+                            <button type="button" class="booking-app-tab" :class="{ 'booking-app-tab--active': currentStep === 'date', 'opacity-45': !canOpenStep('date') }" :style="currentStep === 'date' ? bookingActiveTabStyle : ''" :disabled="!canOpenStep('date')" @click="goToStep('date')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 17v-5M12 8h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                                <span>Data</span>
+                            </button>
+                            <button type="button" class="booking-app-tab" :class="{ 'booking-app-tab--active': currentStep === 'time', 'opacity-45': !canOpenStep('time') }" :style="currentStep === 'time' ? bookingActiveTabStyle : ''" :disabled="!canOpenStep('time')" @click="goToStep('time')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14v11H5zM8 8V6a4 4 0 0 1 8 0v2" /></svg>
+                                <span>Horario</span>
+                            </button>
+                            <button type="button" class="booking-app-tab" :class="{ 'booking-app-tab--active': currentStep === 'data', 'opacity-45': !canOpenStep('data') }" :style="currentStep === 'data' ? bookingActiveTabStyle : ''" :disabled="!canOpenStep('data')" @click="goToStep('data')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM5 20a7 7 0 0 1 14 0" /></svg>
+                                <span>Dados</span>
+                            </button>
+                            <button type="button" class="booking-app-tab" :class="{ 'booking-app-tab--active': currentStep === 'confirm', 'opacity-45': !canOpenStep('confirm') }" :style="currentStep === 'confirm' ? bookingActiveTabStyle : ''" :disabled="!canOpenStep('confirm')" @click="goToStep('confirm')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7" /></svg>
+                                <span>Confirmar</span>
+                            </button>
+                        </nav>
+                        @endif
+
+                        <section class="sf-card booking-browser-panel p-4 sm:p-5" x-show="currentStep === 'services'" x-cloak>
                             <div class="flex items-start justify-between gap-4">
                                 <div>
                                     <p class="sf-page-eyebrow">1. Serviços</p>
                                     <h2 class="sf-section-title mt-1 text-white">Escolha um ou mais serviços</h2>
-                                    <p class="mt-1 text-sm brand-muted">A busca filtra sem recarregar a página.</p>
+                                    <p class="mt-1 text-sm brand-muted">Escolha o que deseja agendar.</p>
                                 </div>
                                 <span class="hidden rounded-full bg-[color-mix(in_srgb,var(--brand-primary)_14%,var(--brand-surface))] px-3 py-1 text-xs font-semibold brand-muted sm:inline-flex" x-text="`${selectedServiceIds.length} selecionado(s)`"></span>
                             </div>
@@ -302,7 +791,7 @@
                                                 <p class="truncate text-sm font-semibold text-white" x-text="service.name"></p>
                                                 <p class="mt-1 text-xs brand-muted" x-text="`${service.duration} min · R$ ${service.price}`"></p>
                                             </div>
-                                            <button type="button" class="text-xs font-semibold text-[var(--brand-primary)]" @click="selectedServiceIds = selectedServiceIds.filter((id) => id !== String(service.id)); $nextTick(() => applyFilters())">Remover</button>
+                                            <button type="button" class="text-xs font-semibold text-[var(--brand-primary)]" @click="preserveScroll(() => selectService(service.id))">Remover</button>
                                         </div>
                                     </template>
                                 </div>
@@ -332,14 +821,13 @@
                                     >
                                         <input
                                             type="checkbox"
-                                            name="service_ids[]"
                                             value="{{ $service->id }}"
                                             class="peer sr-only"
-                                            x-model="selectedServiceIds"
-                                            @change="$nextTick(() => applyFilters())"
+                                            :checked="selectedServiceIds.includes('{{ $service->id }}')"
+                                            @change="preserveScroll(() => selectService('{{ $service->id }}'))"
                                             @checked($checked)
                                         >
-                                        <span class="booking-service-selectable {{ $checked ? 'booking-service--selected' : '' }} flex w-full items-center gap-3 rounded-[20px] p-3 transition">
+                                        <span class="booking-service-selectable flex w-full items-center gap-3 rounded-[20px] p-3 transition" :class="{ 'booking-service--selected': selectedServiceIds.includes('{{ $service->id }}') }">
                                             <span class="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[var(--brand-surface)]">
                                                 @if ($service->image_url)
                                                     <img src="{{ $service->image_url }}" alt="Imagem de {{ $service->name }}" class="h-full w-full object-cover">
@@ -361,7 +849,7 @@
                                                     <span class="font-semibold text-[var(--brand-primary)]">R$ {{ number_format((float) $service->price, 2, ',', '.') }}</span>
                                                 </span>
                                             </span>
-                                            <span class="{{ $checked ? 'bg-[var(--brand-primary)] text-[var(--brand-on-primary)]' : 'bg-[var(--brand-surface)] brand-muted' }} rounded-full px-3 py-2 text-xs font-semibold">
+                                            <span class="rounded-full px-3 py-2 text-xs font-semibold" :class="selectedServiceIds.includes('{{ $service->id }}') ? 'bg-[var(--brand-primary)] text-[var(--brand-on-primary)]' : 'bg-[var(--brand-surface)] brand-muted'" x-text="selectedServiceIds.includes('{{ $service->id }}') ? 'Remover' : 'Selecionar'">
                                                 {{ $checked ? 'Remover' : 'Selecionar' }}
                                             </span>
                                         </span>
@@ -377,20 +865,24 @@
                             <x-input-error class="mt-2" :messages="$errors->get('service_ids.*')" />
                         </section>
 
-                        <section class="sf-card p-4 sm:p-5" :class="!hasSelectedServices() ? 'opacity-70' : ''">
+                        <section class="sf-card booking-browser-panel p-4 sm:p-5" x-show="currentStep === 'professionals'" x-cloak>
                             <div class="flex items-start gap-3">
                                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] text-sm font-semibold text-[var(--brand-primary)]">2</span>
                                 <div>
                                     <h2 class="sf-section-title text-white">Escolha o profissional</h2>
-                                    <p class="mt-1 text-sm brand-muted">A relação serviço/profissional ainda não existe; por enquanto todos os profissionais ativos aparecem.</p>
+                                    <p class="mt-1 text-sm brand-muted">Escolha com quem deseja ser atendido.</p>
                                 </div>
                             </div>
 
                             <div x-show="!hasSelectedServices()" class="mt-4 rounded-2xl border border-dashed border-[color:color-mix(in_srgb,var(--brand-primary)_22%,transparent)] bg-[var(--brand-surface)] px-4 py-4 text-sm brand-muted">
-                                Selecione pelo menos um serviço para seguir.
+                                @if ($selectedUser)
+                                    O profissional {{ $selectedUser->name }} já está selecionado; falta escolher o serviço.
+                                @else
+                                    Você pode escolher o profissional agora e selecionar os serviços em seguida.
+                                @endif
                             </div>
 
-                            <div x-show="hasSelectedServices()" class="mt-4 grid gap-3 sm:grid-cols-2" x-cloak>
+                            <div class="mt-4 grid gap-3 sm:grid-cols-2">
                                 @foreach ($users as $user)
                                     @php
                                         $selected = $selectedUserId === $user->id;
@@ -400,16 +892,18 @@
                                             type="radio"
                                             name="user_id"
                                             value="{{ $user->id }}"
+                                            data-professional-name="{{ $user->name }}"
                                             class="peer sr-only"
-                                            @change="$nextTick(() => applyFilters())"
+                                            :checked="selectedProfessionalId === '{{ $user->id }}'"
+                                            @change="preserveScroll(() => selectProfessional('{{ $user->id }}'))"
                                             @checked($selected)
                                         >
-                                        <span class="{{ $selected ? 'border-[var(--brand-primary)] bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] ring-2 ring-[color-mix(in_srgb,var(--brand-primary)_35%,transparent)]' : 'border-[color:color-mix(in_srgb,white_10%,transparent)] bg-[var(--brand-surface)] hover:border-[color-mix(in_srgb,var(--brand-primary)_35%,transparent)]' }} flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-[20px] border p-3 transition">
+                                        <span class="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-[20px] border p-3 transition" :class="selectedProfessionalId === '{{ $user->id }}' ? 'border-[var(--brand-primary)] bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] ring-2 ring-[color-mix(in_srgb,var(--brand-primary)_35%,transparent)]' : 'border-[color:color-mix(in_srgb,white_10%,transparent)] bg-[var(--brand-surface)] hover:border-[color-mix(in_srgb,var(--brand-primary)_35%,transparent)]'">
                                             <span class="flex min-w-0 items-center gap-3">
                                                 @if ($user->photo_url)
                                                     <img src="{{ $user->photo_url }}" alt="Foto de {{ $user->name }}" class="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-white/10">
                                                 @else
-                                                    <span class="{{ $selected ? 'bg-[var(--brand-primary)] text-[var(--brand-on-primary)]' : 'bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] text-[var(--brand-primary)]' }} flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold">
+                                                    <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold" :class="selectedProfessionalId === '{{ $user->id }}' ? 'bg-[var(--brand-primary)] text-[var(--brand-on-primary)]' : 'bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] text-[var(--brand-primary)]'">
                                                         {{ $user->avatar_initial }}
                                                     </span>
                                                 @endif
@@ -418,9 +912,7 @@
                                                     <span class="mt-1 block text-xs brand-muted">Disponível para seleção</span>
                                                 </span>
                                             </span>
-                                            @if ($selected)
-                                                <span class="rounded-full bg-[var(--brand-primary)] px-3 py-1 text-xs font-semibold text-[var(--brand-on-primary)]">Selecionado</span>
-                                            @endif
+                                            <span x-show="selectedProfessionalId === '{{ $user->id }}'" x-cloak class="rounded-full bg-[var(--brand-primary)] px-3 py-1 text-xs font-semibold text-[var(--brand-on-primary)]">Selecionado</span>
                                         </span>
                                     </label>
                                 @endforeach
@@ -429,12 +921,107 @@
                             <x-input-error class="mt-3" :messages="$errors->get('user_id')" />
                         </section>
 
-                        <section class="sf-card p-4 sm:p-5" :class="!hasSelectedServices() || !hasProfessional ? 'opacity-70' : ''">
+                        @if (false)
+                        <section class="sf-card booking-app-tab-panel p-4 sm:p-5" x-show="false" x-cloak>
+                            <div>
+                                <p class="sf-page-eyebrow">Sobre</p>
+                                <h2 class="sf-section-title mt-1 text-white">{{ $company->name }}</h2>
+                            </div>
+
+                            @if (! empty($publicBranding['cover_url']))
+                                <div class="mt-4 h-32 overflow-hidden rounded-[24px] bg-[var(--brand-surface)] bg-cover bg-center" style="background-image: url({{ \Illuminate\Support\Js::from($publicBranding['cover_url']) }});"></div>
+                            @endif
+
+                            @if ($hasAboutDetails)
+                                <div class="mt-4 space-y-3">
+                                    @if (filled($company->safeDescription()))
+                                        <p class="booking-info-tile text-sm leading-6">{{ $company->safeDescription() }}</p>
+                                    @endif
+                                    @if (! empty($publicBranding['welcome_message']))
+                                        <p class="booking-info-tile text-sm leading-6">{{ $publicBranding['welcome_message'] }}</p>
+                                    @endif
+                                    <div class="grid gap-3 sm:grid-cols-2">
+                                        @if (filled($company->address))
+                                            <div class="booking-info-tile">
+                                                <span>Endereço</span>
+                                                <strong>{{ $company->address }}</strong>
+                                            </div>
+                                        @endif
+                                        @if (filled($company->phone))
+                                            <div class="booking-info-tile">
+                                                <span>Telefone</span>
+                                                <strong>{{ $company->phone }}</strong>
+                                            </div>
+                                        @endif
+                                        @if (filled($company->instagram))
+                                            <div class="booking-info-tile">
+                                                <span>Instagram</span>
+                                                <strong>{{ $company->instagram }}</strong>
+                                            </div>
+                                        @endif
+                                    </div>
+                                    @if ($weeklyHours->isNotEmpty())
+                                        <div class="booking-info-tile">
+                                            <span>Horários</span>
+                                            <div class="mt-2 space-y-1">
+                                                @foreach ($weeklyHours as $row)
+                                                    <p class="flex justify-between gap-3 text-sm">
+                                                        <strong>{{ $row['day'] }}</strong>
+                                                        <span class="text-right">{{ $row['intervals']->join(', ') }}</span>
+                                                    </p>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @endif
+                                </div>
+                            @else
+                                <div class="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                                    As informações da empresa serão exibidas aqui em breve.
+                                </div>
+                            @endif
+                        </section>
+
+                        <section class="sf-card booking-app-tab-panel p-4 sm:p-5" x-show="false" x-cloak>
+                            <div>
+                                <p class="sf-page-eyebrow">Planos</p>
+                                <h2 class="sf-section-title mt-1 text-white">Assinaturas</h2>
+                            </div>
+
+                            <div class="mt-4 space-y-3">
+                                @forelse ($membershipPlans as $plan)
+                                    <article class="booking-membership-card">
+                                        <div class="min-w-0">
+                                            <p class="text-base font-semibold text-slate-950">{{ $plan->name }}</p>
+                                            @if (filled($plan->description))
+                                                <p class="mt-1 line-clamp-2 text-sm leading-6 text-slate-500">{{ $plan->description }}</p>
+                                            @endif
+                                            <div class="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
+                                                <span>{{ $plan->billing_cycle_label }}</span>
+                                                @if ($plan->max_services_per_cycle)
+                                                    <span>{{ $plan->max_services_per_cycle }} serviços/ciclo</span>
+                                                @endif
+                                                @if ($plan->max_service_discount_percent)
+                                                    <span>{{ rtrim(rtrim(number_format((float) $plan->max_service_discount_percent, 2, ',', '.'), '0'), ',') }}% em serviços</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <p class="shrink-0 text-right text-lg font-bold text-[var(--brand-primary)]">R$ {{ number_format((float) $plan->price, 2, ',', '.') }}</p>
+                                    </article>
+                                @empty
+                                    <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                                        Nenhuma assinatura disponível no momento.
+                                    </div>
+                                @endforelse
+                            </div>
+                        </section>
+                        @endif
+
+                        <section class="sf-card booking-browser-panel p-4 sm:p-5" x-show="currentStep === 'date'" x-cloak :class="!hasSelectedServices() || !selectedProfessionalId ? 'opacity-70' : ''">
                             <div class="flex items-start gap-3">
                                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] text-sm font-semibold text-[var(--brand-primary)]">3</span>
                                 <div>
                                     <h2 class="sf-section-title text-white">Escolha a data</h2>
-                                    <p class="mt-1 text-sm brand-muted">Datas passadas ficam bloqueadas pelo calendário.</p>
+                                    <p class="mt-1 text-sm brand-muted">Escolha o melhor dia para o atendimento.</p>
                                 </div>
                             </div>
 
@@ -445,8 +1032,9 @@
                                     @endphp
                                     <button
                                         type="button"
-                                        @click="selectedDate = '{{ $quickDate['value'] }}'; $nextTick(() => applyFilters())"
-                                        class="{{ $selected ? 'booking-date-tile booking-date-tile--on' : 'booking-date-tile brand-muted' }} px-2 py-3 text-center transition"
+                                        @click="preserveScroll(() => selectDate('{{ $quickDate['value'] }}'))"
+                                        class="booking-date-tile px-2 py-3 text-center transition"
+                                        :class="selectedDate === '{{ $quickDate['value'] }}' ? 'booking-date-tile--on' : 'brand-muted'"
                                     >
                                         <span class="block text-sm font-semibold">{{ $quickDate['label'] }}</span>
                                         <span class="mt-1 block text-xs">{{ $quickDate['subtitle'] }}</span>
@@ -454,51 +1042,93 @@
                                 @endforeach
                             </div>
 
-                            <div class="mt-4">
+                            <div class="mt-4" x-show="false" x-cloak>
                                 <label for="public-date" class="text-sm font-medium text-white">Escolher outra data</label>
                                 <input
                                     id="public-date"
-                                    name="date"
                                     type="date"
                                     min="{{ $today }}"
-                                    x-model="selectedDate"
+                                    :value="selectedDate"
                                     class="sf-input mt-2 block w-full"
-                                    @change="$nextTick(() => applyFilters())"
+                                    @change="preserveScroll(() => selectDate($event.target.value))"
                                 >
                             </div>
 
                             <x-input-error class="mt-3" :messages="$errors->get('date')" />
                         </section>
+
+                        <div class="hidden justify-end sm:flex" x-show="['services', 'professionals', 'date'].includes(currentStep)" x-cloak>
+                            <button
+                                type="button"
+                                class="brand-cta min-w-44 px-5 py-3 text-sm"
+                                :class="{ 'cursor-not-allowed opacity-60': !canContinueCurrentStep() }"
+                                :disabled="!canContinueCurrentStep()"
+                                @click="continueWizard()"
+                            >
+                                <span x-text="continueLabel()">Continuar</span>
+                            </button>
+                        </div>
                     </form>
 
-                    <form method="POST" action="{{ route('public-bookings.store', $company) }}" class="space-y-5" @submit="bookingSubmitIntercept($event)">
+                    <form method="POST" action="{{ route('public-bookings.store', $company) }}" class="booking-app-main-card mx-3 -mt-8 w-auto max-w-full space-y-5 p-4 sm:mx-5 sm:p-5 lg:mx-0 lg:p-6" x-show="['time', 'data', 'confirm'].includes(currentStep)" x-cloak @submit="bookingSubmitIntercept($event)">
                         @csrf
-                        @foreach ($selectedServiceIds as $serviceId)
-                            <input type="hidden" name="service_ids[]" value="{{ $serviceId }}">
-                        @endforeach
-                        <input type="hidden" name="user_id" value="{{ $selectedUserId }}">
-                        <input type="hidden" name="date" value="{{ $selectedDate }}">
+                        <template x-for="serviceId in selectedServiceIds" :key="serviceId">
+                            <input type="hidden" name="service_ids[]" :value="serviceId">
+                        </template>
+                        <input type="hidden" name="user_id" :value="selectedProfessionalId">
+                        <input type="hidden" name="date" :value="selectedDate">
+                        @if ($bookingPaymentRequirement === 'optional' && ! $canOfferOnlineBookingPayment)
+                            <input type="hidden" name="payment_choice" :value="paymentChoice || 'on_site'">
+                        @endif
 
-                        <section class="sf-card p-4 sm:p-5" :class="!readyForSlots() ? 'opacity-70' : ''">
+                        <div class="booking-browser-tabs-wrap">
+                            <nav class="booking-browser-tabs" aria-label="Navegacao do agendamento">
+                                <button type="button" class="booking-browser-tab" :class="{ 'is-active': tabIsActive('professionals'), 'is-complete': stepIsComplete('professionals'), 'is-disabled': !canOpenStep('professionals') }" :disabled="!canOpenStep('professionals')" @click="goToStep('professionals')">
+                                    <span>Profissional</span>
+                                </button>
+                                <button type="button" class="booking-browser-tab" :class="{ 'is-active': tabIsActive('services'), 'is-complete': stepIsComplete('services'), 'is-disabled': !canOpenStep('services') }" :disabled="!canOpenStep('services')" @click="goToStep('services')">
+                                    <span>Servi&ccedil;os</span>
+                                </button>
+                                <button type="button" class="booking-browser-tab" :class="{ 'is-active': tabIsActive('date'), 'is-complete': stepIsComplete('time'), 'is-disabled': !canOpenStep('date') }" :disabled="!canOpenStep('date')" @click="goToStep(selectedTime ? 'time' : 'date')">
+                                    <span>Data</span>
+                                </button>
+                                <button type="button" class="booking-browser-tab" :class="{ 'is-active': tabIsActive('data'), 'is-complete': stepIsComplete('data'), 'is-disabled': !canOpenStep('data') }" :disabled="!canOpenStep('data')" @click="goToStep('data')">
+                                    <span>Dados</span>
+                                </button>
+                                <button type="button" class="booking-browser-tab" :class="{ 'is-active': tabIsActive('confirm'), 'is-complete': stepIsComplete('confirm'), 'is-disabled': !canOpenStep('confirm') }" :disabled="!canOpenStep('confirm')" @click="goToStep('confirm')">
+                                    <span>Confirmar</span>
+                                </button>
+                            </nav>
+                        </div>
+
+                        <div class="booking-stage-head hidden" x-show="false">
+                            <button type="button" class="booking-back-button" @click="previousStep()">Voltar</button>
+                            <span x-show="currentStep === 'time'">Data e horario</span>
+                            <span x-show="currentStep === 'data'">Dados do cliente</span>
+                            <span x-show="currentStep === 'confirm'">Confirmacao</span>
+                        </div>
+
+                        <section class="sf-card booking-browser-panel p-4 sm:p-5" x-show="currentStep === 'time'" x-cloak :class="!readyForSlots() ? 'opacity-70' : ''">
                             <div class="flex items-start gap-3">
                                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] text-sm font-semibold text-[var(--brand-primary)]">4</span>
                                 <div>
                                     <h2 class="sf-section-title text-white">Escolha o horário</h2>
-                                    <p class="mt-1 text-sm brand-muted">Horários são calculados pela duração total dos serviços.</p>
+                                    <p class="mt-1 text-sm brand-muted">Escolha um horário disponível.</p>
                                 </div>
                             </div>
 
+                            @if (false)
                             <div class="mt-4">
                                 @if ($selectedServiceIds->isEmpty() || ! $selectedUser)
                                     <div class="rounded-2xl border border-dashed border-[color:color-mix(in_srgb,var(--brand-primary)_22%,transparent)] bg-[var(--brand-surface)] px-4 py-5 text-sm brand-muted">
-                                        Para carregar os horários da agenda real, selecione pelo menos um serviço e um profissional.
+                                    Para carregar os horários da agenda real, selecione pelo menos um serviço e um profissional.
                                         @if ($selectedUser && $selectedServiceIds->isEmpty())
                                             O profissional {{ $selectedUser->name }} já está selecionado; falta escolher o serviço.
                                         @endif
                                     </div>
                                 @elseif ($slotPeriods->isEmpty())
                                     <div class="rounded-2xl border border-dashed border-[color:color-mix(in_srgb,var(--brand-primary)_22%,transparent)] bg-[var(--brand-surface)] px-4 py-5 text-sm brand-muted">
-                                        Nenhum horário disponível para esta data.
+                                    Nenhum horário disponível para esta data.
                                     </div>
                                 @else
                                     <div class="space-y-4">
@@ -511,7 +1141,7 @@
                                                 <button
                                                     type="button"
                                                     class="brand-cta px-4 py-3 text-sm"
-                                                    @click="selectedTime = @js($nextAvailableSlot)"
+                                            @click="preserveScroll(() => selectedTime = @js($nextAvailableSlot))"
                                                 >
                                                     Usar este hor&aacute;rio
                                                 </button>
@@ -520,7 +1150,7 @@
 
                                         <div class="rounded-[20px] border border-[color:color-mix(in_srgb,var(--brand-primary)_14%,transparent)] bg-[color-mix(in_srgb,var(--brand-surface)_92%,var(--brand-primary)_8%)] p-4">
                                             <label for="booking-time" class="text-sm font-medium text-white">Hor&aacute;rio do atendimento</label>
-                                            <select id="booking-time" name="time" x-model="selectedTime" class="sf-select mt-2 block w-full @error('time') ring-2 ring-rose-500 ring-offset-2 ring-offset-[var(--brand-ring-offset)] @enderror" required>
+                                            <select id="booking-time-legacy" x-model="selectedTime" class="sf-select mt-2 block w-full @error('time') ring-2 ring-rose-500 ring-offset-2 ring-offset-[var(--brand-ring-offset)] @enderror" disabled>
                                                 <option value="">Selecione um hor&aacute;rio</option>
                                                 @foreach (['Manha', 'Tarde', 'Noite'] as $period)
                                                     @continue(! $slotPeriods->has($period))
@@ -542,7 +1172,7 @@
                                                     <button
                                                         type="button"
                                                         class="{{ $slotChipOn ? 'booking-pill-slot booking-pill-slot--on' : 'booking-pill-slot' }} px-3 py-2 text-xs font-semibold text-white transition"
-                                                        @click="selectedTime = @js($slotOption['time'])"
+                                                        @click="preserveScroll(() => selectedTime = @js($slotOption['time']))"
                                                     >
                                                         {{ $slotOption['time'] }}
                                                     </button>
@@ -552,11 +1182,73 @@
                                     </div>
                                 @endif
                             </div>
+                            @endif
+
+                            <div class="mt-4">
+                                <div x-show="!readyForSlots()" x-cloak class="rounded-2xl border border-dashed border-[color:color-mix(in_srgb,var(--brand-primary)_22%,transparent)] bg-[var(--brand-surface)] px-4 py-5 text-sm brand-muted">
+                                    Para carregar os horários da agenda real, selecione pelo menos um serviço e um profissional.
+                                </div>
+
+                                <div x-show="readyForSlots() && loadingTimes" x-cloak class="rounded-2xl border border-[color:color-mix(in_srgb,var(--brand-primary)_18%,transparent)] bg-[var(--brand-surface)] px-4 py-5 text-sm brand-muted">
+                                    Carregando hor&aacute;rios dispon&iacute;veis...
+                                </div>
+
+                                <div x-show="readyForSlots() && slotsError" x-cloak class="rounded-2xl border border-rose-400/25 bg-rose-500/10 px-4 py-5 text-sm text-rose-100">
+                                    <span x-text="slotsError"></span>
+                                    <button type="button" class="mt-3 block text-xs font-semibold text-[var(--brand-primary)]" @click="slotsLoaded = false; loadAvailableTimes()">Tentar novamente</button>
+                                </div>
+
+                                <div x-show="readyForSlots() && !loadingTimes && !slotsError && slotsLoaded && availableSlots().length === 0" x-cloak class="rounded-2xl border border-dashed border-[color:color-mix(in_srgb,var(--brand-primary)_22%,transparent)] bg-[var(--brand-surface)] px-4 py-5 text-sm brand-muted">
+                                    Nenhum horário disponível para esta data.
+                                </div>
+
+                                <div x-show="readyForSlots() && !loadingTimes && !slotsError && availableSlots().length > 0" x-cloak class="space-y-4">
+                                    <div x-show="nextAvailableSlot()" x-cloak class="flex flex-col gap-3 rounded-[20px] border border-[color-mix(in_srgb,var(--brand-primary)_35%,transparent)] bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] p-4 sm:flex-row sm:items-center sm:justify-between">
+                                        <div>
+                                            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-primary)]">Pr&oacute;ximo hor&aacute;rio dispon&iacute;vel</p>
+                                            <p class="mt-1 text-2xl font-semibold text-white" x-text="nextAvailableSlot()"></p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            class="brand-cta px-4 py-3 text-sm"
+                                            @click="preserveScroll(() => selectedTime = nextAvailableSlot())"
+                                        >
+                                            Usar este hor&aacute;rio
+                                        </button>
+                                    </div>
+
+                                    <div class="rounded-[20px] border border-[color:color-mix(in_srgb,var(--brand-primary)_14%,transparent)] bg-[color-mix(in_srgb,var(--brand-surface)_92%,var(--brand-primary)_8%)] p-4">
+                                        <label for="booking-time" class="text-sm font-medium text-white">Hor&aacute;rio do atendimento</label>
+                                        <select id="booking-time" name="time" x-model="selectedTime" class="sf-select mt-2 block w-full @error('time') ring-2 ring-rose-500 ring-offset-2 ring-offset-[var(--brand-ring-offset)] @enderror" required>
+                                            <option value="">Selecione um hor&aacute;rio</option>
+                                            <template x-for="slot in availableSlots()" :key="slot.time">
+                                                <option :value="slot.time" x-text="slot.public_label ? `${slot.time} - ${slot.public_label}` : slot.time"></option>
+                                            </template>
+                                        </select>
+
+                                        <div class="mt-3 flex flex-wrap gap-2">
+                                            <template x-for="slot in availableSlots().slice(0, 12)" :key="slot.time">
+                                                <button
+                                                    type="button"
+                                                    class="booking-pill-slot px-3 py-2 text-xs font-semibold text-white transition"
+                                                    :class="{ 'booking-pill-slot--on': selectedTime === slot.time }"
+                                                    @click="preserveScroll(() => selectedTime = slot.time)"
+                                                >
+                                                    <span x-text="slot.time"></span>
+                                                    <template x-if="slot.public_label">
+                                                        <span class="ml-1 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide" x-text="slot.public_label"></span>
+                                                    </template>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
                             <x-input-error class="mt-3" :messages="$errors->get('time')" />
                         </section>
 
-                        <section class="sf-card p-4 sm:p-5" :class="!selectedTime ? 'opacity-70' : ''">
+                        <section class="sf-card booking-browser-panel p-4 sm:p-5" x-show="currentStep === 'data'" x-cloak :class="!selectedTime ? 'opacity-70' : ''">
                             <div class="flex items-start gap-3">
                                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] text-sm font-semibold text-[var(--brand-primary)]">5</span>
                                 <div>
@@ -681,7 +1373,19 @@
                             </div>
                         </section>
 
-                        <section class="sf-card p-4 sm:p-5">
+                        <div class="hidden justify-end sm:flex" x-show="['time', 'data'].includes(currentStep)" x-cloak>
+                            <button
+                                type="button"
+                                class="brand-cta min-w-44 px-5 py-3 text-sm"
+                                :class="{ 'cursor-not-allowed opacity-60': !canContinueCurrentStep() }"
+                                :disabled="!canContinueCurrentStep()"
+                                @click="continueWizard()"
+                            >
+                                <span x-text="continueLabel()">Continuar</span>
+                            </button>
+                        </div>
+
+                        <section class="sf-card booking-browser-panel booking-confirm-card p-4 sm:p-5" x-show="currentStep === 'confirm'" x-cloak>
                             <div class="flex items-start gap-3">
                                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] text-sm font-semibold text-[var(--brand-primary)]">6</span>
                                 <div>
@@ -695,6 +1399,36 @@
                                             O horário será confirmado após o envio. A disponibilidade será validada novamente.
                                         @endif
                                     </p>
+                                </div>
+                            </div>
+
+                            <div class="booking-confirm-summary mt-5 space-y-3">
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    <div class="booking-confirm-tile">
+                                        <span>Profissional</span>
+                                        <strong x-text="selectedProfessionalName()">{{ $selectedUser?->name ?? '-' }}</strong>
+                                    </div>
+                                    <div class="booking-confirm-tile">
+                                        <span>Data e horario</span>
+                                        <strong x-text="`${selectedDate || '-'}${selectedTime ? ' - ' + selectedTime : ''}`">{{ \Carbon\CarbonImmutable::parse($selectedDate)->format('d/m/Y') }}{{ $bookingTimeEffective ? ' - '.$bookingTimeEffective : '' }}</strong>
+                                    </div>
+                                </div>
+
+                                <div class="booking-confirm-tile">
+                                    <span>Serviços</span>
+                                    <div class="mt-3 space-y-2">
+                                        <template x-for="service in selectedServices()" :key="service.id">
+                                            <div class="flex items-center justify-between gap-3">
+                                                <p class="min-w-0 truncate text-sm font-semibold" x-text="service.name"></p>
+                                                <p class="shrink-0 text-sm font-semibold text-[var(--brand-primary)]" x-text="'R$ ' + service.price"></p>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div class="booking-confirm-total">
+                                    <span>Total</span>
+                                    <strong x-text="'R$ ' + formattedTotalPrice()">R$ {{ number_format($totalPrice, 2, ',', '.') }}</strong>
                                 </div>
                             </div>
 
@@ -725,6 +1459,7 @@
                             @endif
 
                             <button
+                                id="booking-confirm-submit"
                                 type="submit"
                                 class="brand-cta mt-5 w-full min-h-[60px] text-base transition"
                                 :class="{ 'cursor-not-allowed opacity-60': !readyToConfirm() }"
@@ -822,24 +1557,41 @@
                         </section>
                     </div>
                 </aside>
+
+                <div class="booking-sticky-bar fixed inset-x-0 bottom-0 z-30 px-4 py-3 backdrop-blur xl:hidden">
+                    <div class="mx-auto flex w-full max-w-full items-center justify-between gap-3 sm:max-w-none lg:max-w-7xl">
+                        <div class="min-w-0">
+                            <p class="truncate text-sm font-semibold text-white">
+                                {{ $selectedServiceIds->isNotEmpty() ? $selectedServiceIds->count().' Serviços · '.$totalDurationMinutes.' min' : 'Escolha os Serviços' }}
+                            </p>
+                            <p class="mt-1 text-xs brand-muted">
+                                {{ $selectedServiceIds->isNotEmpty() ? 'R$ '.number_format($totalPrice, 2, ',', '.') : 'Total a definir' }}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class="brand-cta shrink-0 px-4 py-3 text-sm"
+                            x-show="currentStep !== 'confirm'"
+                            x-cloak
+                            :class="{ 'cursor-not-allowed opacity-60': !canContinueCurrentStep() }"
+                            :disabled="!canContinueCurrentStep()"
+                            @click="continueWizard()"
+                        >
+                            <span x-text="continueLabel()">Continuar</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="brand-cta shrink-0 px-4 py-3 text-sm"
+                            x-show="currentStep === 'confirm'"
+                            x-cloak
+                            @click="document.getElementById('booking-confirm-submit')?.scrollIntoView({ behavior: 'smooth', block: 'center' })"
+                        >
+                            Confirmar
+                        </button>
+                    </div>
+                </div>
             </div>
         </main>
-
-        <div class="booking-sticky-bar fixed inset-x-0 bottom-0 z-30 px-4 py-3 backdrop-blur xl:hidden">
-            <div class="mx-auto flex w-full max-w-full items-center justify-between gap-3 sm:max-w-none lg:max-w-7xl">
-                <div class="min-w-0">
-                    <p class="truncate text-sm font-semibold text-white">
-                        {{ $selectedServiceIds->isNotEmpty() ? $selectedServiceIds->count().' serviço(s) · '.$totalDurationMinutes.' min' : 'Escolha os serviços' }}
-                    </p>
-                    <p class="mt-1 text-xs brand-muted">
-                        {{ $selectedServiceIds->isNotEmpty() ? 'R$ '.number_format($totalPrice, 2, ',', '.') : 'Total a definir' }}
-                    </p>
-                </div>
-                <a href="#booking-filters" class="brand-cta shrink-0 px-4 py-3 text-sm">
-                    Continuar
-                </a>
-            </div>
-        </div>
 
         <script>
             (function () {

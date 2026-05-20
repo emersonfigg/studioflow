@@ -8,6 +8,7 @@ use App\Models\Appointment;
 use App\Models\BookingPayment;
 use App\Models\Client;
 use App\Models\Company;
+use App\Models\CompanyPublicMedia;
 use App\Models\CompanyPaymentIntegration;
 use App\Models\ProfessionalDayOverride;
 use App\Models\ProfessionalWorkingHour;
@@ -46,6 +47,22 @@ class PublicBookingTest extends TestCase
         ]);
         Storage::disk('public')->put('companies/studio-flow-logo.jpg', 'studio-flow-logo');
         $company->update(['logo' => 'companies/studio-flow-logo.jpg']);
+        Storage::disk('public')->put('companies/booking-covers/studio-cover-1.jpg', 'cover-one');
+        Storage::disk('public')->put('companies/booking-covers/studio-cover-2.jpg', 'cover-two');
+        CompanyPublicMedia::create([
+            'company_id' => $company->id,
+            'type' => 'booking_cover',
+            'path' => 'companies/booking-covers/studio-cover-1.jpg',
+            'position' => 0,
+            'is_active' => true,
+        ]);
+        CompanyPublicMedia::create([
+            'company_id' => $company->id,
+            'type' => 'booking_cover',
+            'path' => 'companies/booking-covers/studio-cover-2.jpg',
+            'position' => 1,
+            'is_active' => true,
+        ]);
         Storage::disk('public')->put('services/corte-premium.jpg', 'corte-premium');
 
         $firstService = Service::factory()->for($company)->create([
@@ -94,6 +111,8 @@ class PublicBookingTest extends TestCase
             ->assertSee('90 min')
             ->assertSee('/storage/services/corte-premium.jpg')
             ->assertSee('/storage/companies/studio-flow-logo.jpg')
+            ->assertSee('/storage/companies/booking-covers/studio-cover-1.jpg')
+            ->assertSee('/storage/companies/booking-covers/studio-cover-2.jpg')
             ->assertSee('@studioflowoficial')
             ->assertSee('Barbearia completa com agendamento online e equipe especializada.')
             ->assertSee('Ana')
@@ -196,6 +215,30 @@ class PublicBookingTest extends TestCase
             ->assertSee('value="'.$professional->id.'"', false)
             ->assertDontSee('11:00')
             ->assertDontSee('value="'.$admin->id.'" checked', false);
+    }
+
+    public function test_public_booking_uses_custom_hero_texts_from_company_branding(): void
+    {
+        $company = Company::factory()->create([
+            'name' => 'Barbearia Raiz',
+            'description' => 'Descricao padrao da empresa',
+            'public_headline' => 'Seu visual novo começa aqui',
+            'public_subheadline' => 'Corte, barba e cuidado com hora marcada.',
+        ]);
+
+        Service::factory()->for($company)->create([
+            'active' => true,
+        ]);
+        User::factory()->for($company)->create([
+            'active' => true,
+        ]);
+
+        $this
+            ->get($this->bookingUrl($company))
+            ->assertOk()
+            ->assertSee('Seu visual novo começa aqui')
+            ->assertSee('Corte, barba e cuidado com hora marcada.')
+            ->assertDontSee('Descricao padrao da empresa');
     }
 
     public function test_public_booking_auto_selects_single_active_professional_but_waits_for_service(): void

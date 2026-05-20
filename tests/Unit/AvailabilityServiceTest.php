@@ -91,6 +91,116 @@ class AvailabilityServiceTest extends TestCase
         $this->assertContains('18:00', $slots);
     }
 
+    public function test_slot_options_include_smart_fit_metadata_without_changing_chronological_order(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-15 10:00:00');
+
+        $company = Company::factory()->create();
+        $user = User::factory()->for($company)->create();
+        $this->createWorkingHour($company, $user, 4, '08:00', '12:00');
+        $client = Client::factory()->for($company)->create();
+
+        Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $user->id,
+            'service_id' => Service::factory()->for($company),
+            'start_time' => '2026-04-16 08:00:00',
+            'end_time' => '2026-04-16 09:00:00',
+            'status' => 'scheduled',
+        ]);
+        Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $user->id,
+            'service_id' => Service::factory()->for($company),
+            'start_time' => '2026-04-16 10:00:00',
+            'end_time' => '2026-04-16 11:00:00',
+            'status' => 'scheduled',
+        ]);
+
+        $slots = app(AvailabilityService::class)->slotOptionsForDuration($company, $user, 30, '2026-04-16');
+        $available = collect($slots)->where('available', true)->values();
+        $byTime = $available->keyBy('time');
+
+        $this->assertSame('09:00', $available[0]['time']);
+        $this->assertSame('09:05', $available[1]['time']);
+        $this->assertSame('09:10', $available[2]['time']);
+        $this->assertSame('09:15', $available[3]['time']);
+        $this->assertSame('09:30', $available[6]['time']);
+        $this->assertSame('good_fit', $byTime['09:00']['classification']);
+        $this->assertSame('Bom encaixe', $byTime['09:00']['internal_label']);
+        $this->assertNull($byTime['09:00']['public_label']);
+        $this->assertGreaterThan($byTime['09:15']['score'], $byTime['09:00']['score']);
+        $this->assertSame('inefficient_gap', $byTime['09:15']['classification']);
+        $this->assertSame('Pode gerar intervalo ocioso', $byTime['09:15']['internal_label']);
+        $this->assertNull($byTime['09:15']['public_label']);
+        $this->assertArrayHasKey('datetime', $byTime['09:00']);
+    }
+
+    public function test_smart_slots_never_show_starts_that_overlap_existing_appointment(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-15 10:00:00');
+
+        $company = Company::factory()->create();
+        $user = User::factory()->for($company)->create();
+        $this->createWorkingHour($company, $user, 4, '08:00', '10:00');
+        $client = Client::factory()->for($company)->create();
+
+        Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $user->id,
+            'service_id' => Service::factory()->for($company),
+            'start_time' => '2026-04-16 08:15:00',
+            'end_time' => '2026-04-16 08:45:00',
+            'status' => 'scheduled',
+        ]);
+
+        $slots = app(AvailabilityService::class)->availableSlotsForDuration($company, $user, 30, '2026-04-16');
+
+        $this->assertNotContains('08:00', $slots);
+        $this->assertNotContains('08:05', $slots);
+        $this->assertNotContains('08:10', $slots);
+        $this->assertNotContains('08:15', $slots);
+        $this->assertNotContains('08:30', $slots);
+        $this->assertNotContains('08:40', $slots);
+        $this->assertContains('08:45', $slots);
+        $this->assertContains('08:50', $slots);
+    }
+
+    public function test_slot_options_classify_exact_gap_as_best_fit(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-15 10:00:00');
+
+        $company = Company::factory()->create();
+        $user = User::factory()->for($company)->create();
+        $this->createWorkingHour($company, $user, 4, '08:00', '11:00');
+        $client = Client::factory()->for($company)->create();
+
+        Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $user->id,
+            'service_id' => Service::factory()->for($company),
+            'start_time' => '2026-04-16 08:00:00',
+            'end_time' => '2026-04-16 09:00:00',
+            'status' => 'scheduled',
+        ]);
+        Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $user->id,
+            'service_id' => Service::factory()->for($company),
+            'start_time' => '2026-04-16 10:00:00',
+            'end_time' => '2026-04-16 11:00:00',
+            'status' => 'scheduled',
+        ]);
+
+        $slot = collect(app(AvailabilityService::class)->slotOptionsForDuration($company, $user, 60, '2026-04-16'))
+            ->firstWhere('time', '09:00');
+
+        $this->assertSame(100, $slot['score']);
+        $this->assertSame('best_fit', $slot['classification']);
+        $this->assertSame('Melhor encaixe', $slot['internal_label']);
+        $this->assertSame('Recomendado', $slot['public_label']);
+    }
+
     public function test_past_date_returns_no_slots(): void
     {
         CarbonImmutable::setTestNow('2026-04-16 10:00:00');

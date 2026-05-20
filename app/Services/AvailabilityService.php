@@ -20,6 +20,10 @@ class AvailabilityService
 
     private const DEFAULT_TIMEZONE = 'America/Bahia';
 
+    private const SLOT_TOLERANCE_MINUTES = 5;
+
+    private const MIN_FILLABLE_GAP_MINUTES = 30;
+
     /**
      * Get available start times for a professional, service and date.
      *
@@ -73,6 +77,7 @@ class AvailabilityService
             $clientId,
         ))
             ->where('available', true)
+            ->sortBy(fn (array $slot): string => (string) $slot['datetime'])
             ->pluck('time')
             ->values()
             ->all();
@@ -81,7 +86,7 @@ class AvailabilityService
     /**
      * Get slot options for a professional and total duration on a date, including unavailable slots.
      *
-     * @return list<array{time: string, available: bool, reason: ?string}>
+     * @return list<array{time: string, datetime: string, available: bool, reason: ?string, score: int, classification: string, internal_label: ?string, public_label: ?string}>
      */
     public function slotOptionsForDuration(
         Company $company,
@@ -117,11 +122,12 @@ class AvailabilityService
         $appointments = Appointment::query()
             ->where('company_id', $company->id)
             ->where('user_id', $user->id)
-            ->whereNotIn('status', ['cancelled', 'no_show'])
+            ->where('status', '!=', 'cancelled')
             ->when($ignoreAppointmentId !== null, fn ($query) => $query->whereKeyNot($ignoreAppointmentId))
             ->where('start_time', '<', $conflictWindowEnd)
             ->where('end_time', '>', $overallStart)
-            ->get(['start_time', 'end_time']);
+            ->get(['start_time', 'end_time'])
+            ->map(fn (Appointment $appointment): array => $this->appointmentInterval($appointment));
 
         $clientAppointments = $clientId
             ? Appointment::clientScheduleConflictQuery(
@@ -163,8 +169,7 @@ class AvailabilityService
                 $slotTime = $slotStart->format('H:i');
 
                 $hasConflict = $appointments->contains(
-                    fn (Appointment $appointment): bool => $slotStart->lt($appointment->end_time)
-                        && $slotEnd->gt($appointment->start_time)
+                    fn (array $appointment): bool => $this->intervalsOverlap($slotStart, $slotEnd, $appointment['start'], $appointment['end'])
                 );
 
                 $hasClientConflict = $clientAppointments->contains(
@@ -192,6 +197,7 @@ class AvailabilityService
                 if (! $existing || ($available && ! $existing['available'])) {
                     $slotOptions[$slotTime] = [
                         'time' => $slotTime,
+                        'datetime' => $slotStart->format('Y-m-d H:i:s'),
                         'available' => $available,
                         'reason' => $reason,
                     ];
@@ -201,7 +207,211 @@ class AvailabilityService
             }
         }
 
+        return $this->sortSmartSlots(
+            $this->calculateAvailableSlots(array_values($slotOptions), $intervals, $appointments, $durationMinutes)
+        );
+    }
+
+    /**
+     * Add smart scheduling metadata to slot options without changing availability rules.
+     *
+     * @param  list<array{time: string, datetime: string, available: bool, reason: ?string}>  $slotOptions
+     * @param  Collection<int, array{start: CarbonImmutable, end: CarbonImmutable}>  $intervals
+     * @param  Collection<int, array{start: CarbonImmutable, end: CarbonImmutable}>  $appointments
+     * @return list<array{time: string, datetime: string, available: bool, reason: ?string, score: int, classification: string, internal_label: ?string, public_label: ?string}>
+     */
+    public function calculateAvailableSlots(array $slotOptions, Collection $intervals, Collection $appointments, int $durationMinutes): array
+    {
+        return collect($slotOptions)
+            ->map(function (array $slot) use ($intervals, $appointments, $durationMinutes): array {
+                if (! ($slot['available'] ?? false)) {
+                    return [
+                        ...$slot,
+                        'score' => 0,
+                        'classification' => 'unavailable',
+                        'internal_label' => null,
+                        'public_label' => null,
+                    ];
+                }
+
+                $slotStart = CarbonImmutable::parse($slot['datetime'], $this->timezone());
+                $slotEnd = $slotStart->addMinutes($durationMinutes);
+                $score = $this->scoreSlotEfficiency($slotStart, $slotEnd, $intervals, $appointments, $durationMinutes);
+                $classification = $this->classifySlot($score);
+
+                return [
+                    ...$slot,
+                    'score' => $score,
+                    'classification' => $classification,
+                    'internal_label' => $this->internalSlotLabel($classification),
+                    'public_label' => $this->publicSlotLabel($classification),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Score how efficiently a slot uses the free space around existing appointments.
+     */
+    public function scoreSlotEfficiency(
+        CarbonImmutable $slotStart,
+        CarbonImmutable $slotEnd,
+        Collection $intervals,
+        Collection $appointments,
+        int $durationMinutes,
+    ): int {
+        $bounds = $this->neighborBounds($slotStart, $slotEnd, $intervals, $appointments);
+
+        if (! $bounds) {
+            return 50;
+        }
+
+        $gapBefore = max(0, $bounds['previous']->diffInMinutes($slotStart));
+        $gapAfter = max(0, $slotEnd->diffInMinutes($bounds['next']));
+        $freeWindow = $bounds['previous']->diffInMinutes($bounds['next']);
+        $minimumFillableGap = min(self::MIN_FILLABLE_GAP_MINUTES, max(self::SLOT_INTERVAL_MINUTES, $durationMinutes));
+        $score = 50;
+
+        if ($freeWindow === $durationMinutes) {
+            $score += 42;
+        }
+
+        if ($gapBefore <= self::SLOT_TOLERANCE_MINUTES) {
+            $score += 22;
+        }
+
+        if ($gapAfter <= self::SLOT_TOLERANCE_MINUTES) {
+            $score += 22;
+        }
+
+        if ($gapBefore > 0 && $gapBefore < $minimumFillableGap) {
+            $score -= 24;
+        }
+
+        if ($gapAfter > 0 && $gapAfter < $minimumFillableGap) {
+            $score -= 32;
+        }
+
+        if ($gapBefore >= $minimumFillableGap && $gapAfter >= $minimumFillableGap) {
+            $score -= 6;
+        }
+
+        if ($gapBefore === 0 || $gapAfter === 0) {
+            $score += 8;
+        }
+
+        return (int) max(0, min(100, $score));
+    }
+
+    public function classifySlot(int $score): string
+    {
+        return match (true) {
+            $score >= 85 => 'best_fit',
+            $score >= 68 => 'good_fit',
+            $score < 38 => 'inefficient_gap',
+            default => 'normal',
+        };
+    }
+
+    /**
+     * Sort slots chronologically. Score is metadata only and must not affect public ordering.
+     *
+     * @param  list<array{time: string, datetime: string, available: bool, reason: ?string, score: int, classification: string, internal_label: ?string, public_label: ?string}>  $slotOptions
+     * @return list<array{time: string, datetime: string, available: bool, reason: ?string, score: int, classification: string, internal_label: ?string, public_label: ?string}>
+     */
+    public function sortSmartSlots(array $slotOptions): array
+    {
+        usort($slotOptions, function (array $a, array $b): int {
+            if (($a['available'] ?? false) !== ($b['available'] ?? false)) {
+                return ($a['available'] ?? false) ? -1 : 1;
+            }
+
+            return strcmp((string) $a['datetime'], (string) $b['datetime']);
+        });
+
         return array_values($slotOptions);
+    }
+
+    private function internalSlotLabel(string $classification): ?string
+    {
+        return match ($classification) {
+            'best_fit' => 'Melhor encaixe',
+            'good_fit' => 'Bom encaixe',
+            'inefficient_gap' => 'Pode gerar intervalo ocioso',
+            default => null,
+        };
+    }
+
+    private function publicSlotLabel(string $classification): ?string
+    {
+        return match ($classification) {
+            'best_fit' => 'Recomendado',
+            default => null,
+        };
+    }
+
+    /**
+     * Normalize an appointment interval before slot validation.
+     *
+     * @return array{start: CarbonImmutable, end: CarbonImmutable}
+     */
+    private function appointmentInterval(Appointment $appointment): array
+    {
+        return [
+            'start' => CarbonImmutable::instance($appointment->start_time)->setTimezone($this->timezone()),
+            'end' => CarbonImmutable::instance($appointment->end_time)->setTimezone($this->timezone()),
+        ];
+    }
+
+    /**
+     * True when two intervals overlap. Adjacent intervals are allowed.
+     */
+    private function intervalsOverlap(
+        CarbonImmutable $start,
+        CarbonImmutable $end,
+        CarbonImmutable $existingStart,
+        CarbonImmutable $existingEnd,
+    ): bool {
+        return $start->lt($existingEnd) && $end->gt($existingStart);
+    }
+
+    /**
+     * @param  Collection<int, array{start: CarbonImmutable, end: CarbonImmutable}>  $intervals
+     * @param  Collection<int, array{start: CarbonImmutable, end: CarbonImmutable}>  $appointments
+     * @return array{previous: CarbonImmutable, next: CarbonImmutable}|null
+     */
+    private function neighborBounds(CarbonImmutable $slotStart, CarbonImmutable $slotEnd, Collection $intervals, Collection $appointments): ?array
+    {
+        $interval = $intervals->first(
+            fn (array $interval): bool => $interval['start']->lte($slotStart) && $interval['end']->gte($slotEnd)
+        );
+
+        if (! $interval) {
+            return null;
+        }
+
+        $previousAppointment = $appointments
+            ->filter(fn (array $appointment): bool => $appointment['end']->lte($slotStart))
+            ->sortByDesc(fn (array $appointment): string => $appointment['end']->toIso8601String())
+            ->first();
+
+        $nextAppointment = $appointments
+            ->filter(fn (array $appointment): bool => $appointment['start']->gte($slotEnd))
+            ->sortBy(fn (array $appointment): string => $appointment['start']->toIso8601String())
+            ->first();
+
+        $previous = $previousAppointment
+            ? $previousAppointment['end']
+            : $interval['start'];
+        $next = $nextAppointment
+            ? $nextAppointment['start']
+            : $interval['end'];
+
+        return [
+            'previous' => $previous,
+            'next' => $next,
+        ];
     }
 
     /**

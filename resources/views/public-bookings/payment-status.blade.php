@@ -100,7 +100,7 @@
                         </div>
 
                         <div class="booking-summary-row px-4 py-4">
-                            <p class="sf-label">Servicos</p>
+                            <p class="sf-label">Serviços</p>
                             <div class="mt-3 space-y-2">
                                 @foreach ($appointment->bookedServices() as $service)
                                     <div class="flex items-center justify-between gap-4 rounded-2xl border border-[color:color-mix(in_srgb,var(--brand-primary)_12%,transparent)] bg-[var(--brand-surface)] px-4 py-3">
