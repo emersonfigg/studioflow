@@ -461,6 +461,87 @@
             font-size: 1rem !important;
             line-height: 1.5rem !important;
         }
+
+        .pdv-page,
+        .pdv-frame,
+        .pdv-workspace,
+        .pdv-panel {
+            min-height: 0;
+            max-height: none;
+        }
+
+        .pdv-frame {
+            overflow: visible;
+        }
+
+        .pdv-workspace {
+            align-items: stretch;
+        }
+
+        .pdv-panel,
+        .pdv-cart-shell {
+            overflow: visible;
+        }
+
+        .pdv-cart-scroll {
+            overflow-y: visible;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        html.pdv-shell,
+        html.pdv-shell body {
+            height: auto !important;
+            max-height: none !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            overscroll-behavior-y: auto !important;
+        }
+
+        html.pdv-shell .pdv-shell__body > div {
+            height: auto !important;
+            max-height: none !important;
+            overflow-y: visible !important;
+        }
+
+        html.pdv-shell main {
+            overflow: visible !important;
+        }
+
+        .pdv-page,
+        .pdv-frame {
+            min-height: 0;
+        }
+
+        .pdv-frame {
+            max-height: none;
+            overflow: visible;
+        }
+
+        .pdv-workspace {
+            min-height: 0;
+        }
+
+        .pdv-panel {
+            min-width: 0;
+            min-height: 0;
+        }
+
+        .pdv-cart-shell {
+            min-height: 18rem;
+        }
+
+        .pdv-cart-scroll {
+            max-height: min(36rem, calc(100dvh - 25rem));
+            min-height: 18rem;
+            overflow-y: auto;
+        }
+
+        .pdv-cart-scroll thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
     }
 
     @media (prefers-reduced-motion: reduce) {

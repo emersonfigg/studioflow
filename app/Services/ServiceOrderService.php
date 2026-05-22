@@ -229,7 +229,7 @@ class ServiceOrderService
                     'service_order_id' => $lockedOrder->id,
                     'user_id' => $professional->id,
                     'client_id' => $lockedOrder->client_id,
-                    'service_id' => $appointment?->service_id ?? $firstServiceItem?->service_id,
+                    'service_id' => $firstServiceItem?->service_id ?? $appointment?->service_id,
                     'gross_amount' => $serviceChargeAmount,
                     'payment_method' => $paymentMethod,
                     'commission_type' => $professional->commission_type,

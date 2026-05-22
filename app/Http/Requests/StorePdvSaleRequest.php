@@ -111,13 +111,6 @@ class StorePdvSaleRequest extends FormRequest
                 ->unique()
                 ->values();
 
-            if ($this->filled('appointment_id') && ! $validator->errors()->has('appointment_id') && $serviceIds->isEmpty()) {
-                $validator->errors()->add(
-                    'service_items',
-                    'Fechamento com agendamento exige ao menos um servico (subtotal de servicos nao pode ser zero).'
-                );
-            }
-
             if ($serviceIds->isNotEmpty()) {
                 $valid = Service::query()
                     ->where('company_id', $companyId)
@@ -208,7 +201,7 @@ class StorePdvSaleRequest extends FormRequest
                 }
             }
 
-            if ($serviceIds->isEmpty() && $productIds->isEmpty() && ! $this->filled('appointment_id')) {
+            if ($serviceIds->isEmpty() && $productIds->isEmpty()) {
                 $validator->errors()->add('items', 'Adicione ao menos um servico ou produto.');
             }
 

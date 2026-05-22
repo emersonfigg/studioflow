@@ -294,6 +294,8 @@ class PdvSaleTest extends TestCase
         $this->assertStringContainsString('"source":"appointment"', $html);
         $this->assertStringContainsString('Corte PDV Hydrate', $html);
         $this->assertStringContainsString('55.5', $html);
+        $this->assertStringNotContainsString(':disabled="item.source === \'appointment\'"', $html);
+        $this->assertStringNotContainsString('Serviço do agendamento (fixo)', $html);
         $response->assertSee('Serviços carregados do agendamento', false);
         $response->assertSee('Corte PDV Hydrate', false);
         $response->assertSee('55,50', false);
@@ -334,7 +336,7 @@ class PdvSaleTest extends TestCase
         $response->assertSee('40,00', false);
     }
 
-    public function test_pdv_appointment_sale_requires_at_least_one_service_line(): void
+    public function test_pdv_appointment_sale_can_remove_service_and_sell_product_only(): void
     {
         $company = Company::factory()->create();
         $admin = User::factory()->admin()->for($company)->create(['active' => true]);
@@ -362,8 +364,71 @@ class PdvSaleTest extends TestCase
             ],
         ]);
 
-        $response->assertSessionHasErrors('service_items');
-        $this->assertNotSame('completed', $appointment->fresh()->status);
+        $response->assertRedirect(route('pdv.index', absolute: false));
+        $response->assertSessionHasNoErrors();
+
+        $order = ServiceOrder::query()->where('appointment_id', $appointment->id)->firstOrFail();
+        $this->assertSame(ServiceOrder::STATUS_PAID, $order->status);
+        $this->assertSame('0.00', (string) $order->subtotal_services);
+        $this->assertSame('12.00', (string) $order->subtotal_products);
+        $this->assertSame('12.00', (string) $order->total);
+        $this->assertSame('completed', $appointment->fresh()->status);
+    }
+
+    public function test_pdv_appointment_sale_can_replace_loaded_service_and_recalculate_total(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create([
+            'active' => true,
+            'commission_type' => 'percent',
+            'commission_value' => 10,
+        ]);
+        $client = Client::factory()->for($company)->create();
+        $bookedService = Service::factory()->for($company)->create(['price' => 30.00, 'active' => true]);
+        $replacementService = Service::factory()->for($company)->create(['price' => 80.00, 'active' => true]);
+        $product = Product::factory()->for($company)->create([
+            'price' => 20.00,
+            'stock_quantity' => 4,
+            'active' => true,
+        ]);
+        $appointment = Appointment::factory()->for($company)->create([
+            'client_id' => $client->id,
+            'user_id' => $admin->id,
+            'service_id' => $bookedService->id,
+            'status' => 'in_progress',
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('pdv.store', absolute: false), [
+            'appointment_id' => $appointment->id,
+            'payment_method' => 'pix',
+            'user_id' => $admin->id,
+            'discount_type' => 'fixed',
+            'discount_value' => '10',
+            'service_items' => [
+                ['service_id' => $replacementService->id],
+            ],
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 2],
+            ],
+        ]);
+
+        $response->assertRedirect(route('pdv.index', absolute: false));
+        $response->assertSessionHasNoErrors();
+
+        $order = ServiceOrder::query()
+            ->where('appointment_id', $appointment->id)
+            ->with(['items', 'payment'])
+            ->firstOrFail();
+
+        $this->assertSame(ServiceOrder::STATUS_PAID, $order->status);
+        $this->assertSame('80.00', (string) $order->subtotal_services);
+        $this->assertSame('40.00', (string) $order->subtotal_products);
+        $this->assertSame('10.00', (string) $order->discount);
+        $this->assertSame('110.00', (string) $order->total);
+        $this->assertTrue($order->items->where('service_id', $replacementService->id)->isNotEmpty());
+        $this->assertTrue($order->items->where('service_id', $bookedService->id)->isEmpty());
+        $this->assertSame($replacementService->id, $order->payment?->service_id);
+        $this->assertSame('7.00', (string) $order->payment?->commission_amount);
     }
 
     public function test_validation_error_keeps_cart_safe_and_does_not_complete_appointment(): void

@@ -12,7 +12,7 @@
         </script>
     @endif
 
-    <div class="pdv-page mx-auto flex w-full max-w-[1800px] flex-1 flex-col px-0 pb-0 max-lg:flex-none sm:px-0.5 lg:min-h-0 lg:flex-1 lg:px-1">
+    <div class="pdv-page mx-auto w-full max-w-[1800px] px-0 pb-0 sm:px-0.5 lg:px-1">
         @if (is_array($saleResult))
             <div
                 class="mb-2 shrink-0 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-500/40 bg-emerald-950/55 px-3 py-2 text-sm text-emerald-50 shadow-md sm:px-4"
@@ -63,8 +63,8 @@
             x-init="init()"
             x-on:keydown.window="handlePdvHotkeys($event)"
             x-on:keydown.slash.prevent="$refs.searchInput.focus()"
-            x-on:submit="submitting = true"
-            class="pdv-frame flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-visible rounded-2xl border border-[color-mix(in_srgb,var(--brand-primary)_25%,transparent)] bg-[var(--brand-accent)] shadow-[0_24px_48px_rgba(0,0,0,0.35)] ring-1 ring-[color-mix(in_srgb,var(--brand-primary)_10%,transparent)] lg:max-h-full lg:overflow-hidden"
+            x-on:submit="submitSale($event)"
+            class="pdv-frame flex flex-col overflow-visible rounded-2xl border border-[color-mix(in_srgb,var(--brand-primary)_25%,transparent)] bg-[var(--brand-accent)] shadow-[0_24px_48px_rgba(0,0,0,0.35)] ring-1 ring-[color-mix(in_srgb,var(--brand-primary)_10%,transparent)]"
         >
             @csrf
             {{-- Hook para testes e inspeção: carrinho inicial server-side (Alpine usa o mesmo dado via @js acima) --}}
@@ -178,10 +178,10 @@
             </div>
 
             {{-- Corpo: 3 colunas (desktop). Mobile: grid sem flex-1 para rolar página inteira; busca em order-1 para ficar logo após o banner; carrinho com altura máx. e rolagem interna (não “roubar” a busca). --}}
-            <div class="flex max-lg:flex-none max-lg:min-h-0 min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-visible lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-12 lg:grid-rows-[minmax(0,1fr)] lg:divide-x lg:divide-white/10 lg:overflow-hidden">
+            <div class="pdv-workspace grid gap-3 overflow-visible p-3 lg:grid-cols-[minmax(220px,0.78fr)_minmax(320px,1fr)_minmax(500px,1.45fr)] lg:items-stretch lg:p-4">
                 {{-- 4. Esquerda: imagem / ícone + VENDA --}}
-                <aside class="flex max-lg:order-2 shrink-0 flex-col gap-2 border-b border-white/10 p-3 lg:order-none lg:col-span-3 lg:flex lg:max-h-none lg:min-h-0 lg:flex-col lg:justify-start lg:overflow-y-auto lg:border-b-0 lg:p-4">
-                    <div class="relative flex aspect-auto max-h-[120px] min-h-[92px] w-full shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[var(--brand-secondary)] shadow-inner lg:aspect-square lg:max-h-[clamp(104px,20vh,160px)]">
+                <aside class="pdv-panel flex flex-col gap-3 overflow-visible rounded-xl border border-white/10 bg-[color-mix(in_srgb,var(--brand-secondary)_72%,transparent)] p-3 lg:p-4">
+                    <div class="relative flex aspect-[4/3] min-h-[150px] w-full shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[var(--brand-secondary)] shadow-inner lg:min-h-[190px]">
                         <template x-if="visualItem && visualItem.image_url && !previewImageFailed">
                             <img
                                 :src="visualItem.image_url"
@@ -221,7 +221,7 @@
                 </aside>
 
                 {{-- 5. Centro: campos grandes + sugestões (shrink-0: nunca colapsar no flex mobile) --}}
-                <section class="flex max-lg:order-1 min-h-0 shrink-0 flex-col gap-2 border-b border-white/10 p-3 max-lg:overflow-visible lg:order-none lg:col-span-4 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:border-b-0 lg:p-4">
+                <section class="pdv-panel flex flex-col gap-3 overflow-visible rounded-xl border border-white/10 bg-[color-mix(in_srgb,var(--brand-secondary)_58%,transparent)] p-3 lg:p-4">
                     <label class="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--brand-primary)]" for="pdv-search-input">Código / SKU / Nome</label>
                     <div class="relative z-50">
                         <input
@@ -295,11 +295,11 @@
                 </section>
 
                 {{-- 6. Direita: cupom (mobile: altura limitada + scroll; desktop: coluna flexível) --}}
-                <section class="flex max-lg:order-3 max-lg:max-h-[min(52dvh,22rem)] max-lg:shrink-0 max-lg:flex-none min-h-0 flex-1 flex-col overflow-hidden p-3 lg:order-none lg:col-span-5 lg:max-h-none lg:min-h-0 lg:flex lg:h-auto lg:flex-1 lg:self-stretch lg:p-4">
+                <section class="pdv-panel flex min-w-0 flex-col overflow-visible rounded-xl border border-white/10 bg-[color-mix(in_srgb,var(--brand-secondary)_58%,transparent)] p-3 lg:p-4">
                     <p class="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--brand-primary)] lg:hidden">Itens da venda</p>
-                    <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-[var(--brand-secondary)] shadow-inner lg:rounded-2xl">
-                        <div class="min-h-0 flex-1 overflow-x-auto overflow-y-auto overscroll-contain">
-                            <table class="w-full min-w-0 border-collapse text-left text-[11px] sf-text-muted sm:min-w-[480px]">
+                    <div class="pdv-cart-shell flex flex-col rounded-xl border border-white/10 bg-[var(--brand-secondary)] shadow-inner lg:rounded-2xl">
+                        <div class="pdv-cart-scroll overflow-x-auto overscroll-contain">
+                            <table class="w-full min-w-[620px] border-collapse text-left text-[11px] sf-text-muted">
                                 <thead>
                                     <tr class="border-b border-dashed border-white/25 bg-[var(--brand-accent)] text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--brand-primary)]">
                                         <th class="w-10 px-2 py-2 text-left">Item</th>
@@ -321,15 +321,15 @@
                                         <tr class="border-b border-white/5 odd:bg-[color-mix(in_srgb,var(--app-shell-bg)_40%,transparent)] even:bg-transparent">
                                             <td class="w-10 px-2 py-2 font-mono text-[var(--text-main)]" x-text="String(index + 1).padStart(4, '0')"></td>
                                             <td class="w-20 px-1 py-2 font-mono text-[var(--brand-primary)]" x-text="item.code"></td>
-                                            <td class="max-w-[1px] px-2 py-2">
-                                                <span class="block truncate text-[var(--text-main)]" x-text="item.name"></span>
+                                            <td class="min-w-[210px] px-2 py-2 align-top">
+                                                <span class="block whitespace-normal break-words leading-snug text-[var(--text-main)]" x-text="item.name"></span>
                                                 <template x-if="item.type === 'product'">
-                                                    <div class="mt-1 flex flex-wrap items-center gap-2">
-                                                        <label class="flex w-full flex-col gap-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] sf-text-muted sm:w-auto sm:flex-row sm:items-center sm:gap-2">
+                                                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                                                        <label class="flex w-full flex-col gap-1 text-[10px] font-semibold uppercase tracking-[0.14em] sf-text-muted sm:max-w-[18rem]">
                                                             <span>Vendedor</span>
                                                             <select
                                                                 x-model.number="item.seller_id"
-                                                                class="pdv-touch-16 rounded border border-white/15 bg-[var(--app-shell-bg)] px-2 py-1 text-[12px] font-semibold text-[var(--text-main)] sm:w-44"
+                                                                class="pdv-touch-16 w-full rounded border border-white/15 bg-[var(--app-shell-bg)] px-2 py-1.5 text-[12px] font-semibold normal-case tracking-normal text-[var(--text-main)]"
                                                                 :class="item.commission && !item.seller_id ? '!border-amber-400/60 !text-amber-200' : ''"
                                                             >
                                                                 <option value="">— Selecione —</option>
@@ -350,20 +350,19 @@
                                             <td class="w-16 px-1 py-2">
                                                 <input
                                                     x-model.number="item.quantity"
+                                                    x-on:change="item.quantity = validQuantity(item.quantity)"
                                                     type="number"
                                                     min="1"
                                                     class="pdv-touch-16 w-full rounded border border-white/15 bg-[var(--app-shell-bg)] px-1 py-1.5 text-right text-base font-semibold text-[var(--text-main)] tabular-nums lg:py-1 lg:text-[11px]"
                                                 >
                                             </td>
                                             <td class="w-20 whitespace-nowrap px-2 py-2 text-right tabular-nums" x-text="formatMoneyBRL(item.price)"></td>
-                                            <td class="w-20 whitespace-nowrap px-2 py-2 text-right font-semibold text-[var(--text-main)] tabular-nums" x-text="formatMoneyBRL(item.price * Math.max(1, Number(item.quantity || 1)))"></td>
+                                            <td class="w-20 whitespace-nowrap px-2 py-2 text-right font-semibold text-[var(--text-main)] tabular-nums" x-text="formatMoneyBRL(Number(item.price || 0) * validQuantity(item.quantity))"></td>
                                             <td class="w-12 px-1 py-2 text-center">
                                                 <button
                                                     type="button"
-                                                    class="text-[10px] font-bold uppercase"
-                                                    :class="item.source === 'appointment' ? 'cursor-not-allowed opacity-40' : 'text-rose-300 hover:text-rose-200'"
-                                                    :disabled="item.source === 'appointment'"
-                                                    :title="item.source === 'appointment' ? 'Serviço do agendamento (fixo)' : 'Remover linha'"
+                                                    class="text-[10px] font-bold uppercase text-rose-300 hover:text-rose-200"
+                                                    title="Remover linha"
                                                     x-on:click="removeItem(index)"
                                                 >Excl.</button>
                                             </td>
@@ -377,21 +376,21 @@
             </div>
 
             {{-- 7 + 8. Rodapé totais + pagamento (padding extra no mobile para barra fixa do botão finalizar) --}}
-            <div class="shrink-0 border-t border-white/10 bg-[var(--app-shell-bg)] px-3 py-2 max-lg:pb-[max(5.5rem,env(safe-area-inset-bottom,0px))] sm:px-4 sm:py-3 lg:pb-2">
+            <div class="pdv-checkout border-t border-white/10 bg-[var(--app-shell-bg)] px-3 py-3 sm:px-4">
                 <div class="grid grid-cols-2 gap-2 md:grid-cols-6 md:gap-3">
-                    <div class="rounded-lg border border-white/10 bg-[var(--brand-accent)] p-2 sm:rounded-xl sm:p-3">
+                    <div class="rounded-lg border border-white/10 bg-[var(--brand-accent)] p-2 sm:rounded-xl">
                         <p class="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--brand-primary)]">Volumes / Itens</p>
                         <p class="mt-1 text-xl font-bold tabular-nums text-[var(--text-main)] sm:text-2xl" x-text="formatQty(totalVolumeQty)"></p>
                     </div>
-                    <div class="rounded-lg border border-white/10 bg-[var(--brand-accent)] p-2 sm:rounded-xl sm:p-3">
+                    <div class="rounded-lg border border-white/10 bg-[var(--brand-accent)] p-2 sm:rounded-xl">
                         <p class="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--brand-primary)]">Subtotal serviços</p>
                         <p class="mt-1 text-base font-bold sf-text-muted sm:text-lg">R$ <span class="tabular-nums text-[var(--text-main)]" x-text="formatMoneyBRL(subtotalServices)"></span></p>
                     </div>
-                    <div class="rounded-lg border border-white/10 bg-[var(--brand-accent)] p-2 sm:rounded-xl sm:p-3">
+                    <div class="rounded-lg border border-white/10 bg-[var(--brand-accent)] p-2 sm:rounded-xl">
                         <p class="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--brand-primary)]">Subtotal produtos</p>
                         <p class="mt-1 text-base font-bold sf-text-muted sm:text-lg">R$ <span class="tabular-nums text-[var(--text-main)]" x-text="formatMoneyBRL(subtotalProducts)"></span></p>
                     </div>
-                    <div class="rounded-lg border border-rose-400/20 bg-[var(--brand-accent)] p-2 sm:rounded-xl sm:p-3">
+                    <div class="rounded-lg border border-rose-400/20 bg-[var(--brand-accent)] p-2 sm:rounded-xl">
                         <label for="pdv-discount-value" class="block text-[10px] font-bold uppercase tracking-[0.14em] text-rose-200/90">Desconto</label>
                         <div class="mt-2 grid grid-cols-[96px_minmax(0,1fr)] gap-2">
                             <select
@@ -418,7 +417,7 @@
                             Aplicado: R$ <span class="font-semibold tabular-nums" x-text="formatMoneyBRL(discountApplied)"></span>
                         </p>
                     </div>
-                    <div class="col-span-2 rounded-lg border-2 border-[color-mix(in_srgb,var(--brand-primary)_40%,transparent)] bg-gradient-to-br from-[var(--brand-secondary)] to-[var(--brand-accent)] p-3 sm:rounded-xl sm:p-4 md:col-span-2">
+                    <div class="col-span-2 rounded-lg border-2 border-[color-mix(in_srgb,var(--brand-primary)_40%,transparent)] bg-gradient-to-br from-[var(--brand-secondary)] to-[var(--brand-accent)] p-3 sm:rounded-xl md:col-span-2">
                         <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--brand-primary)]">Total da venda</p>
                         <p class="mt-1 text-right text-3xl font-black tabular-nums text-[var(--brand-primary)] sm:text-4xl">
                             R$ <span x-text="formatMoneyBRL(total)"></span>
@@ -426,7 +425,7 @@
                     </div>
                 </div>
 
-                <div class="mt-2 grid grid-cols-1 gap-3 lg:mt-3 lg:grid-cols-12 lg:items-end">
+                <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-12 lg:items-end">
                     <label class="lg:col-span-4">
                         <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--brand-primary)]">Forma de pagamento</span>
                         <select
@@ -445,20 +444,21 @@
                         <textarea
                             name="notes"
                             rows="2"
-                            class="pdv-touch-16 sf-input mt-2 !max-h-[3.75rem] !min-h-[2.5rem] !w-full !resize-y !border-white/15 !bg-[var(--brand-secondary)] !py-2 !text-base !text-[var(--text-main)] placeholder:sf-text-muted/40 lg:!text-sm"
+                            class="pdv-touch-16 sf-input mt-2 !min-h-[2.75rem] !w-full !resize-y !border-white/15 !bg-[var(--brand-secondary)] !py-2 !text-base !text-[var(--text-main)] placeholder:sf-text-muted/40 lg:!text-sm"
                             placeholder="Opcional"
                         >{{ old('notes') }}</textarea>
                     </label>
-                    <div class="max-lg:sticky max-lg:bottom-0 max-lg:z-40 max-lg:-mx-3 max-lg:rounded-t-xl max-lg:border max-lg:border-white/10 max-lg:border-b-0 max-lg:bg-[var(--app-shell-bg)]/98 max-lg:px-3 max-lg:pt-2 max-lg:pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] max-lg:shadow-[0_-12px_32px_rgba(0,0,0,0.45)] max-lg:backdrop-blur-sm lg:col-span-3 lg:mx-0 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
+                    <div class="pdv-submit-wrap sticky bottom-0 z-30 -mx-3 rounded-t-xl border border-white/10 border-b-0 bg-[var(--app-shell-bg)]/98 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-2 shadow-[0_-12px_32px_rgba(0,0,0,0.35)] backdrop-blur-sm lg:col-span-3 lg:mx-0 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
                         <button
                             x-ref="submitBtn"
                             type="submit"
                             class="sf-button-primary w-full !py-3 !text-sm !font-black !uppercase !tracking-wider sm:!py-3.5 sm:!text-base disabled:opacity-40"
-                            :disabled="cart.length === 0 || submitting || hasMissingSeller"
-                            :title="hasMissingSeller ? 'Selecione o vendedor responsável para produtos com comissão.' : ''"
+                            :disabled="!canSubmit"
+                            :title="submitBlockReason"
                         >
                             <span x-text="submitting ? 'Finalizando…' : (hasMissingSeller ? 'Selecione vendedor com comissão' : 'Concluir venda')"></span>
                         </button>
+                        <p x-show="submitBlockReason" x-cloak class="mt-2 text-center text-[11px] font-semibold text-amber-200" x-text="submitBlockReason"></p>
                     </div>
                 </div>
 
@@ -639,7 +639,7 @@
                     return 'Selecione um item';
                 },
                 get totalVolumeQty() {
-                    return this.cart.reduce((acc, item) => acc + Math.max(1, Number(item.quantity || 1)), 0);
+                    return this.cart.reduce((acc, item) => acc + this.validQuantity(item.quantity), 0);
                 },
                 highlightNext() {
                     if (!this.filteredCatalog.length) {
@@ -665,6 +665,17 @@
                         ? Number(this.$refs.professionalSelect.value)
                         : '';
 
+                    if (isService) {
+                        const existing = this.cart.find((row) => String(row.type) === 'service' && Number(row.service_id ?? row.id) === Number(item.id));
+                        if (existing) {
+                            existing.quantity = this.validQuantity(existing.quantity) + 1;
+                            this.search = '';
+                            this.highlightedIndex = 0;
+
+                            return;
+                        }
+                    }
+
                     this.cart.push({
                         id: item.id,
                         service_id: isService ? item.id : undefined,
@@ -682,20 +693,33 @@
                     this.highlightedIndex = 0;
                 },
                 removeItem(index) {
-                    if (this.cart[index]?.source === 'appointment') {
-                        return;
-                    }
                     this.cart.splice(index, 1);
                 },
                 removeLastItem() {
                     if (this.cart.length === 0) {
                         return;
                     }
-                    const last = this.cart[this.cart.length - 1];
-                    if (last?.source === 'appointment') {
+                    this.cart.pop();
+                },
+                validQuantity(value) {
+                    const qty = Number.parseInt(value, 10);
+
+                    return Number.isFinite(qty) && qty > 0 ? qty : 1;
+                },
+                submitSale(e) {
+                    if (this.submitBlockReason) {
+                        e.preventDefault();
+                        this.submitting = false;
+
                         return;
                     }
-                    this.cart.pop();
+
+                    this.cart = this.cart.map((item) => ({
+                        ...item,
+                        quantity: this.validQuantity(item.quantity),
+                        price: Number.isFinite(Number(item.price)) && Number(item.price) >= 0 ? Number(item.price) : 0,
+                    }));
+                    this.submitting = true;
                 },
                 clearSearch() {
                     this.search = '';
@@ -756,12 +780,12 @@
                 get subtotalServices() {
                     return this.cart
                         .filter((item) => String(item.type) === 'service')
-                        .reduce((acc, item) => acc + item.price * Math.max(1, Number(item.quantity || 1)), 0);
+                        .reduce((acc, item) => acc + Number(item.price || 0) * this.validQuantity(item.quantity), 0);
                 },
                 get subtotalProducts() {
                     return this.cart
                         .filter((item) => String(item.type) === 'product')
-                        .reduce((acc, item) => acc + item.price * Math.max(1, Number(item.quantity || 1)), 0);
+                        .reduce((acc, item) => acc + Number(item.price || 0) * this.validQuantity(item.quantity), 0);
                 },
                 get discountValue() {
                     const raw = String(this.discountInput || '').trim();
@@ -790,12 +814,34 @@
 
                     return raw > 0 ? raw : 0;
                 },
+                get submitBlockReason() {
+                    if (this.submitting) {
+                        return '';
+                    }
+                    if (this.cart.length === 0) {
+                        return 'Adicione ao menos um serviço ou produto para concluir.';
+                    }
+                    if (this.hasMissingSeller) {
+                        return 'Selecione o vendedor responsável para produtos com comissão.';
+                    }
+                    if (this.discountType === 'percent' && this.discountValue > 100) {
+                        return 'Percentual de desconto não pode ser maior que 100%.';
+                    }
+                    if (this.discountType !== 'percent' && this.discountValue > (this.subtotalServices + this.subtotalProducts)) {
+                        return 'O desconto não pode ser maior que a soma dos subtotais.';
+                    }
+
+                    return '';
+                },
+                get canSubmit() {
+                    return !this.submitBlockReason && !this.submitting;
+                },
                 get servicePayload() {
                     const rows = [];
                     this.cart
                         .filter((item) => String(item.type) === 'service')
                         .forEach((item) => {
-                            const qty = Math.max(1, Number(item.quantity || 1));
+                            const qty = this.validQuantity(item.quantity);
                             const sid = item.service_id ?? item.id;
                             for (let i = 0; i < qty; i++) {
                                 rows.push({ service_id: Number(sid) });
@@ -808,7 +854,7 @@
                         .filter((item) => String(item.type) === 'product')
                         .map((item) => ({
                             product_id: item.id,
-                            quantity: Math.max(1, Number(item.quantity || 1)),
+                            quantity: this.validQuantity(item.quantity),
                             seller_id: item.seller_id ? Number(item.seller_id) : '',
                         }));
                 },
