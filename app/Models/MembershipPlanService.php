@@ -18,6 +18,7 @@ class MembershipPlanService extends Pivot
         'quantity_per_cycle',
         'discount_percent',
         'included',
+        'special_duration_minutes',
     ];
 
     protected function casts(): array
@@ -26,6 +27,7 @@ class MembershipPlanService extends Pivot
             'quantity_per_cycle' => 'integer',
             'discount_percent' => 'decimal:2',
             'included' => 'boolean',
+            'special_duration_minutes' => 'integer',
         ];
     }
 

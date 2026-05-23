@@ -103,6 +103,9 @@
                 <x-responsive-nav-link :href="route('finance.cash')" :active="request()->routeIs('finance.cash*')">
                     Caixa
                 </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('expenses.index')" :active="request()->routeIs('expenses.*')">
+                    Despesas
+                </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('clients.index')" :active="request()->routeIs('clients.*')">
                     Clientes
                 </x-responsive-nav-link>
@@ -111,6 +114,9 @@
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('products.index')" :active="request()->routeIs('products.*') || request()->routeIs('product-sales.*')">
                     Produtos
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('stock.index')" :active="request()->routeIs('stock.*')">
+                    Estoque
                 </x-responsive-nav-link>
                 @if (auth()->user()->isAdmin())
                     <x-responsive-nav-link :href="route('membership-plans.index')" :active="request()->routeIs('membership-plans.*') || request()->routeIs('customer-memberships.*')">

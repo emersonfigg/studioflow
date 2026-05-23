@@ -83,6 +83,9 @@
                     <label class="text-xs sf-text-muted">Desc. %
                         <input type="number" step="0.01" name="{{ $prefix }}[discount_percent]" min="0" max="100" class="sf-input ms-1 w-20 py-1 text-xs" value="{{ old($prefix.'.discount_percent', $p?->discount_percent) }}">
                     </label>
+                    <label class="text-xs sf-text-muted">Tempo assinante
+                        <input type="number" name="{{ $prefix }}[special_duration_minutes]" min="1" class="sf-input ms-1 w-24 py-1 text-xs" value="{{ old($prefix.'.special_duration_minutes', $p?->special_duration_minutes) }}" placeholder="min">
+                    </label>
                 </div>
             </div>
         @endforeach

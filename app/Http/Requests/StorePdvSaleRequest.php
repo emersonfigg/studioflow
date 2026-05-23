@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Http\Requests\Concerns\NormalizesBrazilianCurrency;
 use App\Models\Appointment;
 use App\Models\Client;
+use App\Models\MembershipPlan;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Service;
@@ -45,6 +46,10 @@ class StorePdvSaleRequest extends FormRequest
             'notes' => ['nullable', 'string'],
             'service_items' => ['nullable', 'array'],
             'service_items.*.service_id' => ['required', 'integer'],
+            'service_items.*.unit_price' => ['nullable', 'numeric', 'min:0'],
+            'service_items.*.price_adjustment_reason' => ['nullable', 'string', 'max:255'],
+            'membership_items' => ['nullable', 'array'],
+            'membership_items.*.membership_plan_id' => ['required', 'integer'],
             'items' => ['nullable', 'array'],
             'items.*.product_id' => ['required', 'integer'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
@@ -112,13 +117,47 @@ class StorePdvSaleRequest extends FormRequest
                 ->values();
 
             if ($serviceIds->isNotEmpty()) {
-                $valid = Service::query()
+                $servicesForValidation = Service::query()
                     ->where('company_id', $companyId)
                     ->where('active', true)
                     ->whereIn('id', $serviceIds)
-                    ->count();
-                if ($valid !== $serviceIds->count()) {
+                    ->get()
+                    ->keyBy('id');
+                if ($servicesForValidation->count() !== $serviceIds->count()) {
                     $validator->errors()->add('service_items', 'Um ou mais servicos sao invalidos.');
+                } else {
+                    foreach (collect($this->input('service_items', [])) as $row) {
+                        $service = $servicesForValidation->get((int) ($row['service_id'] ?? 0));
+                        if (! $service || ! array_key_exists('unit_price', $row) || $row['unit_price'] === null || $row['unit_price'] === '') {
+                            continue;
+                        }
+
+                        if (abs(round((float) $row['unit_price'], 2) - round((float) $service->price, 2)) > 0.009 && ! $service->allowsPdvPriceEdit()) {
+                            $validator->errors()->add('service_items', 'Um dos servicos nao permite alteracao de preco.');
+                            break;
+                        }
+                    }
+                }
+            }
+
+            $membershipPlanIds = collect($this->input('membership_items', []))
+                ->pluck('membership_plan_id')
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($membershipPlanIds->isNotEmpty()) {
+                $validPlans = MembershipPlan::query()
+                    ->where('company_id', $companyId)
+                    ->where('active', true)
+                    ->whereIn('id', $membershipPlanIds)
+                    ->count();
+                if ($validPlans !== $membershipPlanIds->count()) {
+                    $validator->errors()->add('membership_items', 'Um ou mais planos de assinatura sao invalidos.');
+                }
+
+                if (! $this->filled('client_id') && ! $this->filled('appointment_id')) {
+                    $validator->errors()->add('client_id', 'Selecione um cliente para vender assinatura.');
                 }
             }
 
@@ -201,8 +240,8 @@ class StorePdvSaleRequest extends FormRequest
                 }
             }
 
-            if ($serviceIds->isEmpty() && $productIds->isEmpty()) {
-                $validator->errors()->add('items', 'Adicione ao menos um servico ou produto.');
+            if ($serviceIds->isEmpty() && $productIds->isEmpty() && $membershipPlanIds->isEmpty()) {
+                $validator->errors()->add('items', 'Adicione ao menos um servico, produto ou assinatura.');
             }
 
             $subtotal = $this->resolveSubtotal($companyId, $serviceIds, $productIds);
@@ -231,7 +270,8 @@ class StorePdvSaleRequest extends FormRequest
      *     payment_method:string,
      *     discount:float,
      *     notes:?string,
-     *     service_items:array<int,array{service_id:int}>,
+     *     service_items:array<int,array{service_id:int, unit_price?:float|null, price_adjustment_reason?:string|null}>,
+     *     membership_items:array<int,array{membership_plan_id:int}>,
      *     items:array<int,array{product_id:int,quantity:int}>
      * }
      */
@@ -272,7 +312,16 @@ class StorePdvSaleRequest extends FormRequest
             'notes' => $this->filled('notes') ? (string) $this->input('notes') : null,
             'service_items' => collect($this->input('service_items', []))
                 ->filter(fn (array $row): bool => ! empty($row['service_id']))
-                ->map(fn (array $row): array => ['service_id' => (int) $row['service_id']])
+                ->map(fn (array $row): array => [
+                    'service_id' => (int) $row['service_id'],
+                    'unit_price' => array_key_exists('unit_price', $row) && $row['unit_price'] !== '' ? round((float) $row['unit_price'], 2) : null,
+                    'price_adjustment_reason' => filled($row['price_adjustment_reason'] ?? null) ? (string) $row['price_adjustment_reason'] : null,
+                ])
+                ->values()
+                ->all(),
+            'membership_items' => collect($this->input('membership_items', []))
+                ->filter(fn (array $row): bool => ! empty($row['membership_plan_id']))
+                ->map(fn (array $row): array => ['membership_plan_id' => (int) $row['membership_plan_id']])
                 ->values()
                 ->all(),
             'items' => collect($this->input('items', []))
@@ -325,9 +374,21 @@ class StorePdvSaleRequest extends FormRequest
             ->where('company_id', $companyId)
             ->where('active', true)
             ->whereIn('id', $serviceIds->all())
-            ->pluck('price', 'id');
+            ->get()
+            ->keyBy('id');
 
-        $servicesSubtotal = $serviceIds->sum(fn (int $id): float => (float) ($servicePrices[$id] ?? 0));
+        $servicesSubtotal = collect($this->input('service_items', []))
+            ->sum(function (array $item) use ($servicePrices): float {
+                $serviceId = (int) ($item['service_id'] ?? 0);
+                $service = $servicePrices->get($serviceId);
+                if (! $service) {
+                    return 0.0;
+                }
+
+                return array_key_exists('unit_price', $item) && $item['unit_price'] !== '' && $service->allowsPdvPriceEdit()
+                    ? (float) $item['unit_price']
+                    : (float) $service->price;
+            });
 
         $products = Product::query()
             ->where('company_id', $companyId)
@@ -343,7 +404,18 @@ class StorePdvSaleRequest extends FormRequest
                 return (float) ($products[$productId] ?? 0) * $quantity;
             });
 
-        return round($servicesSubtotal + $productsSubtotal, 2);
+        $membershipSubtotal = collect($this->input('membership_items', []))
+            ->pluck('membership_plan_id')
+            ->filter()
+            ->sum(function ($planId) use ($companyId): float {
+                return (float) MembershipPlan::query()
+                    ->where('company_id', $companyId)
+                    ->where('active', true)
+                    ->whereKey((int) $planId)
+                    ->value('price');
+            });
+
+        return round($servicesSubtotal + $productsSubtotal + $membershipSubtotal, 2);
     }
 
     private function resolveDiscountAmount(float $subtotal): float

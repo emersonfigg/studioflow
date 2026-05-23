@@ -36,10 +36,13 @@ class CustomerMembership extends Model
         'status',
         'starts_at',
         'ends_at',
+        'renews_at',
         'current_cycle_starts_at',
         'current_cycle_ends_at',
         'auto_renew',
         'accepted_terms_at',
+        'accepted_terms_ip',
+        'accepted_terms_user_agent',
         'canceled_at',
     ];
 
@@ -48,6 +51,7 @@ class CustomerMembership extends Model
         return [
             'starts_at' => 'date',
             'ends_at' => 'date',
+            'renews_at' => 'date',
             'current_cycle_starts_at' => 'date',
             'current_cycle_ends_at' => 'date',
             'auto_renew' => 'boolean',

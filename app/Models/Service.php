@@ -15,6 +15,15 @@ class Service extends Model
     /** @use HasFactory<ServiceFactory> */
     use HasFactory;
 
+    public const PRICE_MODE_FIXED = 'fixed';
+
+    public const PRICE_MODE_FROM = 'from';
+
+    public const PRICE_MODES = [
+        self::PRICE_MODE_FIXED,
+        self::PRICE_MODE_FROM,
+    ];
+
     /**
      * The attributes that are mass assignable.
      *
@@ -26,6 +35,8 @@ class Service extends Model
         'description',
         'duration_minutes',
         'price',
+        'price_mode',
+        'allow_pdv_price_edit',
         'active',
         'image_path',
         'recommended_return_days',
@@ -40,6 +51,7 @@ class Service extends Model
     {
         return [
             'price' => 'decimal:2',
+            'allow_pdv_price_edit' => 'boolean',
             'active' => 'boolean',
             'recommended_return_days' => 'integer',
         ];
@@ -121,5 +133,17 @@ class Service extends Model
         }
 
         return MediaStorage::normalizePath($this->image_path);
+    }
+
+    public function allowsPdvPriceEdit(): bool
+    {
+        return (bool) $this->allow_pdv_price_edit || $this->price_mode === self::PRICE_MODE_FROM;
+    }
+
+    public function publicPriceLabel(): string
+    {
+        $price = 'R$ '.number_format((float) $this->price, 2, ',', '.');
+
+        return $this->price_mode === self::PRICE_MODE_FROM ? 'A partir de '.$price : $price;
     }
 }

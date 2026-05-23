@@ -89,6 +89,52 @@ class ClientController extends Controller
         ]);
     }
 
+    public function birthdays(Request $request): View
+    {
+        $companyId = (int) $request->user()->company_id;
+        $range = (string) $request->input('range', 'day');
+        $today = now();
+
+        $clients = Client::query()
+            ->where('company_id', $companyId)
+            ->where('active', true)
+            ->whereNotNull('birthday')
+            ->when($range === 'month', fn (Builder $query) => $query->whereMonth('birthday', $today->month))
+            ->when($range === 'day', fn (Builder $query) => $query->whereMonth('birthday', $today->month)->whereDay('birthday', $today->day))
+            ->when($range === 'week', function (Builder $query) use ($today): void {
+                $days = collect(range(0, 6))->map(fn (int $offset) => $today->copy()->addDays($offset));
+                $query->where(function (Builder $inner) use ($days): void {
+                    foreach ($days as $day) {
+                        $inner->orWhere(fn (Builder $q) => $q->whereMonth('birthday', $day->month)->whereDay('birthday', $day->day));
+                    }
+                });
+            })
+            ->orderBy('birthday')
+            ->get();
+
+        return view('clients.birthdays', compact('clients', 'range'));
+    }
+
+    public function absent(Request $request): View
+    {
+        $companyId = (int) $request->user()->company_id;
+        $days = max(1, (int) $request->input('days', 30));
+        $cutoff = now()->subDays($days);
+
+        $clients = Client::query()
+            ->where('company_id', $companyId)
+            ->where('active', true)
+            ->where(function (Builder $query) use ($cutoff): void {
+                $query->whereNull('last_visit_at')
+                    ->orWhere('last_visit_at', '<=', $cutoff);
+            })
+            ->orderBy('last_visit_at')
+            ->paginate(30)
+            ->withQueryString();
+
+        return view('clients.absent', compact('clients', 'days'));
+    }
+
     /**
      * Show the form for creating a new client.
      */

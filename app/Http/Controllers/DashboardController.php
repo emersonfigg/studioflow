@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Appointment;
+use App\Models\CashMovement;
 use App\Models\Client;
 use App\Models\Payment;
 use App\Models\ProductSaleItem;
@@ -89,9 +90,15 @@ class DashboardController extends Controller
                 ->values();
 
             $revenueToday = (float) (clone $paymentsQuery)->sum('gross_amount');
+            $cashInflowsToday = CashMovement::query()
+                ->where('company_id', $companyId)
+                ->where('type', CashMovement::TYPE_INFLOW)
+                ->whereBetween('occurred_at', [$todayStart, $todayEnd]);
+
+            $revenueToday = (float) (clone $cashInflowsToday)->sum('amount');
             $commissionsToday = (float) (clone $paymentsQuery)->sum('commission_amount');
-            $netToday = (float) (clone $paymentsQuery)->sum('net_amount');
-            $completedToday = (clone $paymentsQuery)->count();
+            $netToday = max(0, round($revenueToday - $commissionsToday, 2));
+            $completedToday = (clone $cashInflowsToday)->count();
 
             $rankingQuery = ProductSaleItem::query()
                 ->join('product_sales', 'product_sales.id', '=', 'product_sale_items.product_sale_id')

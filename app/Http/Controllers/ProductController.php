@@ -88,7 +88,7 @@ class ProductController extends Controller
         $this->ensureProductBelongsToCompany($request, $product);
 
         $data = $request->validated();
-        $reason = trim((string) ($data['reason'] ?? '')) ?: 'Ajuste manual de estoque';
+        $reason = trim((string) ($data['reason'] ?? '')) ?: 'Ajuste autorizado de estoque';
 
         DB::transaction(function () use ($product, $data, $reason, $request): void {
             $this->stockService->adjust(

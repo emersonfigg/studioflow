@@ -24,6 +24,11 @@ class ServiceOrderItem extends Model
         'description',
         'quantity',
         'unit_price',
+        'original_unit_price',
+        'price_adjustment_amount',
+        'price_adjustment_reason',
+        'price_adjusted_by',
+        'price_adjusted_at',
         'total_price',
     ];
 
@@ -32,6 +37,9 @@ class ServiceOrderItem extends Model
         return [
             'quantity' => 'integer',
             'unit_price' => 'decimal:2',
+            'original_unit_price' => 'decimal:2',
+            'price_adjustment_amount' => 'decimal:2',
+            'price_adjusted_at' => 'datetime',
             'total_price' => 'decimal:2',
         ];
     }
@@ -59,5 +67,10 @@ class ServiceOrderItem extends Model
     public function seller(): BelongsTo
     {
         return $this->belongsTo(User::class, 'seller_id');
+    }
+
+    public function priceAdjustedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'price_adjusted_by');
     }
 }

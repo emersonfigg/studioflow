@@ -20,6 +20,7 @@ class CompanyController extends Controller
      */
     private const TEXT_FIELDS = [
         'name',
+        'slug',
         'phone',
         'address',
         'cnpj',
@@ -249,6 +250,7 @@ class CompanyController extends Controller
     {
         return [
             'name' => $this->sanitizeTextualField($request->old('name', $company->name), true) ?: (string) $company->name,
+            'slug' => $this->sanitizeTextualField($request->old('slug', $company->slug), true) ?: (string) $company->slug,
             'phone' => $this->sanitizeTextualField($request->old('phone', $company->phone)),
             'address' => $this->sanitizeTextualField($request->old('address', $company->address)),
             'cnpj' => $this->sanitizeTextualField($request->old('cnpj', $company->cnpj)),

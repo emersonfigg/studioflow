@@ -1837,6 +1837,26 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     overscroll-behavior: contain;
 }
 
+.public-booking-v3 .booking-app-main-card > section.booking-services-panel,
+.public-booking-v3 form.space-y-5 > section.booking-services-panel {
+    max-height: none !important;
+    overflow: visible !important;
+    overscroll-behavior: auto !important;
+}
+
+.public-booking-v3 .booking-services-list {
+    max-height: min(46vh, 520px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+    .public-booking-v3 .booking-services-list {
+        max-height: min(52vh, 32rem);
+    }
+}
+
 .public-booking-v3 .booking-app-main-card > .booking-assistant-home {
     max-height: none;
     overflow: visible;

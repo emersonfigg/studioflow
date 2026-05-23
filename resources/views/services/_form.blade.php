@@ -29,6 +29,22 @@
         <x-input-error class="mt-2" :messages="$errors->get('price')" />
     </div>
 
+    <div class="grid gap-4 sm:grid-cols-2">
+        <div>
+            <x-input-label for="price_mode" value="Tipo de preço" />
+            <select id="price_mode" name="price_mode" class="sf-select mt-1 block w-full">
+                <option value="fixed" @selected(old('price_mode', $service?->price_mode ?? 'fixed') === 'fixed')>Preço fixo</option>
+                <option value="from" @selected(old('price_mode', $service?->price_mode ?? 'fixed') === 'from')>A partir de</option>
+            </select>
+            <x-input-error class="mt-2" :messages="$errors->get('price_mode')" />
+        </div>
+        <label class="mt-7 flex items-center gap-2 text-sm text-gray-600">
+            <input type="hidden" name="allow_pdv_price_edit" value="0">
+            <input type="checkbox" name="allow_pdv_price_edit" value="1" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" @checked(old('allow_pdv_price_edit', $service?->allow_pdv_price_edit ?? false))>
+            Permitir ajuste de preço no PDV
+        </label>
+    </div>
+
     <div>
         <label for="active" class="inline-flex items-center">
             <input id="active" type="checkbox" name="active" value="1" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" @checked(old('active', $service?->active ?? true))>

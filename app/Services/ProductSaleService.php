@@ -4,6 +4,9 @@ namespace App\Services;
 
 use App\Models\Appointment;
 use App\Models\Client;
+use App\Models\CashMovement;
+use App\Models\CustomerMembership;
+use App\Models\MembershipPlan;
 use App\Models\Product;
 use App\Models\ProductSale;
 use App\Models\Service;
@@ -175,7 +178,8 @@ class ProductSaleService
      *     payment_method:string,
      *     sold_at?:string|null,
      *     notes?:string|null,
-     *     service_items?:array<int, array{service_id:int}>,
+     *     service_items?:array<int, array{service_id:int, unit_price?:float|null, price_adjustment_reason?:string|null}>,
+     *     membership_items?:array<int, array{membership_plan_id:int}>,
      *     items?:array<int, array{product_id:int, quantity:int}>
      * }  $data
      */
@@ -268,7 +272,8 @@ class ProductSaleService
                     ->get()
                     ->keyBy('id');
 
-                foreach ($serviceIds as $serviceId) {
+                foreach ($data['service_items'] ?? [] as $serviceRow) {
+                    $serviceId = (int) ($serviceRow['service_id'] ?? 0);
                     /** @var Service|null $service */
                     $service = $services->get((int) $serviceId);
 
@@ -278,7 +283,14 @@ class ProductSaleService
                         ]);
                     }
 
-                    $this->serviceOrderService->addService($order, $service, $professional);
+                    $this->serviceOrderService->addService(
+                        $order,
+                        $service,
+                        $professional,
+                        array_key_exists('unit_price', $serviceRow) && $serviceRow['unit_price'] !== null ? (float) $serviceRow['unit_price'] : null,
+                        $serviceRow['price_adjustment_reason'] ?? null,
+                        $actor,
+                    );
                 }
             }
 
@@ -309,6 +321,21 @@ class ProductSaleService
                 $this->serviceOrderService->addProduct($order, $product, (int) $item['quantity'], $seller);
             }
 
+            if ($order->items()->count() === 0 && ! empty($data['membership_items'])) {
+                $membershipTotal = $this->registerMembershipItems($actor, $data, $soldAt);
+                $order->update([
+                    'status' => ServiceOrder::STATUS_PAID,
+                    'closed_at' => $soldAt,
+                    'subtotal_products' => 0,
+                    'subtotal_services' => 0,
+                    'discount' => 0,
+                    'total' => $membershipTotal,
+                ]);
+                $order->client?->update(['last_visit_at' => $soldAt]);
+
+                return $order->fresh(['client', 'professional', 'items.service', 'items.product']);
+            }
+
             $order = $order->fresh(['items.service', 'items.product']);
             $order = $this->serviceOrderService->recalculate($order);
 
@@ -326,8 +353,89 @@ class ProductSaleService
 
             $this->serviceOrderService->close($order, $actor, $data['payment_method'], $data['notes'] ?? null, $soldAt);
 
+            $membershipTotal = $this->registerMembershipItems($actor, $data, $soldAt);
+            if ($membershipTotal > 0) {
+                $order->update([
+                    'total' => round((float) $order->total + $membershipTotal, 2),
+                ]);
+            }
+
             return $order->fresh(['client', 'professional', 'items.service', 'items.product']);
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function registerMembershipItems(User $actor, array $data, CarbonImmutable $soldAt): float
+    {
+        $rows = collect($data['membership_items'] ?? [])
+            ->filter(fn (array $row): bool => ! empty($row['membership_plan_id']))
+            ->values();
+
+        if ($rows->isEmpty()) {
+            return 0.0;
+        }
+
+        $companyId = (int) $actor->company_id;
+        $clientId = (int) $data['client_id'];
+        $planIds = $rows->pluck('membership_plan_id')->map(fn ($id): int => (int) $id)->unique()->values();
+
+        /** @var Collection<int, MembershipPlan> $plans */
+        $plans = MembershipPlan::query()
+            ->where('company_id', $companyId)
+            ->where('active', true)
+            ->whereIn('id', $planIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($plans->count() !== $planIds->count()) {
+            throw ValidationException::withMessages([
+                'membership_items' => 'Um ou mais planos de assinatura sao invalidos.',
+            ]);
+        }
+
+        $total = 0.0;
+
+        foreach ($rows as $row) {
+            /** @var MembershipPlan $plan */
+            $plan = $plans->get((int) $row['membership_plan_id']);
+            $startsAt = $soldAt->toDateString();
+            $endsAt = $soldAt->addDays(max(0, $plan->resolvedCycleDays() - 1))->toDateString();
+
+            $membership = CustomerMembership::query()->create([
+                'company_id' => $companyId,
+                'client_id' => $clientId,
+                'membership_plan_id' => $plan->id,
+                'status' => CustomerMembership::STATUS_ACTIVE,
+                'starts_at' => $startsAt,
+                'ends_at' => $endsAt,
+                'renews_at' => $plan->auto_renew ? $soldAt->addDays($plan->resolvedCycleDays())->toDateString() : null,
+                'current_cycle_starts_at' => $startsAt,
+                'current_cycle_ends_at' => $endsAt,
+                'auto_renew' => (bool) $plan->auto_renew,
+                'accepted_terms_at' => $soldAt,
+            ]);
+
+            $amount = round((float) $plan->price, 2);
+            $total += $amount;
+
+            if ($amount > 0) {
+                $this->cashRegisterService->recordMovement(
+                    $companyId,
+                    $soldAt,
+                    CashMovement::TYPE_INFLOW,
+                    $amount,
+                    'Venda de assinatura - '.$plan->name,
+                    (string) $data['payment_method'],
+                    CustomerMembership::class,
+                    $membership->id,
+                    $actor->id,
+                );
+            }
+        }
+
+        return round($total, 2);
     }
 
     /**

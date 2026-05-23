@@ -36,6 +36,7 @@ class Product extends Model
         'name',
         'sku',
         'description',
+        'category',
         'image_path',
         'price',
         'stock_quantity',

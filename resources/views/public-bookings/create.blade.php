@@ -772,7 +772,7 @@
                         </nav>
                         @endif
 
-                        <section class="sf-card booking-browser-panel p-4 sm:p-5" x-show="currentStep === 'services'" x-cloak>
+                        <section class="sf-card booking-browser-panel booking-services-panel p-4 sm:p-5" x-show="currentStep === 'services'" x-cloak>
                             <div class="flex items-start justify-between gap-4">
                                 <div>
                                     <p class="sf-page-eyebrow">1. Serviços</p>
@@ -809,7 +809,7 @@
                                 </select>
                             </div>
 
-                            <div class="mt-4 max-h-[520px] space-y-3 overflow-y-auto pr-1">
+                            <div class="booking-services-list mt-4 space-y-3 pr-1">
                                 @foreach ($services as $service)
                                     @php
                                         $checked = $selectedServiceIds->contains($service->id);

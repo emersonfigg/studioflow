@@ -7,6 +7,7 @@ use App\Http\Requests\UpdatePdvSalePaymentMethodRequest;
 use App\Models\Appointment;
 use App\Models\CashMovement;
 use App\Models\Client;
+use App\Models\MembershipPlan;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductSale;
@@ -105,8 +106,13 @@ class PdvController extends Controller
             'id', 'name', 'sku', 'price', 'stock_quantity', 'image_path', 'commission_type', 'commission_value',
         ]);
         $services = Service::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get([
-            'id', 'name', 'price', 'duration_minutes', 'image_path',
+            'id', 'name', 'price', 'price_mode', 'allow_pdv_price_edit', 'duration_minutes', 'image_path',
         ]);
+        $membershipPlans = MembershipPlan::query()
+            ->where('company_id', $companyId)
+            ->where('active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'description', 'price', 'billing_cycle']);
         $professionals = User::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(['id', 'name']);
         $catalog = [
             'products' => $products->map(function (Product $product) {
@@ -133,9 +139,26 @@ class PdvController extends Controller
                     'sku' => null,
                     'name' => $service->name,
                     'price' => (float) $service->price,
+                    'price_mode' => $service->price_mode,
+                    'allow_price_edit' => $service->allowsPdvPriceEdit(),
+                    'price_label' => $service->publicPriceLabel(),
                     'duration' => $service->duration_minutes,
                     'type' => 'service',
                     'image_url' => $service->image_url,
+                ];
+            })->values(),
+            'memberships' => $membershipPlans->map(function (MembershipPlan $plan) {
+                return [
+                    'id' => $plan->id,
+                    'membership_plan_id' => $plan->id,
+                    'code' => 'A'.$plan->id,
+                    'sku' => null,
+                    'name' => $plan->name,
+                    'price' => (float) $plan->price,
+                    'duration' => null,
+                    'type' => 'membership',
+                    'image_url' => null,
+                    'billing_cycle_label' => $plan->billing_cycle_label,
                 ];
             })->values(),
         ];
@@ -444,6 +467,8 @@ class PdvController extends Controller
                 'code' => $code,
                 'name' => $service->name,
                 'price' => $price,
+                'original_price' => (float) $service->price,
+                'allow_price_edit' => $service->allowsPdvPriceEdit(),
                 'quantity' => $qty,
                 'total' => round($price * $qty, 2),
                 'source' => 'appointment',
@@ -473,6 +498,8 @@ class PdvController extends Controller
                     'code' => 'S'.(int) $line->service_id,
                     'name' => (string) $line->description,
                     'price' => $unit,
+                    'original_price' => (float) ($s?->price ?? $unit),
+                    'allow_price_edit' => (bool) $s?->allowsPdvPriceEdit(),
                     'quantity' => $qty,
                     'total' => round($unit * $qty, 2),
                     'image_url' => $s?->image_url,

@@ -17,6 +17,28 @@ class StockMovement extends Model
 
     public const TYPE_SERVICE_CONSUMPTION = 'service_consumption';
 
+    public const TYPE_INITIAL_BALANCE = 'initial_balance';
+
+    public const TYPE_PURCHASE = 'purchase';
+
+    public const TYPE_SALE_REVERSAL = 'sale_reversal';
+
+    public const TYPE_MANUAL_ADJUSTMENT = 'manual_adjustment';
+
+    public const TYPE_BLIND_COUNT_ADJUSTMENT = 'blind_count_adjustment';
+
+    public const TYPE_AUDIT_ADJUSTMENT = 'audit_adjustment';
+
+    public const TYPE_BLIND_COUNT_ADJUSTMENT_APPLIED = 'blind_count_adjustment_applied';
+
+    public const TYPE_LOSS = 'loss';
+
+    public const TYPE_INTERNAL_USE = 'internal_use';
+
+    public const DIRECTION_IN = 'in';
+
+    public const DIRECTION_OUT = 'out';
+
     /** @var list<string> */
     public const TYPES = [
         self::TYPE_IN,
@@ -24,6 +46,15 @@ class StockMovement extends Model
         self::TYPE_ADJUSTMENT,
         self::TYPE_SALE,
         self::TYPE_SERVICE_CONSUMPTION,
+        self::TYPE_INITIAL_BALANCE,
+        self::TYPE_PURCHASE,
+        self::TYPE_SALE_REVERSAL,
+        self::TYPE_MANUAL_ADJUSTMENT,
+        self::TYPE_BLIND_COUNT_ADJUSTMENT,
+        self::TYPE_AUDIT_ADJUSTMENT,
+        self::TYPE_BLIND_COUNT_ADJUSTMENT_APPLIED,
+        self::TYPE_LOSS,
+        self::TYPE_INTERNAL_USE,
     ];
 
     protected $fillable = [
@@ -31,15 +62,22 @@ class StockMovement extends Model
         'product_id',
         'user_id',
         'type',
+        'direction',
         'quantity',
+        'balance_before',
+        'balance_after',
         'previous_quantity',
         'new_quantity',
         'unit_cost',
         'total_cost',
         'reason',
+        'notes',
         'source_type',
         'source_id',
+        'reference_type',
+        'reference_id',
         'occurred_at',
+        'movement_date',
     ];
 
     /**
@@ -49,11 +87,14 @@ class StockMovement extends Model
     {
         return [
             'quantity' => 'decimal:2',
+            'balance_before' => 'decimal:2',
+            'balance_after' => 'decimal:2',
             'previous_quantity' => 'decimal:2',
             'new_quantity' => 'decimal:2',
             'unit_cost' => 'decimal:2',
             'total_cost' => 'decimal:2',
             'occurred_at' => 'datetime',
+            'movement_date' => 'datetime',
         ];
     }
 

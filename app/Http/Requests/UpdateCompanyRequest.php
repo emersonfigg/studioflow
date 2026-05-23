@@ -4,6 +4,8 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class UpdateCompanyRequest extends FormRequest
 {
@@ -24,6 +26,13 @@ class UpdateCompanyRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'slug' => [
+                'required',
+                'string',
+                'max:80',
+                'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
+                Rule::unique('companies', 'slug')->ignore($this->user()?->company_id),
+            ],
             'phone' => ['nullable', 'string', 'max:30'],
             'address' => ['nullable', 'string', 'max:255'],
             'cnpj' => ['nullable', 'string', 'max:30'],
@@ -71,6 +80,7 @@ class UpdateCompanyRequest extends FormRequest
         $company = $this->user()?->company;
 
         $this->merge([
+            'slug' => Str::slug((string) ($this->input('slug') ?: $company?->slug ?: $this->input('name'))),
             'auto_print_receipt' => $this->boolean('auto_print_receipt'),
             'brand_enabled' => $this->has('brand_enabled') ? $this->boolean('brand_enabled') : (bool) ($company?->brand_enabled ?? true),
             'online_booking_payment_enabled' => $this->boolean('online_booking_payment_enabled'),

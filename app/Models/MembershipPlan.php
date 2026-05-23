@@ -70,6 +70,7 @@ class MembershipPlan extends Model
                 'quantity_per_cycle',
                 'discount_percent',
                 'included',
+                'special_duration_minutes',
             ])
             ->withTimestamps();
     }

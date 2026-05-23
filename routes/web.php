@@ -9,6 +9,7 @@ use App\Http\Controllers\CompanyPaymentIntegrationController;
 use App\Http\Controllers\CompanyPaymentWebhookController;
 use App\Http\Controllers\CustomerMembershipController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\MembershipPlanController;
 use App\Http\Controllers\MercadoPagoOAuthController;
@@ -21,8 +22,10 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicAppointmentReviewController;
 use App\Http\Controllers\PublicBookingController;
 use App\Http\Controllers\PublicBookingPaymentController;
+use App\Http\Controllers\PublicMembershipController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ServiceOrderController;
+use App\Http\Controllers\StockController;
 use App\Http\Controllers\SuperAdminCompanyController;
 use App\Http\Controllers\SuperAdminDashboardController;
 use App\Http\Controllers\SuperAdminUserController;
@@ -52,6 +55,10 @@ Route::get('/agendar/{company}/pagamento/{reference}/sucesso', [PublicBookingPay
     ->name('public-bookings.payment.success');
 Route::get('/agendar/{company}/pagamento/{reference}/falha', [PublicBookingPaymentController::class, 'failure'])
     ->name('public-bookings.payment.failure');
+Route::get('/empresa/{company}/assinaturas', [PublicMembershipController::class, 'index'])
+    ->name('public-memberships.index');
+Route::post('/empresa/{company}/assinaturas', [PublicMembershipController::class, 'store'])
+    ->name('public-memberships.store');
 
 Route::get('/avaliar/{token}', [PublicAppointmentReviewController::class, 'show'])->name('public-reviews.show');
 Route::post('/avaliar/{token}', [PublicAppointmentReviewController::class, 'store'])->name('public-reviews.store');
@@ -95,6 +102,10 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
         ->name('appointments.payment-method.update');
     Route::post('clients/inline', [ClientController::class, 'storeInline'])
         ->name('clients.inline.store');
+    Route::get('clients/reports/birthdays', [ClientController::class, 'birthdays'])
+        ->name('clients.birthdays');
+    Route::get('clients/reports/absent', [ClientController::class, 'absent'])
+        ->name('clients.absent');
     Route::patch('clients/{client}/deactivate', [ClientController::class, 'deactivate'])
         ->name('clients.deactivate');
     Route::patch('clients/{client}/reactivate', [ClientController::class, 'reactivate'])
@@ -166,6 +177,32 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
         ->name('finance.commissions');
     Route::get('finance/product-commissions', [FinanceController::class, 'productCommissions'])
         ->name('finance.product-commissions');
+    Route::get('finance/product-sales', [FinanceController::class, 'productSalesReport'])
+        ->name('finance.product-sales');
+    Route::resource('expenses', ExpenseController::class)->only(['index', 'store']);
+    Route::patch('expenses/{expense}/paid', [ExpenseController::class, 'markPaid'])
+        ->name('expenses.mark-paid');
+    Route::get('stock', [StockController::class, 'index'])->name('stock.index');
+    Route::get('stock/movements', [StockController::class, 'diary'])->name('stock.movements');
+    Route::get('stock/diary', [StockController::class, 'diary'])->name('stock.diary');
+    Route::get('stock/daily-checks', [StockController::class, 'dailyChecks'])->name('stock.daily-checks.index');
+    Route::get('stock/daily-checks/create', [StockController::class, 'createDailyCheck'])->name('stock.daily-checks.create');
+    Route::post('stock/daily-checks/generate', [StockController::class, 'generateDailyCheck'])->name('stock.daily-checks.generate');
+    Route::get('stock/daily-checks/{dailyStockCheck}', [StockController::class, 'showDailyCheck'])->name('stock.daily-checks.show');
+    Route::post('stock/daily-checks/{dailyStockCheck}/complete', [StockController::class, 'completeDailyCheck'])->name('stock.daily-checks.complete');
+    Route::post('stock/daily-checks/{dailyStockCheck}/cancel', [StockController::class, 'cancelDailyCheck'])->name('stock.daily-checks.cancel');
+    Route::get('stock/counts', [StockController::class, 'counts'])->name('stock.counts.index');
+    Route::get('stock/audit-general', [StockController::class, 'counts'])->name('stock.audit-general.index');
+    Route::get('stock/counts/create', [StockController::class, 'createCount'])->name('stock.counts.create');
+    Route::post('stock/counts', [StockController::class, 'storeCount'])->name('stock.counts.store');
+    Route::get('stock/counts/{stockCount}', [StockController::class, 'showCount'])->name('stock.counts.show');
+    Route::post('stock/counts/{stockCount}/complete', [StockController::class, 'completeCount'])->name('stock.counts.complete');
+    Route::get('stock/audit', [StockController::class, 'audit'])->name('stock.audit');
+    Route::get('stock/sales-audit', [StockController::class, 'salesAudit'])->name('stock.sales-audit');
+    Route::get('stock/adjustments', fn (\Illuminate\Http\Request $request) => redirect()->route('stock.adjustments.create', $request->query()))->name('stock.adjustments.index');
+    Route::get('stock/adjustments/create', [StockController::class, 'createAdjustment'])->name('stock.adjustments.create');
+    Route::post('stock/adjustments', [StockController::class, 'storeAdjustment'])->name('stock.adjustments.store');
+    Route::get('stock/low', [StockController::class, 'lowStock'])->name('stock.low');
     Route::get('finance/cash', [FinanceController::class, 'cash'])
         ->name('finance.cash');
     Route::post('finance/cash/open', [FinanceController::class, 'openCash'])

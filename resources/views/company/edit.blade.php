@@ -110,6 +110,13 @@
                         <x-input-error class="mt-2" :messages="$errors->get('name')" />
                     </div>
 
+                    <div class="lg:col-span-2">
+                        <label for="slug" class="text-sm font-medium text-[var(--text-main)]">Slug publico</label>
+                        <input id="slug" name="slug" type="text" value="{{ $formValues['slug'] }}" class="sf-input mt-2 block w-full" required>
+                        <p class="mt-2 text-xs sf-muted">Usado nos links publicos: {{ url('/empresa/'.$formValues['slug'].'/assinaturas') }}</p>
+                        <x-input-error class="mt-2" :messages="$errors->get('slug')" />
+                    </div>
+
                     <div>
                         <label for="phone" class="text-sm font-medium text-[var(--text-main)]">Telefone</label>
                         <input id="phone" name="phone" type="text" value="{{ $formValues['phone'] }}" class="sf-input mt-2 block w-full" @input="refreshPreviewContent()">

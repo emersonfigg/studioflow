@@ -8,6 +8,7 @@ use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Company extends Model
 {
@@ -21,6 +22,7 @@ class Company extends Model
      */
     protected $fillable = [
         'name',
+        'slug',
         'phone',
         'address',
         'cnpj',
@@ -72,6 +74,54 @@ class Company extends Model
             'client_code_counter' => 'integer',
             'onboarding_completed_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Company $company): void {
+            if (! filled($company->slug)) {
+                $company->slug = static::uniqueSlugForName((string) $company->name);
+            }
+        });
+
+        static::saving(function (Company $company): void {
+            if (filled($company->slug)) {
+                $company->slug = Str::slug((string) $company->slug);
+            }
+        });
+    }
+
+    public function resolveRouteBinding($value, $field = null): ?Model
+    {
+        $query = $this->newQuery();
+
+        if ($field !== null) {
+            return $query->where($field, $value)->first();
+        }
+
+        $query->where('slug', $value);
+
+        if (ctype_digit((string) $value)) {
+            $query->orWhere($this->getKeyName(), (int) $value);
+        }
+
+        return $query->first();
+    }
+
+    public static function uniqueSlugForName(string $name, ?int $ignoreId = null): string
+    {
+        $base = Str::slug($name) ?: 'empresa';
+        $slug = $base;
+        $suffix = 2;
+
+        while (static::query()
+            ->when($ignoreId !== null, fn ($query) => $query->whereKeyNot($ignoreId))
+            ->where('slug', $slug)
+            ->exists()) {
+            $slug = $base.'-'.$suffix++;
+        }
+
+        return $slug;
     }
 
     /**

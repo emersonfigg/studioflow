@@ -13,6 +13,7 @@ use App\Services\AvailabilityService;
 use App\Services\BookingPaymentService;
 use App\Services\BrandingService;
 use App\Services\CustomerBlockService;
+use App\Services\MembershipService;
 use App\Services\ReviewService;
 use App\Services\ServiceOrderService;
 use Carbon\Carbon;
@@ -71,9 +72,10 @@ class PublicBookingController extends Controller
         $selectedDate = $request->filled('date')
             ? CarbonImmutable::parse((string) $request->input('date'))->toDateString()
             : CarbonImmutable::today()->toDateString();
+        $identifiedClient = $this->identifiedClient($company);
         $hasSelectedServices = $selectedServices->isNotEmpty();
         $totalDurationMinutes = $hasSelectedServices
-            ? (int) $selectedServices->sum('duration_minutes')
+            ? $this->totalDurationForClient($company, $selectedServices, $identifiedClient?->id, CarbonImmutable::parse($selectedDate))
             : self::DEFAULT_BOOKING_DURATION_MINUTES;
         $totalPrice = (float) $selectedServices->sum(fn (Service $service): float => (float) $service->price);
         $onlineBookingPaymentConfigured = $bookingPaymentService->onlinePaymentEnabled($company);
@@ -98,8 +100,6 @@ class PublicBookingController extends Controller
                 ? 'online'
                 : ($company->bookingPaymentOptional() && $canOfferOnlineBookingPayment ? null : 'on_site')
         );
-        $identifiedClient = $this->identifiedClient($company);
-
         [$selectedUser, $slotOptions] = $this->resolveSelectedUserAndSlots(
             $request,
             $company,
@@ -172,8 +172,8 @@ class PublicBookingController extends Controller
                 'name' => $service->name,
                 'description' => $service->description ? (string) $service->description : null,
                 'category' => 'Serviços',
-                'duration' => (int) $service->duration_minutes,
-                'price' => number_format((float) $service->price, 2, ',', '.'),
+                'duration' => $this->durationForClient($company, $service, $identifiedClient?->id, CarbonImmutable::parse($selectedDate)),
+                'price' => $service->publicPriceLabel(),
                 'price_value' => (float) $service->price,
                 'image_url' => $service->image_url,
             ])->values(),
@@ -216,7 +216,7 @@ class PublicBookingController extends Controller
         $slotOptions = $availabilityService->slotOptionsForDuration(
             $company,
             $user,
-            (int) $services->sum('duration_minutes'),
+            $this->totalDurationForClient($company, $services, $this->identifiedClient($company)?->id, CarbonImmutable::parse($selectedDate)),
             $selectedDate,
             true,
             null,
@@ -416,7 +416,8 @@ class PublicBookingController extends Controller
                 $services,
                 collect($data['service_ids'])->map(fn (mixed $id): int => (int) $id)
             );
-            $totalDurationMinutes = (int) $orderedServices->sum('duration_minutes');
+            $client = $this->resolveBookingClient($request, $company, $data);
+            $totalDurationMinutes = $this->totalDurationForClient($company, $orderedServices, (int) $client->id, $startTime);
 
             $availableSlots = $availabilityService->availableSlotsForDuration(
                 $company,
@@ -425,7 +426,7 @@ class PublicBookingController extends Controller
                 $startTime,
                 true,
                 null,
-                $this->identifiedClient($company)?->id,
+                null,
             );
 
             if (! in_array($startTime->format('H:i'), $availableSlots, true)) {
@@ -433,8 +434,6 @@ class PublicBookingController extends Controller
                     'time' => 'Este horário não está mais disponível.',
                 ]);
             }
-
-            $client = $this->resolveBookingClient($request, $company, $data);
 
             if (! $client->isOperationallyActive()) {
                 throw ValidationException::withMessages([
@@ -486,7 +485,7 @@ class PublicBookingController extends Controller
                     fn (Service $service, int $index): array => [
                         $service->id => [
                             'price_snapshot' => number_format((float) $service->price, 2, '.', ''),
-                            'duration_snapshot' => (int) $service->duration_minutes,
+                            'duration_snapshot' => $this->durationForClient($company, $service, (int) $client->id, $startTime),
                             'order' => $index + 1,
                         ],
                     ]
@@ -774,6 +773,32 @@ class PublicBookingController extends Controller
     private function publicClientSessionKey(Company $company): string
     {
         return 'public_booking_client_'.$company->id;
+    }
+
+    /**
+     * @param  iterable<Service>  $services
+     */
+    private function totalDurationForClient(Company $company, iterable $services, ?int $clientId, CarbonImmutable|Carbon $at): int
+    {
+        $total = 0;
+
+        foreach ($services as $service) {
+            $total += $this->durationForClient($company, $service, $clientId, $at);
+        }
+
+        return max(1, $total);
+    }
+
+    private function durationForClient(Company $company, Service $service, ?int $clientId, CarbonImmutable|Carbon $at): int
+    {
+        if ($clientId) {
+            $special = app(MembershipService::class)->specialDurationForService((int) $company->id, $clientId, $service, $at);
+            if ($special !== null) {
+                return $special;
+            }
+        }
+
+        return max(1, (int) $service->duration_minutes);
     }
 
     private function normalizeEmail(mixed $email): ?string

@@ -61,7 +61,14 @@ class ServiceOrderService
         });
     }
 
-    public function addService(ServiceOrder $order, Service $service, ?User $professional = null): ServiceOrder
+    public function addService(
+        ServiceOrder $order,
+        Service $service,
+        ?User $professional = null,
+        ?float $unitPrice = null,
+        ?string $priceAdjustmentReason = null,
+        ?User $priceAdjustedBy = null,
+    ): ServiceOrder
     {
         $this->ensureOpen($order);
         abort_unless($service->company_id === $order->company_id, 404);
@@ -70,7 +77,24 @@ class ServiceOrderService
             abort_unless($professional->company_id === $order->company_id, 404);
         }
 
-        $this->createServiceItem($order, $service, $professional?->id ?? $order->professional_id, (float) $service->price);
+        $originalPrice = (float) $service->price;
+        $finalPrice = $unitPrice !== null ? round(max(0, $unitPrice), 2) : $originalPrice;
+
+        if (abs($finalPrice - $originalPrice) > 0.009 && ! $service->allowsPdvPriceEdit()) {
+            throw ValidationException::withMessages([
+                'service_items' => 'Este servico nao permite alteracao de preco no PDV.',
+            ]);
+        }
+
+        $this->createServiceItem(
+            $order,
+            $service,
+            $professional?->id ?? $order->professional_id,
+            $finalPrice,
+            $originalPrice,
+            $priceAdjustmentReason,
+            $priceAdjustedBy,
+        );
 
         return $this->recalculate($order);
     }
@@ -96,7 +120,7 @@ class ServiceOrderService
             ->where('product_id', $product->id)
             ->sum('quantity');
 
-        if ($product->stock_quantity < ($alreadyInOrder + $quantity)) {
+        if ($product->tracksStock() && $product->stock_quantity < ($alreadyInOrder + $quantity)) {
             throw ValidationException::withMessages([
                 'product_id' => 'Estoque insuficiente para adicionar este produto.',
             ]);
@@ -352,8 +376,19 @@ class ServiceOrderService
         });
     }
 
-    private function createServiceItem(ServiceOrder $order, Service $service, ?int $professionalId, float $unitPrice): void
+    private function createServiceItem(
+        ServiceOrder $order,
+        Service $service,
+        ?int $professionalId,
+        float $unitPrice,
+        ?float $originalUnitPrice = null,
+        ?string $priceAdjustmentReason = null,
+        ?User $priceAdjustedBy = null,
+    ): void
     {
+        $originalUnitPrice ??= (float) $service->price;
+        $adjustment = round($unitPrice - $originalUnitPrice, 2);
+
         $order->items()->create([
             'type' => ServiceOrderItem::TYPE_SERVICE,
             'service_id' => $service->id,
@@ -361,6 +396,11 @@ class ServiceOrderService
             'description' => $service->name,
             'quantity' => 1,
             'unit_price' => round($unitPrice, 2),
+            'original_unit_price' => round($originalUnitPrice, 2),
+            'price_adjustment_amount' => abs($adjustment) > 0.009 ? $adjustment : 0,
+            'price_adjustment_reason' => abs($adjustment) > 0.009 ? $priceAdjustmentReason : null,
+            'price_adjusted_by' => abs($adjustment) > 0.009 ? $priceAdjustedBy?->id : null,
+            'price_adjusted_at' => abs($adjustment) > 0.009 ? now() : null,
             'total_price' => round($unitPrice, 2),
         ]);
     }

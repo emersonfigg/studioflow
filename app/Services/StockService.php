@@ -37,9 +37,9 @@ class StockService
     /**
      * @return Collection<int, Product>
      */
-    public function getLowStockProducts(int $companyId): Collection
+    public function getLowStockProducts(int $companyId, ?int $limit = 50): Collection
     {
-        return Product::query()
+        $query = Product::query()
             ->where('company_id', $companyId)
             ->where('active', true)
             ->where('low_stock_alert', true)
@@ -47,9 +47,13 @@ class StockService
             ->whereNotNull('minimum_stock')
             ->whereColumn('stock_quantity', '<=', 'minimum_stock')
             ->orderBy('stock_quantity')
-            ->orderBy('name')
-            ->limit(50)
-            ->get();
+            ->orderBy('name');
+
+        if ($limit !== null) {
+            $query->limit($limit);
+        }
+
+        return $query->get();
     }
 
     public function increase(
@@ -60,10 +64,11 @@ class StockService
         ?int $sourceId = null,
         ?User $actor = null,
         ?CarbonInterface $occurredAt = null,
+        string $type = StockMovement::TYPE_IN,
     ): StockMovement {
         $quantity = max(0.0, round($quantity, 2));
 
-        return DB::transaction(function () use ($product, $quantity, $reason, $sourceType, $sourceId, $actor, $occurredAt): StockMovement {
+        return DB::transaction(function () use ($product, $quantity, $reason, $sourceType, $sourceId, $actor, $occurredAt, $type): StockMovement {
             /** @var Product $locked */
             $locked = Product::query()
                 ->where('company_id', $product->company_id)
@@ -82,16 +87,23 @@ class StockService
                 'company_id' => $locked->company_id,
                 'product_id' => $locked->id,
                 'user_id' => $actor?->id,
-                'type' => StockMovement::TYPE_IN,
+                'type' => $type,
+                'direction' => StockMovement::DIRECTION_IN,
                 'quantity' => $quantity,
+                'balance_before' => $previous,
+                'balance_after' => $newQty,
                 'previous_quantity' => $previous,
                 'new_quantity' => $newQty,
                 'unit_cost' => $unitCost,
                 'total_cost' => $totalCost,
                 'reason' => $reason,
+                'notes' => $reason,
                 'source_type' => $sourceType,
                 'source_id' => $sourceId,
+                'reference_type' => $sourceType,
+                'reference_id' => $sourceId,
                 'occurred_at' => $occurredAt ? CarbonImmutable::instance($occurredAt) : now(),
+                'movement_date' => $occurredAt ? CarbonImmutable::instance($occurredAt) : now(),
             ]);
         });
     }
@@ -146,15 +158,22 @@ class StockService
                 'product_id' => $locked->id,
                 'user_id' => $actor?->id,
                 'type' => $type,
+                'direction' => StockMovement::DIRECTION_OUT,
                 'quantity' => $quantity,
+                'balance_before' => $previous,
+                'balance_after' => $newQty,
                 'previous_quantity' => $previous,
                 'new_quantity' => $newQty,
                 'unit_cost' => $unitCost,
                 'total_cost' => $totalCost,
                 'reason' => $reason,
+                'notes' => $reason,
                 'source_type' => $sourceType,
                 'source_id' => $sourceId,
+                'reference_type' => $sourceType,
+                'reference_id' => $sourceId,
                 'occurred_at' => $occurredAt ? CarbonImmutable::instance($occurredAt) : now(),
+                'movement_date' => $occurredAt ? CarbonImmutable::instance($occurredAt) : now(),
             ]);
         });
     }
@@ -168,10 +187,13 @@ class StockService
         string $reason,
         ?User $actor = null,
         ?CarbonInterface $occurredAt = null,
+        string $type = StockMovement::TYPE_ADJUSTMENT,
+        ?string $sourceType = null,
+        ?int $sourceId = null,
     ): StockMovement {
         $newQuantity = max(0.0, round($newQuantity, 2));
 
-        return DB::transaction(function () use ($product, $newQuantity, $reason, $actor, $occurredAt): StockMovement {
+        return DB::transaction(function () use ($product, $newQuantity, $reason, $actor, $occurredAt, $type, $sourceType, $sourceId): StockMovement {
             /** @var Product $locked */
             $locked = Product::query()
                 ->where('company_id', $product->company_id)
@@ -181,6 +203,8 @@ class StockService
 
             $previous = round((float) $locked->stock_quantity, 2);
             $delta = round($newQuantity - $previous, 2);
+            $unitCost = $locked->cost_price !== null ? round((float) $locked->cost_price, 2) : null;
+            $totalCost = $unitCost !== null ? round($unitCost * abs($delta), 2) : null;
 
             $locked->update(['stock_quantity' => $newQuantity]);
 
@@ -188,18 +212,67 @@ class StockService
                 'company_id' => $locked->company_id,
                 'product_id' => $locked->id,
                 'user_id' => $actor?->id,
-                'type' => StockMovement::TYPE_ADJUSTMENT,
+                'type' => $type,
+                'direction' => $delta >= 0 ? StockMovement::DIRECTION_IN : StockMovement::DIRECTION_OUT,
                 'quantity' => abs($delta),
+                'balance_before' => $previous,
+                'balance_after' => $newQuantity,
                 'previous_quantity' => $previous,
                 'new_quantity' => $newQuantity,
-                'unit_cost' => null,
-                'total_cost' => null,
+                'unit_cost' => $unitCost,
+                'total_cost' => $totalCost,
                 'reason' => $reason,
-                'source_type' => null,
-                'source_id' => null,
+                'notes' => $reason,
+                'source_type' => $sourceType,
+                'source_id' => $sourceId,
+                'reference_type' => $sourceType,
+                'reference_id' => $sourceId,
                 'occurred_at' => $occurredAt ? CarbonImmutable::instance($occurredAt) : now(),
+                'movement_date' => $occurredAt ? CarbonImmutable::instance($occurredAt) : now(),
             ]);
         });
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    public function manualMovement(
+        Product $product,
+        string $direction,
+        float $quantity,
+        string $reason,
+        ?float $unitCost,
+        ?string $notes,
+        User $actor,
+        ?string $sourceType = null,
+        ?int $sourceId = null,
+    ): StockMovement {
+        $quantity = round(max(0.0, $quantity), 2);
+
+        if ($direction === StockMovement::DIRECTION_IN) {
+            if ($unitCost !== null) {
+                $product->forceFill(['cost_price' => round($unitCost, 2)])->save();
+            }
+
+            return $this->increase(
+                $product,
+                $quantity,
+                $notes ?: $reason,
+                $sourceType,
+                $sourceId,
+                $actor,
+                null,
+                $reason === StockMovement::TYPE_PURCHASE ? StockMovement::TYPE_PURCHASE : StockMovement::TYPE_MANUAL_ADJUSTMENT,
+            );
+        }
+
+        $type = match ($reason) {
+            StockMovement::TYPE_LOSS => StockMovement::TYPE_LOSS,
+            StockMovement::TYPE_INTERNAL_USE => StockMovement::TYPE_INTERNAL_USE,
+            default => StockMovement::TYPE_MANUAL_ADJUSTMENT,
+        };
+
+        return $this->decrease($product, $quantity, $notes ?: $reason, $type, $sourceType, $sourceId, $actor);
     }
 
     /**

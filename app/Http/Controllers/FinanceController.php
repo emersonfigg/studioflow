@@ -489,6 +489,83 @@ class FinanceController extends Controller
         ]);
     }
 
+    public function productSalesReport(Request $request): View
+    {
+        [$from, $to, $selectedUserId, $users] = $this->baseFilters($request);
+        $companyId = (int) $request->user()->company_id;
+        $selectedProductId = $request->integer('product_id') ?: null;
+        $selectedCategory = trim((string) $request->input('category', ''));
+        $selectedPaymentMethod = trim((string) $request->input('payment_method', ''));
+
+        $items = ProductSaleItem::query()
+            ->with(['product', 'seller', 'sale'])
+            ->select('product_sale_items.*')
+            ->join('product_sales', 'product_sales.id', '=', 'product_sale_items.product_sale_id')
+            ->leftJoin('service_orders', 'service_orders.id', '=', 'product_sales.service_order_id')
+            ->where('product_sales.company_id', $companyId)
+            ->whereBetween('product_sales.sold_at', [$from, $to])
+            ->where(function ($query): void {
+                $query->whereNull('product_sales.service_order_id')
+                    ->orWhere('service_orders.status', ServiceOrder::STATUS_PAID);
+            })
+            ->when($selectedUserId !== null, fn ($query) => $query->where('product_sale_items.seller_id', $selectedUserId))
+            ->when($selectedProductId !== null, fn ($query) => $query->where('product_sale_items.product_id', $selectedProductId))
+            ->when($selectedPaymentMethod !== '', fn ($query) => $query->where('product_sales.payment_method', $selectedPaymentMethod))
+            ->when($selectedCategory !== '', fn ($query) => $query->join('products', 'products.id', '=', 'product_sale_items.product_id')->where('products.category', $selectedCategory))
+            ->orderByDesc('product_sales.sold_at')
+            ->get();
+
+        $saleGrossById = $items->groupBy('product_sale_id')->map(fn (Collection $group): float => (float) $group->sum(fn (ProductSaleItem $item) => (float) $item->total_price));
+        $rows = $items->map(function (ProductSaleItem $item) use ($saleGrossById): array {
+            $gross = round((float) $item->total_price, 2);
+            $saleGross = max(0.01, (float) ($saleGrossById[$item->product_sale_id] ?? $gross));
+            $saleNet = round((float) ($item->sale?->gross_amount ?? $gross), 2);
+            $net = round($gross * ($saleNet / $saleGross), 2);
+
+            return [
+                'item' => $item,
+                'gross' => $gross,
+                'discount' => max(0, round($gross - $net, 2)),
+                'net' => $net,
+            ];
+        });
+
+        $products = Product::query()->where('company_id', $companyId)->orderBy('name')->get(['id', 'name', 'category']);
+        $categories = $products->pluck('category')->filter()->unique()->sort()->values();
+        $ranking = $rows->groupBy(fn (array $row) => $row['item']->product_id)
+            ->map(function (Collection $group): array {
+                $first = $group->first()['item'];
+
+                return [
+                    'product' => $first->product,
+                    'quantity' => (int) $group->sum(fn (array $row) => (int) $row['item']->quantity),
+                    'net' => (float) $group->sum('net'),
+                ];
+            })
+            ->sortByDesc('quantity')
+            ->values();
+
+        return view('finance.product-sales', [
+            'from' => $from,
+            'to' => $to,
+            'users' => $users,
+            'selectedUserId' => $selectedUserId,
+            'products' => $products,
+            'categories' => $categories,
+            'paymentMethods' => Payment::paymentMethodOptions(),
+            'selectedProductId' => $selectedProductId,
+            'selectedCategory' => $selectedCategory,
+            'selectedPaymentMethod' => $selectedPaymentMethod,
+            'rows' => $rows,
+            'totalQuantity' => (int) $items->sum('quantity'),
+            'totalGross' => (float) $rows->sum('gross'),
+            'totalDiscount' => (float) $rows->sum('discount'),
+            'totalNet' => (float) $rows->sum('net'),
+            'ranking' => $ranking,
+            'page' => 'product-sales',
+        ]);
+    }
+
     /**
      * Revenue and volume by service line (paid orders only).
      */

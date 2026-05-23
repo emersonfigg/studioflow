@@ -146,6 +146,7 @@ class MembershipPlanController extends Controller
             'services.*.included' => ['sometimes', 'boolean'],
             'services.*.quantity_per_cycle' => ['nullable', 'integer', 'min:1', 'max:9999'],
             'services.*.discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'services.*.special_duration_minutes' => ['nullable', 'integer', 'min:1', 'max:1440'],
         ]);
 
         $data['active'] = $request->boolean('active');
@@ -155,7 +156,7 @@ class MembershipPlanController extends Controller
     }
 
     /**
-     * @param  list<array{service_id: int, included?: bool, quantity_per_cycle?: int|null, discount_percent?: float|null}>  $rows
+     * @param  list<array{service_id: int, included?: bool, quantity_per_cycle?: int|null, discount_percent?: float|null, special_duration_minutes?: int|null}>  $rows
      */
     private function syncPlanServices(MembershipPlan $plan, int $companyId, array $rows): void
     {
@@ -174,8 +175,11 @@ class MembershipPlanController extends Controller
             $qty = isset($row['quantity_per_cycle']) && $row['quantity_per_cycle'] !== '' && $row['quantity_per_cycle'] !== null
                 ? (int) $row['quantity_per_cycle']
                 : null;
+            $specialDuration = isset($row['special_duration_minutes']) && $row['special_duration_minutes'] !== '' && $row['special_duration_minutes'] !== null
+                ? (int) $row['special_duration_minutes']
+                : null;
 
-            if (! $included && ($disc === null || $disc <= 0) && $qty === null) {
+            if (! $included && ($disc === null || $disc <= 0) && $qty === null && $specialDuration === null) {
                 continue;
             }
 
@@ -184,6 +188,7 @@ class MembershipPlanController extends Controller
                 'quantity_per_cycle' => $qty,
                 'discount_percent' => $disc,
                 'included' => $included,
+                'special_duration_minutes' => $specialDuration,
             ];
         }
 

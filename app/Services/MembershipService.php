@@ -8,6 +8,7 @@ use App\Models\MembershipPlan;
 use App\Models\MembershipUsage;
 use App\Models\ServiceOrder;
 use App\Models\ServiceOrderItem;
+use App\Models\Service;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -312,6 +313,7 @@ class MembershipService
                 'included' => (bool) $s->pivot->included,
                 'discount_percent' => $s->pivot->discount_percent,
                 'quantity_per_cycle' => $s->pivot->quantity_per_cycle,
+                'special_duration_minutes' => $s->pivot->special_duration_minutes,
                 'remaining' => $this->remainingUsesForService(
                     $membership,
                     (int) $s->id,
@@ -319,6 +321,21 @@ class MembershipService
                 ),
             ]),
         ];
+    }
+
+    public function specialDurationForService(int $companyId, int $clientId, Service $service, CarbonInterface $at): ?int
+    {
+        $membership = $this->getActiveMembershipForClient($companyId, $clientId, $at);
+
+        if (! $membership) {
+            return null;
+        }
+
+        $membership->plan->loadMissing('services');
+        $pivotService = $membership->plan->services->firstWhere('id', $service->id);
+        $duration = $pivotService?->pivot?->special_duration_minutes;
+
+        return $duration !== null ? max(1, (int) $duration) : null;
     }
 
     private function remainingUsesForService(CustomerMembership $membership, int $serviceId, ?int $limit): ?int

@@ -356,7 +356,29 @@
                                                     class="pdv-touch-16 w-full rounded border border-white/15 bg-[var(--app-shell-bg)] px-1 py-1.5 text-right text-base font-semibold text-[var(--text-main)] tabular-nums lg:py-1 lg:text-[11px]"
                                                 >
                                             </td>
-                                            <td class="w-20 whitespace-nowrap px-2 py-2 text-right tabular-nums" x-text="formatMoneyBRL(item.price)"></td>
+                                            <td class="w-20 px-2 py-2 text-right tabular-nums">
+                                                <template x-if="item.type === 'service' && item.allow_price_edit">
+                                                    <div class="space-y-1">
+                                                        <input
+                                                            x-model.number="item.price"
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.01"
+                                                            class="pdv-touch-16 w-24 rounded border border-[color-mix(in_srgb,var(--brand-primary)_28%,transparent)] bg-[var(--app-shell-bg)] px-2 py-1.5 text-right text-xs font-semibold text-[var(--brand-primary)] tabular-nums"
+                                                        >
+                                                        <input
+                                                            x-model="item.price_adjustment_reason"
+                                                            type="text"
+                                                            maxlength="255"
+                                                            class="w-24 rounded border border-white/10 bg-[var(--app-shell-bg)] px-2 py-1 text-[10px] text-[var(--text-main)]"
+                                                            placeholder="Motivo"
+                                                        >
+                                                    </div>
+                                                </template>
+                                                <template x-if="!(item.type === 'service' && item.allow_price_edit)">
+                                                    <span class="whitespace-nowrap" x-text="formatMoneyBRL(item.price)"></span>
+                                                </template>
+                                            </td>
                                             <td class="w-20 whitespace-nowrap px-2 py-2 text-right font-semibold text-[var(--text-main)] tabular-nums" x-text="formatMoneyBRL(Number(item.price || 0) * validQuantity(item.quantity))"></td>
                                             <td class="w-12 px-1 py-2 text-center">
                                                 <button
@@ -389,6 +411,10 @@
                     <div class="rounded-lg border border-white/10 bg-[var(--brand-accent)] p-2 sm:rounded-xl">
                         <p class="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--brand-primary)]">Subtotal produtos</p>
                         <p class="mt-1 text-base font-bold sf-text-muted sm:text-lg">R$ <span class="tabular-nums text-[var(--text-main)]" x-text="formatMoneyBRL(subtotalProducts)"></span></p>
+                    </div>
+                    <div class="rounded-lg border border-white/10 bg-[var(--brand-accent)] p-2 sm:rounded-xl">
+                        <p class="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--brand-primary)]">Assinaturas</p>
+                        <p class="mt-1 text-base font-bold sf-text-muted sm:text-lg">R$ <span class="tabular-nums text-[var(--text-main)]" x-text="formatMoneyBRL(subtotalMemberships)"></span></p>
                     </div>
                     <div class="rounded-lg border border-rose-400/20 bg-[var(--brand-accent)] p-2 sm:rounded-xl">
                         <label for="pdv-discount-value" class="block text-[10px] font-bold uppercase tracking-[0.14em] text-rose-200/90">Desconto</label>
@@ -471,7 +497,13 @@
 
             {{-- Hidden payload --}}
             <template x-for="(item, idx) in servicePayload" :key="`s-${idx}-${item.service_id}`">
-                <input type="hidden" :name="`service_items[${idx}][service_id]`" :value="item.service_id">
+                <div>
+                    <input type="hidden" :name="`service_items[${idx}][service_id]`" :value="item.service_id">
+                    <input type="hidden" :name="`service_items[${idx}][unit_price]`" :value="item.unit_price">
+                    <template x-if="item.price_adjustment_reason">
+                        <input type="hidden" :name="`service_items[${idx}][price_adjustment_reason]`" :value="item.price_adjustment_reason">
+                    </template>
+                </div>
             </template>
             <input type="hidden" name="discount" :value="formatMoneyBRL(discountApplied).replace(/\./g, '').replace(',', '.')">
             <template x-for="(item, idx) in productPayload" :key="`p-${idx}-${item.product_id}`">
@@ -482,6 +514,9 @@
                         <input type="hidden" :name="`items[${idx}][seller_id]`" :value="item.seller_id">
                     </template>
                 </div>
+            </template>
+            <template x-for="(item, idx) in membershipPayload" :key="`m-${idx}-${item.membership_plan_id}`">
+                <input type="hidden" :name="`membership_items[${idx}][membership_plan_id]`" :value="item.membership_plan_id">
             </template>
 
             {{-- 9. Barra de atalhos --}}
@@ -506,6 +541,7 @@
             const root = catalogData && typeof catalogData === 'object' ? catalogData : {};
             const products = Array.isArray(root.products) ? root.products : [];
             const services = Array.isArray(root.services) ? root.services : [];
+            const memberships = Array.isArray(root.memberships) ? root.memberships : [];
 
             const productCommissionMap = new Map();
             products.forEach((p) => {
@@ -515,9 +551,11 @@
             const bootCart = Array.isArray(initialCartData) && initialCartData.length
                 ? initialCartData.map((row) => {
                     const id = row.id != null && row.id !== '' ? Number(row.id) : 0;
-                    const isProduct = String(row.type || '').toLowerCase() === 'product';
-                    const type = isProduct ? 'product' : 'service';
-                    const serviceId = isProduct ? undefined : (row.service_id != null ? Number(row.service_id) : id);
+                    const rawType = String(row.type || '').toLowerCase();
+                    const isProduct = rawType === 'product';
+                    const isMembership = rawType === 'membership';
+                    const type = isMembership ? 'membership' : (isProduct ? 'product' : 'service');
+                    const serviceId = type === 'service' ? (row.service_id != null ? Number(row.service_id) : id) : undefined;
 
                     return {
                         ...row,
@@ -527,10 +565,14 @@
                         quantity: Math.max(1, Number(row.quantity || 1)),
                         source: row.source || null,
                         service_id: serviceId,
-                        code: row.code || (isProduct ? 'P' + id : 'S' + (serviceId || id)),
+                        membership_plan_id: isMembership ? Number(row.membership_plan_id || id) : undefined,
+                        code: row.code || (isProduct ? 'P' + id : (isMembership ? 'A' + id : 'S' + (serviceId || id))),
                         image_url: row.image_url ?? null,
                         seller_id: isProduct && row.seller_id ? Number(row.seller_id) : '',
                         commission: isProduct ? Boolean(productCommissionMap.get(id) ?? row.commission) : false,
+                        allow_price_edit: Boolean(row.allow_price_edit),
+                        original_price: Number(row.original_price ?? row.price ?? 0),
+                        price_adjustment_reason: row.price_adjustment_reason || '',
                     };
                 })
                 : [];
@@ -540,7 +582,7 @@
                 search: '',
                 highlightedIndex: 0,
                 cart: bootCart,
-                catalog: [...products, ...services],
+                catalog: [...products, ...services, ...memberships],
                 discountType: @json(old('discount_type', 'fixed')),
                 discountInput: @json(old('discount_value', old('discount', '0'))),
                 currentTime: '',
@@ -661,6 +703,7 @@
                 },
                 addCatalogItem(item) {
                     const isService = item.type === 'service';
+                    const isMembership = item.type === 'membership';
                     const defaultSellerId = this.$refs.professionalSelect?.value
                         ? Number(this.$refs.professionalSelect.value)
                         : '';
@@ -676,18 +719,33 @@
                         }
                     }
 
+                    if (isMembership) {
+                        const existing = this.cart.find((row) => String(row.type) === 'membership' && Number(row.membership_plan_id ?? row.id) === Number(item.id));
+                        if (existing) {
+                            existing.quantity = this.validQuantity(existing.quantity) + 1;
+                            this.search = '';
+                            this.highlightedIndex = 0;
+
+                            return;
+                        }
+                    }
+
                     this.cart.push({
                         id: item.id,
                         service_id: isService ? item.id : undefined,
+                        membership_plan_id: isMembership ? item.id : undefined,
                         type: item.type,
-                        code: item.code || (item.type === 'product' ? 'P' + item.id : 'S' + item.id),
+                        code: item.code || (item.type === 'product' ? 'P' + item.id : (isMembership ? 'A' + item.id : 'S' + item.id)),
                         name: item.name,
                         price: Number(item.price || 0),
+                        original_price: Number(item.price || 0),
                         quantity: 1,
                         source: null,
                         image_url: item.image_url ?? null,
-                        seller_id: !isService ? defaultSellerId : '',
-                        commission: !isService && Boolean(item.commission),
+                        seller_id: item.type === 'product' ? defaultSellerId : '',
+                        commission: item.type === 'product' && Boolean(item.commission),
+                        allow_price_edit: isService && Boolean(item.allow_price_edit),
+                        price_adjustment_reason: '',
                     });
                     this.search = '';
                     this.highlightedIndex = 0;
@@ -787,6 +845,11 @@
                         .filter((item) => String(item.type) === 'product')
                         .reduce((acc, item) => acc + Number(item.price || 0) * this.validQuantity(item.quantity), 0);
                 },
+                get subtotalMemberships() {
+                    return this.cart
+                        .filter((item) => String(item.type) === 'membership')
+                        .reduce((acc, item) => acc + Number(item.price || 0) * this.validQuantity(item.quantity), 0);
+                },
                 get discountValue() {
                     const raw = String(this.discountInput || '').trim();
                     if (!raw) {
@@ -799,7 +862,7 @@
                     return Number.isFinite(normalized) && normalized > 0 ? normalized : 0;
                 },
                 get discountApplied() {
-                    const subtotal = this.subtotalServices + this.subtotalProducts;
+                    const subtotal = this.subtotalServices + this.subtotalProducts + this.subtotalMemberships;
                     if (subtotal <= 0) {
                         return 0;
                     }
@@ -810,7 +873,7 @@
                     return Math.min(this.discountValue, subtotal);
                 },
                 get total() {
-                    const raw = this.subtotalServices + this.subtotalProducts - this.discountApplied;
+                    const raw = this.subtotalServices + this.subtotalProducts + this.subtotalMemberships - this.discountApplied;
 
                     return raw > 0 ? raw : 0;
                 },
@@ -819,7 +882,7 @@
                         return '';
                     }
                     if (this.cart.length === 0) {
-                        return 'Adicione ao menos um serviço ou produto para concluir.';
+                        return 'Adicione ao menos um servico, produto ou assinatura para concluir.';
                     }
                     if (this.hasMissingSeller) {
                         return 'Selecione o vendedor responsável para produtos com comissão.';
@@ -827,7 +890,7 @@
                     if (this.discountType === 'percent' && this.discountValue > 100) {
                         return 'Percentual de desconto não pode ser maior que 100%.';
                     }
-                    if (this.discountType !== 'percent' && this.discountValue > (this.subtotalServices + this.subtotalProducts)) {
+                    if (this.discountType !== 'percent' && this.discountValue > (this.subtotalServices + this.subtotalProducts + this.subtotalMemberships)) {
                         return 'O desconto não pode ser maior que a soma dos subtotais.';
                     }
 
@@ -844,7 +907,11 @@
                             const qty = this.validQuantity(item.quantity);
                             const sid = item.service_id ?? item.id;
                             for (let i = 0; i < qty; i++) {
-                                rows.push({ service_id: Number(sid) });
+                                rows.push({
+                                    service_id: Number(sid),
+                                    unit_price: Number.isFinite(Number(item.price)) && Number(item.price) >= 0 ? Number(item.price) : 0,
+                                    price_adjustment_reason: item.price_adjustment_reason || '',
+                                });
                             }
                         });
                     return rows;
@@ -857,6 +924,19 @@
                             quantity: this.validQuantity(item.quantity),
                             seller_id: item.seller_id ? Number(item.seller_id) : '',
                         }));
+                },
+                get membershipPayload() {
+                    const rows = [];
+                    this.cart
+                        .filter((item) => String(item.type) === 'membership')
+                        .forEach((item) => {
+                            const qty = this.validQuantity(item.quantity);
+                            const planId = item.membership_plan_id ?? item.id;
+                            for (let i = 0; i < qty; i++) {
+                                rows.push({ membership_plan_id: Number(planId) });
+                            }
+                        });
+                    return rows;
                 },
                 get hasMissingSeller() {
                     return this.cart.some((item) => String(item.type) === 'product' && Boolean(item.commission) && !item.seller_id);

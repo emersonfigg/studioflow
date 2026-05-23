@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\NormalizesBrazilianCurrency;
 use App\Support\ServiceImageLibrary;
+use App\Models\Service;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -32,6 +33,8 @@ class StoreServiceRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:500'],
             'duration_minutes' => ['required', 'integer', 'min:1'],
             'price' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
+            'price_mode' => ['nullable', Rule::in(Service::PRICE_MODES)],
+            'allow_pdv_price_edit' => ['nullable', 'boolean'],
             'active' => ['nullable', 'boolean'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'library_image' => ['nullable', 'string', Rule::in($this->availableLibraryImages())],
@@ -73,6 +76,10 @@ class StoreServiceRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->normalizeCurrencyFields(['price']);
+        $this->merge([
+            'price_mode' => $this->input('price_mode') ?: Service::PRICE_MODE_FIXED,
+            'allow_pdv_price_edit' => $this->boolean('allow_pdv_price_edit') || $this->input('price_mode') === Service::PRICE_MODE_FROM,
+        ]);
 
         $returnDays = $this->input('recommended_return_days');
         if ($returnDays === '' || $returnDays === '0' || $returnDays === 0) {
