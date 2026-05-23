@@ -2286,19 +2286,46 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     display: none;
 }
 
-.public-booking-v3 .booking-profile-chips span {
+.public-booking-v3 .booking-profile-chip {
     flex: 0 0 auto;
-    max-width: 11rem;
+    display: inline-flex;
+    max-width: 13rem;
+    align-items: center;
+    gap: 0.38rem;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.16);
     border-radius: 9999px;
     background: rgba(255, 255, 255, 0.10);
-    padding: 0.34rem 0.56rem;
+    padding: 0.38rem 0.62rem;
     color: rgba(255, 255, 255, 0.78);
     font-size: 0.68rem;
     font-weight: 800;
-    text-overflow: ellipsis;
+    line-height: 1;
+    text-decoration: none;
+    transition: border-color 180ms ease, background 180ms ease, color 180ms ease, transform 180ms ease;
     white-space: nowrap;
+}
+
+.public-booking-v3 .booking-profile-chip:hover {
+    border-color: color-mix(in srgb, var(--brand-primary) 52%, rgba(255, 255, 255, 0.18));
+    background: color-mix(in srgb, var(--brand-primary) 18%, rgba(255, 255, 255, 0.10));
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.public-booking-v3 .booking-profile-chip svg {
+    width: 0.86rem;
+    height: 0.86rem;
+    flex: 0 0 auto;
+    color: var(--brand-primary);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.public-booking-v3 .booking-profile-chip span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .public-booking-v3 .booking-app-main-card {

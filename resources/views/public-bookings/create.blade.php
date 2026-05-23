@@ -169,6 +169,35 @@
             ];
         })
         ->sortKeys();
+    $companyPhoneDisplay = trim((string) $company->phone);
+    $companyPhoneDigits = preg_replace('/\D+/', '', $companyPhoneDisplay);
+    if ($companyPhoneDigits !== '' && ! str_starts_with($companyPhoneDigits, '55') && in_array(strlen($companyPhoneDigits), [10, 11], true)) {
+        $companyPhoneDigits = '55'.$companyPhoneDigits;
+    }
+    $companyPhoneUrl = $companyPhoneDigits !== '' ? 'tel:+'.$companyPhoneDigits : null;
+
+    $companyInstagramValue = trim((string) $company->instagram);
+    $companyInstagramUrl = null;
+    $companyInstagramDisplay = null;
+    if ($companyInstagramValue !== '') {
+        if (filter_var($companyInstagramValue, FILTER_VALIDATE_URL)) {
+            $companyInstagramUrl = $companyInstagramValue;
+            $instagramPath = trim((string) parse_url($companyInstagramValue, PHP_URL_PATH), '/');
+            $instagramHandle = $instagramPath !== '' ? explode('/', $instagramPath)[0] : '';
+        } else {
+            $instagramHandle = preg_replace('/\s+/', '', ltrim($companyInstagramValue, '@'));
+            $companyInstagramUrl = $instagramHandle !== '' ? 'https://instagram.com/'.$instagramHandle : null;
+        }
+        $companyInstagramDisplay = $instagramHandle !== '' ? '@'.$instagramHandle : 'Instagram';
+    }
+
+    $companyLocationValue = trim((string) $company->address);
+    $companyLocationUrl = null;
+    if ($companyLocationValue !== '') {
+        $companyLocationUrl = filter_var($companyLocationValue, FILTER_VALIDATE_URL)
+            ? $companyLocationValue
+            : 'https://www.google.com/maps/search/?api=1&query='.rawurlencode($companyLocationValue);
+    }
     $hasAboutDetails = filled($company->safeDescription())
         || filled($publicBranding['welcome_message'] ?? null)
         || filled($company->address)
@@ -627,9 +656,6 @@
                                         {{ $publicBranding['welcome_message'] }}
                                     </p>
                                 @endif
-                                @if ($company->instagram)
-                                    <p class="mt-2 text-sm font-semibold text-[var(--brand-primary)]">{{ $company->instagram }}</p>
-                                @endif
                                 @if (($reviewSummary['count'] ?? 0) > 0)
                                     <div class="booking-rating-badge">
                                         <span>★</span>
@@ -638,14 +664,32 @@
                                     </div>
                                 @endif
                                 <div class="booking-profile-chips">
-                                    @if ($company->instagram)
-                                        <span>{{ $company->instagram }}</span>
+                                    @if ($companyPhoneUrl)
+                                        <a href="{{ $companyPhoneUrl }}" class="booking-profile-chip" aria-label="Ligar para {{ $companyPhoneDisplay }}">
+                                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.35 1.89.7 2.78a2 2 0 0 1-.45 2.11L8.09 9.88a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.89.35 1.82.57 2.78.7A2 2 0 0 1 22 16.92z" />
+                                            </svg>
+                                            <span>{{ $companyPhoneDisplay }}</span>
+                                        </a>
                                     @endif
-                                    @if (filled($company->phone))
-                                        <span>{{ $company->phone }}</span>
+                                    @if ($companyInstagramUrl)
+                                        <a href="{{ $companyInstagramUrl }}" class="booking-profile-chip" target="_blank" rel="noopener noreferrer" aria-label="Abrir Instagram {{ $companyInstagramDisplay }}">
+                                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+                                                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                                                <path d="M17.5 6.5h.01" />
+                                            </svg>
+                                            <span>{{ $companyInstagramDisplay }}</span>
+                                        </a>
                                     @endif
-                                    @if (filled($company->address))
-                                        <span>{{ \Illuminate\Support\Str::limit($company->address, 34) }}</span>
+                                    @if ($companyLocationUrl)
+                                        <a href="{{ $companyLocationUrl }}" class="booking-profile-chip" target="_blank" rel="noopener noreferrer" aria-label="Abrir localizacao no Google Maps">
+                                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M20 10c0 4.99-5.54 10.19-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.19 4 14.99 4 10a8 8 0 0 1 16 0z" />
+                                                <circle cx="12" cy="10" r="3" />
+                                            </svg>
+                                            <span>Localiza&ccedil;&atilde;o</span>
+                                        </a>
                                     @endif
                                 </div>
                             </div>
