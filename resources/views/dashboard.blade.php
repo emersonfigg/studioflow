@@ -104,6 +104,16 @@
             </article>
         </section>
 
+        @if ($todayBirthdayClients->isNotEmpty() && $company)
+            <x-birthday-congratulations
+                :clients="$todayBirthdayClients"
+                :company="$company"
+                :message-template="$birthdayCongratulationsMessage"
+                :save-url="auth()->user()->isAdmin() ? route('company.birthday-message.update') : null"
+                :can-save="auth()->user()->isAdmin()"
+            />
+        @endif
+
         @if ($lowStockProducts->isNotEmpty())
             <section class="sf-card border border-amber-500/30 p-5 sm:p-6">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

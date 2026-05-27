@@ -53,6 +53,7 @@ class UpdateCompanyRequest extends FormRequest
             'welcome_message' => ['nullable', 'string', 'max:2000'],
             'custom_footer_text' => ['nullable', 'string', 'max:500'],
             'receipt_message' => ['nullable', 'string', 'max:120'],
+            'birthday_congratulations_message' => ['nullable', 'string', 'max:2000'],
             'brand_enabled' => ['nullable', 'boolean'],
             'auto_print_receipt' => ['nullable', 'boolean'],
             'online_booking_payment_enabled' => ['nullable', 'boolean'],

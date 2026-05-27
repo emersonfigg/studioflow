@@ -91,28 +91,17 @@ class ClientController extends Controller
 
     public function birthdays(Request $request): View
     {
-        $companyId = (int) $request->user()->company_id;
+        $company = $request->user()->company;
+        abort_unless($company, 404);
+
+        $companyId = (int) $company->id;
         $range = (string) $request->input('range', 'day');
-        $today = now();
+        $birthdayService = app(\App\Services\BirthdayService::class);
 
-        $clients = Client::query()
-            ->where('company_id', $companyId)
-            ->where('active', true)
-            ->whereNotNull('birthday')
-            ->when($range === 'month', fn (Builder $query) => $query->whereMonth('birthday', $today->month))
-            ->when($range === 'day', fn (Builder $query) => $query->whereMonth('birthday', $today->month)->whereDay('birthday', $today->day))
-            ->when($range === 'week', function (Builder $query) use ($today): void {
-                $days = collect(range(0, 6))->map(fn (int $offset) => $today->copy()->addDays($offset));
-                $query->where(function (Builder $inner) use ($days): void {
-                    foreach ($days as $day) {
-                        $inner->orWhere(fn (Builder $q) => $q->whereMonth('birthday', $day->month)->whereDay('birthday', $day->day));
-                    }
-                });
-            })
-            ->orderBy('birthday')
-            ->get();
+        $clients = $birthdayService->clientsWithBirthday($companyId, $range);
+        $birthdayCongratulationsMessage = $birthdayService->messageTemplate($company);
 
-        return view('clients.birthdays', compact('clients', 'range'));
+        return view('clients.birthdays', compact('clients', 'range', 'company', 'birthdayCongratulationsMessage'));
     }
 
     public function absent(Request $request): View

@@ -123,6 +123,7 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
     Route::get('company/onboarding', [CompanyController::class, 'onboarding'])->name('company.onboarding');
     Route::get('company', [CompanyController::class, 'edit'])->name('company.edit');
     Route::patch('company', [CompanyController::class, 'update'])->name('company.update');
+    Route::patch('company/birthday-message', [CompanyController::class, 'updateBirthdayMessage'])->name('company.birthday-message.update');
     Route::post('company/branding-preview', [CompanyController::class, 'previewBrandingStyle'])->name('company.branding-preview');
     Route::get('company/payment-integrations', [CompanyPaymentIntegrationController::class, 'index'])->name('company.payment-integrations.index');
     Route::get('company/payment-integrations/create', [CompanyPaymentIntegrationController::class, 'create'])->name('company.payment-integrations.create');

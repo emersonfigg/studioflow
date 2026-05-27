@@ -31,6 +31,7 @@ class CompanyController extends Controller
         'welcome_message',
         'custom_footer_text',
         'receipt_message',
+        'birthday_congratulations_message',
     ];
 
     /**
@@ -86,6 +87,26 @@ class CompanyController extends Controller
     /**
      * Pré-visualização do tema (mesmas variáveis que o HTML raiz) para o painel /company.
      */
+    public function updateBirthdayMessage(Request $request): JsonResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $company = $request->user()->company;
+        abort_unless($company, 404);
+
+        $validated = $request->validate([
+            'birthday_congratulations_message' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $company->update([
+            'birthday_congratulations_message' => trim($validated['birthday_congratulations_message']),
+        ]);
+
+        return response()->json([
+            'message' => 'Mensagem de aniversário salva com sucesso.',
+        ]);
+    }
+
     public function previewBrandingStyle(Request $request, BrandingService $brandingService): JsonResponse
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
@@ -264,6 +285,7 @@ class CompanyController extends Controller
             'welcome_message' => $this->sanitizeTextualField($request->old('welcome_message', $company->welcome_message)),
             'custom_footer_text' => $this->sanitizeTextualField($request->old('custom_footer_text', $company->custom_footer_text)),
             'receipt_message' => $this->sanitizeTextualField($request->old('receipt_message', $company->receipt_message)),
+            'birthday_congratulations_message' => $this->sanitizeTextualField($request->old('birthday_congratulations_message', $company->birthday_congratulations_message)),
             'brand_enabled' => (bool) $request->old('brand_enabled', $company->brand_enabled ?? true),
             'auto_print_receipt' => (bool) $request->old('auto_print_receipt', $company->auto_print_receipt),
             'online_booking_payment_enabled' => (bool) $request->old('online_booking_payment_enabled', $company->online_booking_payment_enabled),

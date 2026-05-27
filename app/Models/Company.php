@@ -39,6 +39,7 @@ class Company extends Model
         'welcome_message',
         'custom_footer_text',
         'receipt_message',
+        'birthday_congratulations_message',
         'brand_enabled',
         'active',
         'is_internal',

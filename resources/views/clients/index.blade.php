@@ -29,6 +29,9 @@
                     </div>
                 </form>
 
+                <a href="{{ route('clients.birthdays', ['range' => 'day']) }}" class="sf-button-secondary whitespace-nowrap">
+                    Aniversariantes
+                </a>
                 @if (auth()->user()->isAdmin() && auth()->user()->company_id)
                     <a href="{{ route('clients.create') }}" class="sf-button-primary whitespace-nowrap">
                         Novo cliente

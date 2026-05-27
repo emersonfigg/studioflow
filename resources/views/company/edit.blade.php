@@ -386,6 +386,19 @@
                             <x-input-error class="mt-2" :messages="$errors->get('receipt_message')" />
                         </div>
 
+                        <div class="mt-4">
+                            <label for="birthday_congratulations_message" class="text-sm font-medium text-[var(--text-main)]">Mensagem de aniversário (WhatsApp)</label>
+                            <textarea
+                                id="birthday_congratulations_message"
+                                name="birthday_congratulations_message"
+                                rows="3"
+                                class="sf-input mt-2 block w-full resize-y"
+                                placeholder="Olá, {nome}! A equipe {empresa} deseja um feliz aniversário!"
+                            >{{ $formValues['birthday_congratulations_message'] }}</textarea>
+                            <p class="mt-2 text-xs sf-muted">Use {nome} e {empresa}. Exibida no painel quando houver aniversariante do dia.</p>
+                            <x-input-error class="mt-2" :messages="$errors->get('birthday_congratulations_message')" />
+                        </div>
+
                         <label class="mt-3 flex cursor-pointer items-start gap-3 text-sm sf-text-muted">
                             <input type="hidden" name="auto_print_receipt" value="0">
                             <input

@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Payment;
 use App\Models\ProductSaleItem;
 use App\Models\Service;
+use App\Services\BirthdayService;
 use App\Services\StockService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -48,8 +49,16 @@ class DashboardController extends Controller
         $monthStart = $now->copy()->startOfMonth();
         $monthEnd = $now->copy()->endOfMonth();
         $lowStockProducts = new Collection;
+        $todayBirthdayClients = new Collection;
+        $birthdayCongratulationsMessage = null;
+        $company = $request->user()->company;
 
         if ($companyId !== null) {
+            $birthdayService = app(BirthdayService::class);
+            $todayBirthdayClients = $birthdayService->clientsWithBirthday((int) $companyId, 'day');
+            $birthdayCongratulationsMessage = $company
+                ? $birthdayService->messageTemplate($company)
+                : BirthdayService::DEFAULT_MESSAGE;
             $lowStockProducts = app(StockService::class)->getLowStockProducts((int) $companyId);
             $publicBookingUrl = route('public-bookings.create', $companyId);
             $paymentsQuery = Payment::query()
@@ -136,6 +145,9 @@ class DashboardController extends Controller
             'sellerRanking' => $sellerRanking,
             'rankingMonthLabel' => $monthStart->format('m/Y'),
             'lowStockProducts' => $lowStockProducts,
+            'todayBirthdayClients' => $todayBirthdayClients,
+            'birthdayCongratulationsMessage' => $birthdayCongratulationsMessage,
+            'company' => $company,
         ]);
     }
 }
