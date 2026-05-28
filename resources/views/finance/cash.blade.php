@@ -143,7 +143,7 @@
                         @endif
 
                         @if (! $register->closed_at && auth()->user()->isAdmin())
-                            <form method="POST" action="{{ route('finance.cash.close') }}" class="cash-close-form mt-4">
+                            <form id="cash-close-form" method="POST" action="{{ route('finance.cash.close') }}" class="cash-close-form cash-close-card mt-4">
                                 @csrf
                                 <input type="hidden" name="cash_register_id" value="{{ $register->id }}">
                                 <div class="space-y-2.5">
@@ -154,17 +154,20 @@
                                     </div>
                                     <div>
                                         <x-input-label for="closing_notes" value="Observacoes do fechamento" />
-                                        <textarea id="closing_notes" name="notes" rows="3" class="sf-input cash-control mt-1 block w-full">{{ old('notes') }}</textarea>
+                                        <textarea id="closing_notes" name="notes" rows="4" class="sf-input cash-control cash-closing-notes mt-1 block w-full">{{ old('notes') }}</textarea>
                                         <x-input-error :messages="$errors->get('notes')" class="mt-2" />
                                     </div>
                                     <x-input-error :messages="$errors->get('cash_register_id')" class="mt-2" />
                                 </div>
-                                <div class="cash-close-actions">
-                                    <button class="sf-button-primary h-11 w-full py-2">Fechar caixa</button>
-                                </div>
                             </form>
                         @endif
                     </div>
+
+                    @if (! $register->closed_at && auth()->user()->isAdmin())
+                        <div class="cash-close-actions">
+                            <button form="cash-close-form" class="sf-button-primary h-11 w-full py-2">Fechar caixa</button>
+                        </div>
+                    @endif
                 @endif
             </aside>
 

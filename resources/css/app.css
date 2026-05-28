@@ -679,6 +679,8 @@
 }
 
 .cash-sidebar {
+    display: flex;
+    flex-direction: column;
     position: sticky;
     top: 5.75rem;
     max-height: min(32rem, calc(100dvh - 22rem));
@@ -689,9 +691,11 @@
     display: flex;
     max-height: inherit;
     min-height: 0;
+    flex: 1 1 auto;
     flex-direction: column;
     overflow-y: auto;
-    padding: 1rem 1rem 5.35rem;
+    padding: 1rem;
+    padding-bottom: 1.75rem;
 }
 
 .cash-mini-stat {
@@ -737,13 +741,23 @@
     flex-direction: column;
 }
 
+.cash-close-card {
+    border: 1px solid var(--cash-compact-border);
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--card-bg) 82%, var(--input-bg));
+    padding: 0.75rem;
+}
+
+.cash-closing-notes {
+    min-height: 6rem;
+    resize: vertical;
+}
+
 .cash-close-actions {
-    position: absolute;
-    right: 0;
+    flex: 0 0 auto;
+    position: sticky;
     bottom: 0;
-    left: 0;
     z-index: 2;
-    margin: 0;
     border-top: 1px solid var(--cash-compact-border);
     background:
         linear-gradient(180deg, color-mix(in srgb, var(--card-bg) 82%, transparent), var(--card-bg) 34%),
@@ -855,6 +869,7 @@
 
 @media (max-width: 1023px) {
     .cash-sidebar {
+        display: block;
         position: static;
         max-height: none;
     }
@@ -870,7 +885,7 @@
 
     .cash-close-actions {
         position: static;
-        margin: 1rem -1rem -1rem;
+        padding: 0.75rem 1rem 1rem;
     }
 }
 
