@@ -611,6 +611,280 @@
     outline: none !important;
 }
 
+/* Caixa diario: tela operacional compacta para notebook/desktop. */
+.finance-nav-compact {
+    margin-bottom: 0.8rem;
+    overflow-x: auto;
+    padding: 0.35rem;
+}
+
+.finance-nav-compact > div {
+    flex-wrap: nowrap;
+    gap: 0.3rem;
+    min-width: max-content;
+}
+
+.finance-nav-compact .sf-tab {
+    border-radius: 0.72rem;
+    padding: 0.48rem 0.68rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
+.cash-daily-shell {
+    --cash-compact-border: color-mix(in srgb, var(--text-main) 10%, transparent);
+}
+
+.cash-page-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 1px solid var(--cash-compact-border);
+    border-radius: 0.875rem;
+    background: var(--card-bg);
+    box-shadow: var(--shadow-soft);
+    padding: 0.75rem 0.9rem;
+}
+
+.cash-summary-card {
+    min-height: 76px;
+    padding: 0.8rem 0.95rem;
+}
+
+.cash-summary-label {
+    color: var(--brand-primary);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.cash-summary-value {
+    margin-top: 0.55rem;
+    color: var(--text-main);
+    font-size: clamp(1.25rem, 1.05rem + 0.55vw, 1.7rem);
+    font-weight: 700;
+    line-height: 1.05;
+}
+
+.cash-workspace {
+    align-items: start;
+}
+
+.cash-sidebar,
+.cash-movements-panel {
+    border-radius: 0.875rem;
+}
+
+.cash-sidebar {
+    position: sticky;
+    top: 5.75rem;
+    max-height: min(32rem, calc(100dvh - 22rem));
+    overflow: hidden;
+}
+
+.cash-sidebar-body {
+    display: flex;
+    max-height: inherit;
+    min-height: 0;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 1rem 1rem 5.35rem;
+}
+
+.cash-mini-stat {
+    min-width: 0;
+    border: 1px solid var(--cash-compact-border);
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--input-bg) 74%, transparent);
+    padding: 0.6rem 0.7rem;
+}
+
+.cash-mini-stat dt {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.cash-mini-stat dd {
+    margin-top: 0.25rem;
+    overflow: hidden;
+    color: var(--text-main);
+    font-size: 0.86rem;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cash-control,
+.cash-control.sf-select {
+    min-height: 2.35rem;
+    border-radius: 0.65rem;
+    padding-block: 0.48rem;
+    font-size: 0.86rem;
+}
+
+.cash-control.sf-select {
+    padding-right: 2.1rem;
+}
+
+.cash-close-form {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+}
+
+.cash-close-actions {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 2;
+    margin: 0;
+    border-top: 1px solid var(--cash-compact-border);
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--card-bg) 82%, transparent), var(--card-bg) 34%),
+        var(--card-bg);
+    padding: 0.75rem 1rem 1rem;
+}
+
+.cash-sticky-button {
+    position: sticky;
+    bottom: 0;
+}
+
+.cash-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--cash-compact-border);
+    padding: 0.95rem 1rem;
+}
+
+.cash-movements-panel {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.cash-table-scroll {
+    max-height: calc(100dvh - 20rem);
+    min-height: 22rem;
+    overflow: auto;
+}
+
+.cash-movements-table {
+    width: 100%;
+    min-width: 640px;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.cash-movements-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--input-bg);
+}
+
+.cash-movements-table th {
+    padding: 0.7rem 0.85rem;
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.cash-movements-table td {
+    border-top: 1px solid color-mix(in srgb, var(--text-main) 8%, transparent);
+    padding: 0.72rem 0.85rem;
+    font-size: 0.86rem;
+    line-height: 1.35;
+    vertical-align: middle;
+}
+
+.cash-movements-table tbody tr {
+    transition: background-color 160ms ease;
+}
+
+.cash-movements-table tbody tr:hover {
+    background: color-mix(in srgb, var(--text-main) 4%, transparent);
+}
+
+.cash-type-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 4.8rem;
+    border-radius: 999px;
+    padding: 0.28rem 0.55rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.cash-type-inflow {
+    background: rgba(16, 185, 129, 0.10);
+    color: #d1fae5;
+    box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.20);
+}
+
+.cash-type-outflow {
+    background: rgba(244, 63, 94, 0.10);
+    color: #ffe4e6;
+    box-shadow: inset 0 0 0 1px rgba(251, 113, 133, 0.20);
+}
+
+@media (max-width: 1279px) {
+    .cash-summary-card {
+        min-height: 68px;
+    }
+
+    .cash-table-scroll {
+        max-height: none;
+    }
+}
+
+@media (max-width: 1023px) {
+    .cash-sidebar {
+        position: static;
+        max-height: none;
+    }
+
+    .cash-sidebar-body {
+        max-height: none;
+        padding: 1rem;
+    }
+
+    .cash-table-scroll {
+        min-height: 0;
+    }
+
+    .cash-close-actions {
+        position: static;
+        margin: 1rem -1rem -1rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .cash-table-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .cash-summary-card {
+        padding: 0.75rem;
+    }
+}
+
 /* -------------------------------------------------------------------------
  * Fluxo público de agendamento (nível 2): atmosfera e superfícies da marca.
  * Escopo: body.public-booking-page e preview em /company (.company-preview-landing).

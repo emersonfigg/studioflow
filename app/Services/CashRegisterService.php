@@ -60,14 +60,46 @@ class CashRegisterService
      */
     public function close(CashRegister $register, User $user, ?float $closingAmount = null, ?string $notes = null): CashRegister
     {
-        $register->update([
-            'closing_amount' => $closingAmount !== null ? round($closingAmount, 2) : $register->expectedBalance(),
-            'closed_by' => $user->id,
-            'closed_at' => now(),
-            'notes' => $notes ?: $register->notes,
-        ]);
+        return DB::transaction(function () use ($register, $user, $closingAmount, $notes): CashRegister {
+            /** @var CashRegister|null $locked */
+            $locked = CashRegister::query()
+                ->whereKey($register->id)
+                ->lockForUpdate()
+                ->first();
 
-        return $register->fresh('movements');
+            if ($locked === null || $locked->closed_at !== null) {
+                throw ValidationException::withMessages([
+                    'cash_register_id' => 'Caixa invalido ou ja fechado.',
+                ]);
+            }
+
+            $locked->load('movements');
+
+            $expectedBalance = round($locked->expectedBalance(), 2);
+            $checkedBalance = $closingAmount !== null ? round($closingAmount, 2) : $expectedBalance;
+            $closingNotes = trim((string) ($notes ?? ''));
+
+            if (($expectedBalance < 0 || $checkedBalance < 0) && $closingNotes === '') {
+                throw ValidationException::withMessages([
+                    'notes' => 'O caixa está fechando com saldo negativo. Informe uma justificativa para concluir o fechamento.',
+                ]);
+            }
+
+            if (abs($checkedBalance - $expectedBalance) > 0.000001) {
+                throw ValidationException::withMessages([
+                    'closing_amount' => 'O saldo final conferido diverge do saldo esperado. Confira os valores antes de fechar o caixa.',
+                ]);
+            }
+
+            $locked->update([
+                'closing_amount' => $checkedBalance,
+                'closed_by' => $user->id,
+                'closed_at' => now(),
+                'notes' => $closingNotes !== '' ? $closingNotes : $locked->notes,
+            ]);
+
+            return $locked->fresh('movements');
+        });
     }
 
     /**
@@ -204,12 +236,6 @@ class CashRegisterService
 
             $locked->load('movements');
             $rounded = round($amount, 2);
-
-            if ($rounded > $locked->expectedBalance()) {
-                throw ValidationException::withMessages([
-                    'amount' => 'Saldo insuficiente no caixa para esta saida.',
-                ]);
-            }
 
             $label = trim($category);
             $detail = $description ? trim($description) : '';

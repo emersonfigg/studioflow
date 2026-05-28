@@ -1,4 +1,4 @@
-<div class="sf-card mb-6 p-2">
+<div class="sf-card {{ $page === 'cash' ? 'finance-nav-compact' : 'mb-6 p-2' }}">
     <div class="flex flex-wrap gap-2">
         <a href="{{ route('finance.index', request()->query()) }}" class="{{ $page === 'dashboard' ? 'sf-tab sf-tab--active' : 'sf-tab' }}">
             Faturamento

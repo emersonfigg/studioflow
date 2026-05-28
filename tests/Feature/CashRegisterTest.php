@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Appointment;
+use App\Models\CashMovement;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\Payment;
@@ -37,13 +38,13 @@ class CashRegisterTest extends TestCase
         $this->actingAs($admin)
             ->post(route('finance.cash.close', absolute: false), [
                 'cash_register_id' => $registerId,
-                'closing_amount' => '120.00',
+                'closing_amount' => '100.00',
             ])
             ->assertRedirect(route('finance.cash', ['date' => '2026-04-30'], false));
 
         $this->assertDatabaseHas('cash_registers', [
             'id' => $registerId,
-            'closing_amount' => '120.00',
+            'closing_amount' => '100.00',
         ]);
     }
 
@@ -118,5 +119,133 @@ class CashRegisterTest extends TestCase
             'amount' => '30.00',
             'payment_method' => 'pix',
         ]);
+    }
+
+    public function test_admin_can_close_cash_register_with_negative_balance_when_checked_balance_matches_and_notes_are_present(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+
+        $register = $company->cashRegisters()->create([
+            'date' => '2026-04-30',
+            'opening_amount' => 0,
+            'opened_by' => $admin->id,
+            'opened_at' => now(),
+        ]);
+
+        $register->movements()->create([
+            'company_id' => $company->id,
+            'type' => CashMovement::TYPE_INFLOW,
+            'amount' => 70,
+            'occurred_at' => '2026-04-30 10:00:00',
+            'description' => 'Entradas do dia',
+        ]);
+
+        $register->movements()->create([
+            'company_id' => $company->id,
+            'type' => CashMovement::TYPE_OUTFLOW,
+            'amount' => 168.87,
+            'occurred_at' => '2026-04-30 11:00:00',
+            'description' => 'Conta de energia',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('finance.cash.close', absolute: false), [
+                'cash_register_id' => $register->id,
+                'closing_amount' => '-98,87',
+                'notes' => 'Dia fraco com pagamento de energia.',
+            ])
+            ->assertRedirect(route('finance.cash', ['date' => '2026-04-30'], false));
+
+        $this->assertDatabaseHas('cash_registers', [
+            'id' => $register->id,
+            'closing_amount' => '-98.87',
+            'notes' => 'Dia fraco com pagamento de energia.',
+        ]);
+    }
+
+    public function test_admin_must_justify_negative_cash_register_closing(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+
+        $register = $company->cashRegisters()->create([
+            'date' => '2026-04-30',
+            'opening_amount' => 0,
+            'opened_by' => $admin->id,
+            'opened_at' => now(),
+        ]);
+
+        $register->movements()->create([
+            'company_id' => $company->id,
+            'type' => CashMovement::TYPE_OUTFLOW,
+            'amount' => 98.87,
+            'occurred_at' => '2026-04-30 11:00:00',
+            'description' => 'Conta de energia',
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('finance.cash', ['date' => '2026-04-30'], false))
+            ->post(route('finance.cash.close', absolute: false), [
+                'cash_register_id' => $register->id,
+                'closing_amount' => '-98,87',
+                'notes' => '',
+            ])
+            ->assertRedirect(route('finance.cash', ['date' => '2026-04-30'], false))
+            ->assertSessionHasErrors([
+                'notes' => 'O caixa está fechando com saldo negativo. Informe uma justificativa para concluir o fechamento.',
+            ]);
+
+        $this->assertNull($register->fresh()->closed_at);
+    }
+
+    public function test_admin_cannot_close_cash_register_when_checked_balance_diverges_from_expected_balance(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+
+        $register = $company->cashRegisters()->create([
+            'date' => '2026-04-30',
+            'opening_amount' => 70,
+            'opened_by' => $admin->id,
+            'opened_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('finance.cash', ['date' => '2026-04-30'], false))
+            ->post(route('finance.cash.close', absolute: false), [
+                'cash_register_id' => $register->id,
+                'closing_amount' => '69,99',
+                'notes' => 'Conferencia feita no fim do dia.',
+            ])
+            ->assertRedirect(route('finance.cash', ['date' => '2026-04-30'], false))
+            ->assertSessionHasErrors('closing_amount');
+
+        $this->assertNull($register->fresh()->closed_at);
+    }
+
+    public function test_financial_user_can_register_manual_cash_outflow_that_makes_balance_negative(): void
+    {
+        $company = Company::factory()->create();
+        $financial = User::factory()->financial()->for($company)->create();
+
+        $register = $company->cashRegisters()->create([
+            'date' => '2026-04-30',
+            'opening_amount' => 70,
+            'opened_by' => $financial->id,
+            'opened_at' => now(),
+        ]);
+
+        $this->actingAs($financial)
+            ->post(route('finance.cash.outflow', false), [
+                'cash_register_id' => $register->id,
+                'amount' => '168,87',
+                'category' => 'Energia',
+                'description' => 'Conta de energia',
+                'payment_method' => 'pix',
+            ])
+            ->assertRedirect(route('finance.cash', ['date' => '2026-04-30'], false));
+
+        $this->assertSame('-98.87', number_format($register->fresh('movements')->expectedBalance(), 2, '.', ''));
     }
 }

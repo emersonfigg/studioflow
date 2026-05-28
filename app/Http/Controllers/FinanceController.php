@@ -248,7 +248,7 @@ class FinanceController extends Controller
 
         $data = $request->validate([
             'cash_register_id' => ['required', 'integer'],
-            'closing_amount' => ['nullable', 'numeric', 'min:0'],
+            'closing_amount' => ['nullable', 'numeric'],
             'notes' => ['nullable', 'string'],
         ]);
 
