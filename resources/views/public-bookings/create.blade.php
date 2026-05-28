@@ -291,11 +291,18 @@
                     },
                     preserveScroll(callback) {
                         const currentY = window.scrollY;
+                        const servicesList = document.querySelector('.booking-services-list');
+                        const servicesListY = servicesList ? servicesList.scrollTop : null;
                         callback();
-                        this.$nextTick(() => window.scrollTo({ top: currentY, left: 0, behavior: 'auto' }));
+                        this.$nextTick(() => {
+                            window.scrollTo({ top: currentY, left: 0, behavior: 'auto' });
+                            if (servicesList && servicesListY !== null) {
+                                servicesList.scrollTop = servicesListY;
+                            }
+                        });
                     },
-                    scrollWizardTop() {
-                        document.querySelector('.public-booking-shell')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    scrollWizardTop(behavior = 'smooth') {
+                        document.querySelector('.public-booking-shell')?.scrollIntoView({ behavior, block: 'start' });
                     },
                     tabIsActive(tab) {
                         return tab === 'date' ? ['date', 'time'].includes(this.currentStep) : this.currentStep === tab;
@@ -907,6 +914,22 @@
 
                             <x-input-error class="mt-3" :messages="$errors->get('service_ids')" />
                             <x-input-error class="mt-2" :messages="$errors->get('service_ids.*')" />
+
+                            <div class="booking-services-actions">
+                                <div class="min-w-0">
+                                    <p class="truncate text-sm font-semibold text-white" x-text="hasSelectedServices() ? `${selectedServiceIds.length} serviÃ§o(s) selecionado(s)` : 'Escolha pelo menos um serviÃ§o'"></p>
+                                    <p class="mt-1 truncate text-xs brand-muted" x-text="hasSelectedServices() ? `${totalDuration()} min Â· R$ ${formattedTotalPrice()}` : 'O botÃ£o libera apÃ³s selecionar um serviÃ§o.'"></p>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="brand-cta shrink-0 px-5 py-3 text-sm"
+                                    :class="{ 'cursor-not-allowed opacity-60': !canContinueCurrentStep() }"
+                                    :disabled="!canContinueCurrentStep()"
+                                    @click="continueWizard()"
+                                >
+                                    <span x-text="continueLabel()">Continuar</span>
+                                </button>
+                            </div>
                         </section>
 
                         <section class="sf-card booking-browser-panel p-4 sm:p-5" x-show="currentStep === 'professionals'" x-cloak>
@@ -1602,7 +1625,7 @@
                     </div>
                 </aside>
 
-                <div class="booking-sticky-bar fixed inset-x-0 bottom-0 z-30 px-4 py-3 backdrop-blur xl:hidden">
+                <div class="booking-sticky-bar fixed inset-x-0 bottom-0 z-30 px-4 py-3 backdrop-blur xl:hidden" x-show="currentStep !== 'services'" x-cloak>
                     <div class="mx-auto flex w-full max-w-full items-center justify-between gap-3 sm:max-w-none lg:max-w-7xl">
                         <div class="min-w-0">
                             <p class="truncate text-sm font-semibold text-white">

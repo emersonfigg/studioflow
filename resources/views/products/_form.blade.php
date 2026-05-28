@@ -59,7 +59,8 @@
                 </label>
             </div>
 
-            @php($currentCommissionType = old('commission_type', $productData?->commission_type ?? ''))
+            @php($currentCommissionType = old('commission_type', $productData?->normalizedCommissionType() ?? ''))
+            @php($currentCommissionType = $currentCommissionType === 'percent' ? \App\Models\Product::COMMISSION_TYPE_PERCENTAGE : $currentCommissionType)
             @php($currentCommissionValue = old('commission_value', $productData?->commission_value !== null ? \App\Support\BrazilianCurrency::input((float) $productData->commission_value) : ''))
 
             <div
@@ -80,7 +81,15 @@
                         return 'Selecione \"Sem comissão\" para não pagar comissão neste produto.';
                     },
                 }"
-                x-init="$watch('type', () => { if (isNone) { value = ''; } })"
+                x-init="
+                    type = @js((string) $currentCommissionType);
+                    value = @js((string) $currentCommissionValue);
+                    $nextTick(() => {
+                        $refs.commissionType.value = type;
+                        $refs.commissionValue.value = value;
+                    });
+                    $watch('type', () => { if (isNone) { value = ''; } });
+                "
             >
                 <div class="rounded-2xl border border-white/10 bg-[var(--input-bg)] p-4">
                     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -93,10 +102,10 @@
                     <div class="mt-4 grid gap-3 md:grid-cols-[200px_minmax(0,1fr)]">
                         <div>
                             <x-input-label for="commission_type" value="Tipo de comissão" />
-                            <select id="commission_type" name="commission_type" class="sf-select mt-2 block w-full" x-model="type">
-                                <option value="">Sem comissão</option>
-                                <option value="fixed">Valor fixo (R$)</option>
-                                <option value="percentage">Percentual (%)</option>
+                            <select id="commission_type" name="commission_type" class="sf-select mt-2 block w-full" x-model="type" x-ref="commissionType">
+                                <option value="" @selected($currentCommissionType === '' || $currentCommissionType === null)>Sem comissão</option>
+                                <option value="fixed" @selected($currentCommissionType === \App\Models\Product::COMMISSION_TYPE_FIXED)>Valor fixo (R$)</option>
+                                <option value="percentage" @selected($currentCommissionType === \App\Models\Product::COMMISSION_TYPE_PERCENTAGE)>Percentual (%)</option>
                             </select>
                             <x-input-error :messages="$errors->get('commission_type')" class="mt-2" />
                         </div>
@@ -118,6 +127,8 @@
                                     :disabled="isNone"
                                     :class="isNone ? 'opacity-50 cursor-not-allowed' : ''"
                                     x-model="value"
+                                    x-ref="commissionValue"
+                                    value="{{ $currentCommissionValue }}"
                                 >
                             </div>
                             <p class="mt-2 text-xs sf-text-muted" x-text="hint"></p>

@@ -74,7 +74,9 @@ class StoreProductRequest extends FormRequest
             }
         }
 
-        $type = $this->input('commission_type');
+        $type = $this->normalizeCommissionType($this->input('commission_type'));
+        $this->merge(['commission_type' => $type]);
+
         if ($type === '' || $type === 'none') {
             $this->merge([
                 'commission_type' => null,
@@ -91,5 +93,13 @@ class StoreProductRequest extends FormRequest
         if ($repurchase === '' || $repurchase === '0' || $repurchase === 0) {
             $this->merge(['recommended_repurchase_days' => null]);
         }
+    }
+
+    private function normalizeCommissionType(mixed $type): mixed
+    {
+        return match ($type) {
+            'percent' => Product::COMMISSION_TYPE_PERCENTAGE,
+            default => $type,
+        };
     }
 }

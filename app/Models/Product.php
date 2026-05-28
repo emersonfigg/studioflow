@@ -21,6 +21,8 @@ class Product extends Model
 
     public const COMMISSION_TYPE_PERCENTAGE = 'percentage';
 
+    private const COMMISSION_TYPE_LEGACY_PERCENT = 'percent';
+
     /**
      * Allowed commission type values.
      *
@@ -66,6 +68,7 @@ class Product extends Model
             'track_stock' => 'boolean',
             'low_stock_alert' => 'boolean',
             'active' => 'boolean',
+            'commission_type' => 'string',
             'commission_value' => 'decimal:2',
             'recommended_repurchase_days' => 'integer',
         ];
@@ -94,11 +97,20 @@ class Product extends Model
      */
     public function hasCommission(): bool
     {
-        if (! in_array($this->commission_type, self::COMMISSION_TYPES, true)) {
+        if (! in_array($this->normalizedCommissionType(), self::COMMISSION_TYPES, true)) {
             return false;
         }
 
         return $this->commission_value !== null && (float) $this->commission_value > 0;
+    }
+
+    public function normalizedCommissionType(): ?string
+    {
+        return match ($this->commission_type) {
+            self::COMMISSION_TYPE_FIXED => self::COMMISSION_TYPE_FIXED,
+            self::COMMISSION_TYPE_PERCENTAGE, self::COMMISSION_TYPE_LEGACY_PERCENT => self::COMMISSION_TYPE_PERCENTAGE,
+            default => null,
+        };
     }
 
     /**

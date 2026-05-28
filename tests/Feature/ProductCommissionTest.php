@@ -33,6 +33,104 @@ class ProductCommissionTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_product_form_saves_percentage_commission(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+
+        $this->actingAs($admin)->post(route('products.store', absolute: false), [
+            'name' => 'Pomada Premium',
+            'price' => '70,00',
+            'stock_quantity' => 5,
+            'track_stock' => 1,
+            'low_stock_alert' => 1,
+            'active' => 1,
+            'commission_type' => Product::COMMISSION_TYPE_PERCENTAGE,
+            'commission_value' => '10',
+        ])->assertRedirect(route('products.index', absolute: false));
+
+        $product = Product::query()->where('name', 'Pomada Premium')->firstOrFail();
+
+        $this->assertSame(Product::COMMISSION_TYPE_PERCENTAGE, $product->commission_type);
+        $this->assertSame('10.00', (string) $product->commission_value);
+    }
+
+    public function test_product_edit_keeps_percentage_commission_selected_and_filled(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+        $product = Product::factory()->for($company)->create([
+            'price' => 70,
+            'commission_type' => null,
+            'commission_value' => null,
+        ]);
+
+        $this->actingAs($admin)->patch(route('products.update', $product, absolute: false), [
+            'name' => $product->name,
+            'price' => '70,00',
+            'stock_quantity' => 5,
+            'track_stock' => 1,
+            'low_stock_alert' => 1,
+            'active' => 1,
+            'commission_type' => Product::COMMISSION_TYPE_PERCENTAGE,
+            'commission_value' => '10,00',
+        ])->assertRedirect(route('products.index', absolute: false));
+
+        $product->refresh();
+        $this->assertSame(Product::COMMISSION_TYPE_PERCENTAGE, $product->commission_type);
+        $this->assertSame('10.00', (string) $product->commission_value);
+
+        $response = $this->actingAs($admin)->get(route('products.edit', $product, absolute: false));
+
+        $response->assertOk();
+        $response->assertSee('value="percentage" selected', false);
+        $response->assertSee('value="10,00"', false);
+    }
+
+    public function test_product_form_saves_fixed_commission(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+
+        $this->actingAs($admin)->post(route('products.store', absolute: false), [
+            'name' => 'Finalizador',
+            'price' => '50,00',
+            'stock_quantity' => 3,
+            'track_stock' => 1,
+            'low_stock_alert' => 1,
+            'active' => 1,
+            'commission_type' => Product::COMMISSION_TYPE_FIXED,
+            'commission_value' => '7,50',
+        ])->assertRedirect(route('products.index', absolute: false));
+
+        $product = Product::query()->where('name', 'Finalizador')->firstOrFail();
+
+        $this->assertSame(Product::COMMISSION_TYPE_FIXED, $product->commission_type);
+        $this->assertSame('7.50', (string) $product->commission_value);
+    }
+
+    public function test_product_form_saves_without_commission_and_clears_value(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+
+        $this->actingAs($admin)->post(route('products.store', absolute: false), [
+            'name' => 'Shampoo Neutro',
+            'price' => '35,00',
+            'stock_quantity' => 4,
+            'track_stock' => 1,
+            'low_stock_alert' => 1,
+            'active' => 1,
+            'commission_type' => 'none',
+            'commission_value' => '10',
+        ])->assertRedirect(route('products.index', absolute: false));
+
+        $product = Product::query()->where('name', 'Shampoo Neutro')->firstOrFail();
+
+        $this->assertNull($product->commission_type);
+        $this->assertNull($product->commission_value);
+    }
+
     public function test_product_without_commission_generates_zero_commission_on_sale_items(): void
     {
         $company = Company::factory()->create();

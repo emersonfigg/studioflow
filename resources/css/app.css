@@ -3713,3 +3713,71 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     border-top: 1px solid var(--booking-border) !important;
     border-radius: 20px 20px 22px 22px !important;
 }
+
+/* Public booking: keep the services step stable while selecting many items. */
+.public-booking-v3 .booking-services-panel {
+    display: flex !important;
+    height: min(44rem, calc(100dvh - 7rem));
+    max-height: min(44rem, calc(100dvh - 7rem));
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden !important;
+}
+
+.public-booking-v3 .booking-services-panel > :not(.booking-services-list) {
+    flex: 0 0 auto;
+}
+
+.public-booking-v3 .booking-services-list {
+    flex: 1 1 auto;
+    min-height: 14rem;
+    max-height: min(28rem, calc(100dvh - 25rem));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: 0.25rem;
+    scrollbar-gutter: stable;
+}
+
+.public-booking-v3 .booking-services-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 1rem -1rem -1rem;
+    border-top: 1px solid var(--booking-border);
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--booking-panel-bg, var(--booking-card)) 78%, transparent), var(--booking-panel-bg, var(--booking-card)) 38%),
+        var(--booking-panel-bg, var(--booking-card));
+    padding: 0.85rem 1rem 1rem;
+}
+
+@media (min-width: 640px) {
+    .public-booking-v3 .booking-services-actions {
+        margin-right: -1.25rem;
+        margin-bottom: -1.25rem;
+        margin-left: -1.25rem;
+        padding-right: 1.25rem;
+        padding-left: 1.25rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .public-booking-v3 .booking-services-panel {
+        height: calc(100dvh - 5rem);
+        max-height: calc(100dvh - 5rem);
+    }
+
+    .public-booking-v3 .booking-services-list {
+        min-height: 12rem;
+        max-height: calc(100dvh - 24rem);
+    }
+
+    .public-booking-v3 .booking-services-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .public-booking-v3 .booking-services-actions .brand-cta {
+        width: 100%;
+    }
+}

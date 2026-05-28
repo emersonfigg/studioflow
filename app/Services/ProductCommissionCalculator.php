@@ -20,7 +20,7 @@ class ProductCommissionCalculator
      */
     public function calculate(Product $product, int $quantity, float $effectiveSubtotal): array
     {
-        $type = $product->commission_type;
+        $type = $product->normalizedCommissionType();
         $value = $product->commission_value !== null ? round((float) $product->commission_value, 2) : null;
 
         if (! $product->hasCommission() || $value === null) {
