@@ -16,9 +16,9 @@
                 <h2 class="mt-0.5 text-xl font-semibold tracking-tight text-[var(--text-main)]">Caixa diario</h2>
             </div>
 
-            <form method="GET" action="{{ route('finance.cash') }}" class="flex items-center gap-2">
+            <form method="GET" action="{{ route('finance.cash') }}" class="cash-date-form flex items-center gap-2">
                 <input type="date" name="date" value="{{ $date->format('Y-m-d') }}" class="sf-input h-9 min-w-[145px] px-3 py-1.5 text-sm">
-                <button class="sf-button-ghost h-9 px-3 py-1.5">Ver dia</button>
+                <button class="sf-button-ghost h-9 min-w-[76px] whitespace-nowrap px-3 py-1.5">Ver dia</button>
             </form>
         </div>
 
