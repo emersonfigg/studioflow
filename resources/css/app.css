@@ -3717,33 +3717,51 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
 /* Public booking: keep the services step stable while selecting many items. */
 .public-booking-v3 .booking-services-panel {
     display: flex !important;
-    height: min(44rem, calc(100dvh - 7rem));
-    max-height: min(44rem, calc(100dvh - 7rem));
+    width: 100%;
+    max-width: 100%;
+    height: min(38.75rem, calc(100dvh - 6rem));
+    max-height: min(38.75rem, calc(100dvh - 6rem));
     min-height: 0;
     flex-direction: column;
     overflow: hidden !important;
 }
 
-.public-booking-v3 .booking-services-panel > :not(.booking-services-list) {
+.public-booking-v3 .booking-services-head,
+.public-booking-v3 .booking-services-selected-summary,
+.public-booking-v3 .booking-services-filters,
+.public-booking-v3 .booking-services-actions,
+.public-booking-v3 .booking-services-panel > .text-sm {
     flex: 0 0 auto;
+}
+
+.public-booking-v3 .booking-services-selected-summary {
+    max-width: 100%;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent);
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--brand-primary) 10%, transparent);
+    padding: 0.75rem;
 }
 
 .public-booking-v3 .booking-services-list {
     flex: 1 1 auto;
-    min-height: 14rem;
-    max-height: min(28rem, calc(100dvh - 25rem));
+    min-height: 0;
+    max-height: 26.875rem;
     overflow-y: auto;
+    overflow-x: hidden;
     overscroll-behavior: contain;
     padding-bottom: 0.25rem;
     scrollbar-gutter: stable;
+    -webkit-overflow-scrolling: touch;
 }
 
 .public-booking-v3 .booking-services-actions {
     display: flex;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin: 1rem -1rem -1rem;
+    margin: auto -1rem -1rem;
     border-top: 1px solid var(--booking-border);
     background:
         linear-gradient(180deg, color-mix(in srgb, var(--booking-panel-bg, var(--booking-card)) 78%, transparent), var(--booking-panel-bg, var(--booking-card)) 38%),
@@ -3763,13 +3781,12 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
 
 @media (max-width: 640px) {
     .public-booking-v3 .booking-services-panel {
-        height: calc(100dvh - 5rem);
-        max-height: calc(100dvh - 5rem);
+        height: min(42rem, calc(100dvh - 2rem));
+        max-height: calc(100dvh - 2rem);
     }
 
     .public-booking-v3 .booking-services-list {
-        min-height: 12rem;
-        max-height: calc(100dvh - 24rem);
+        max-height: max(15rem, calc(100dvh - 22.5rem));
     }
 
     .public-booking-v3 .booking-services-actions {

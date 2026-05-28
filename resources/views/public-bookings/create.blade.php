@@ -824,7 +824,7 @@
                         @endif
 
                         <section class="sf-card booking-browser-panel booking-services-panel p-4 sm:p-5" x-show="currentStep === 'services'" x-cloak>
-                            <div class="flex items-start justify-between gap-4">
+                            <div class="booking-services-head flex items-start justify-between gap-4">
                                 <div>
                                     <p class="sf-page-eyebrow">1. Serviços</p>
                                     <h2 class="sf-section-title mt-1 text-white">Escolha um ou mais serviços</h2>
@@ -833,22 +833,12 @@
                                 <span class="hidden rounded-full bg-[color-mix(in_srgb,var(--brand-primary)_14%,var(--brand-surface))] px-3 py-1 text-xs font-semibold brand-muted sm:inline-flex" x-text="`${selectedServiceIds.length} selecionado(s)`"></span>
                             </div>
 
-                            <div x-show="hasSelectedServices()" class="mt-4 rounded-2xl border border-[color-mix(in_srgb,var(--brand-primary)_25%,transparent)] bg-[color-mix(in_srgb,var(--brand-primary)_10%,transparent)] p-3">
-                                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-primary)]">Selecionados</p>
-                                <div class="mt-3 flex gap-2 overflow-x-auto pb-1">
-                                    <template x-for="service in selectedServices()" :key="service.id">
-                                        <div class="flex min-w-[190px] max-w-[calc(100vw-4.5rem)] items-center justify-between gap-3 rounded-2xl border border-[color:color-mix(in_srgb,var(--brand-primary)_18%,transparent)] bg-[var(--brand-surface)] px-3 py-3">
-                                            <div class="min-w-0">
-                                                <p class="truncate text-sm font-semibold text-white" x-text="service.name"></p>
-                                                <p class="mt-1 text-xs brand-muted" x-text="`${service.duration} min · R$ ${service.price}`"></p>
-                                            </div>
-                                            <button type="button" class="text-xs font-semibold text-[var(--brand-primary)]" @click="preserveScroll(() => selectService(service.id))">Remover</button>
-                                        </div>
-                                    </template>
-                                </div>
+                            <div x-show="hasSelectedServices()" class="booking-services-selected-summary mt-4" aria-live="polite">
+                                <p class="truncate text-sm font-semibold text-white" x-text="`${selectedServiceIds.length} servico(s) selecionado(s) - ${totalDuration()} min - R$ ${formattedTotalPrice()}`"></p>
+                                <p class="mt-1 truncate text-xs brand-muted" x-text="selectedServices().map((service) => service.name).join(', ')"></p>
                             </div>
 
-                            <div class="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
+                            <div class="booking-services-filters mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
                                 <div>
                                     <label for="service-search" class="sr-only">Buscar serviço</label>
                                     <input id="service-search" x-model="serviceSearch" type="search" class="sf-input block w-full" placeholder="Buscar por nome do serviço">
@@ -875,7 +865,7 @@
                                             value="{{ $service->id }}"
                                             class="peer sr-only"
                                             :checked="selectedServiceIds.includes('{{ $service->id }}')"
-                                            @change="preserveScroll(() => selectService('{{ $service->id }}'))"
+                                            @change="selectService('{{ $service->id }}')"
                                             @checked($checked)
                                         >
                                         <span class="booking-service-selectable flex w-full items-center gap-3 rounded-[20px] p-3 transition" :class="{ 'booking-service--selected': selectedServiceIds.includes('{{ $service->id }}') }">
@@ -917,8 +907,8 @@
 
                             <div class="booking-services-actions">
                                 <div class="min-w-0">
-                                    <p class="truncate text-sm font-semibold text-white" x-text="hasSelectedServices() ? `${selectedServiceIds.length} serviÃ§o(s) selecionado(s)` : 'Escolha pelo menos um serviÃ§o'"></p>
-                                    <p class="mt-1 truncate text-xs brand-muted" x-text="hasSelectedServices() ? `${totalDuration()} min Â· R$ ${formattedTotalPrice()}` : 'O botÃ£o libera apÃ³s selecionar um serviÃ§o.'"></p>
+                                    <p class="truncate text-sm font-semibold text-white" x-text="hasSelectedServices() ? `${selectedServiceIds.length} servico(s) selecionado(s)` : 'Escolha pelo menos um servico'"></p>
+                                    <p class="mt-1 truncate text-xs brand-muted" x-text="hasSelectedServices() ? `${totalDuration()} min - R$ ${formattedTotalPrice()}` : 'O botao libera apos selecionar um servico.'"></p>
                                 </div>
                                 <button
                                     type="button"
@@ -1124,7 +1114,7 @@
                             <x-input-error class="mt-3" :messages="$errors->get('date')" />
                         </section>
 
-                        <div class="hidden justify-end sm:flex" x-show="['services', 'professionals', 'date'].includes(currentStep)" x-cloak>
+                        <div class="hidden justify-end sm:flex" x-show="['professionals', 'date'].includes(currentStep)" x-cloak>
                             <button
                                 type="button"
                                 class="brand-cta min-w-44 px-5 py-3 text-sm"
