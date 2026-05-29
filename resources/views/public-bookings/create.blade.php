@@ -289,21 +289,6 @@
                     visualStepAfterFilter() {
                         return this.currentStep;
                     },
-                    preserveScroll(callback) {
-                        const currentY = window.scrollY;
-                        const servicesList = document.querySelector('.booking-services-list');
-                        const servicesListY = servicesList ? servicesList.scrollTop : null;
-                        callback();
-                        this.$nextTick(() => {
-                            window.scrollTo({ top: currentY, left: 0, behavior: 'auto' });
-                            if (servicesList && servicesListY !== null) {
-                                servicesList.scrollTop = servicesListY;
-                            }
-                        });
-                    },
-                    scrollWizardTop(behavior = 'smooth') {
-                        document.querySelector('.public-booking-shell')?.scrollIntoView({ behavior, block: 'start' });
-                    },
                     tabIsActive(tab) {
                         return tab === 'date' ? ['date', 'time'].includes(this.currentStep) : this.currentStep === tab;
                     },
@@ -377,9 +362,6 @@
                     },
                     continueWizard() {
                         if (!this.canContinueCurrentStep()) {
-                            if (this.currentStep === 'data' && this.blockedByIncompleteFullNameOnly()) {
-                                this.focusClientNameField();
-                            }
                             return;
                         }
                         const next = {
@@ -396,41 +378,9 @@
                         this.afterStepChange();
                     },
                     afterStepChange() {
-                        this.$nextTick(() => {
-                            this.scrollWizardTop();
-                            this.scrollActiveTabIntoView();
-                        });
                         if (this.currentStep === 'time') {
                             this.loadAvailableTimes();
                         }
-                    },
-                    scrollActiveTabIntoView() {
-                        const visibleTabs = Array.from(document.querySelectorAll('.booking-browser-tabs'))
-                            .find((tabs) => tabs.offsetParent !== null);
-                        const activeTab = visibleTabs?.querySelector('.booking-browser-tab.is-active');
-
-                        if (!visibleTabs || !activeTab) {
-                            return;
-                        }
-
-                        activeTab.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'nearest',
-                            inline: 'center',
-                        });
-
-                        window.requestAnimationFrame(() => {
-                            const activeRect = activeTab.getBoundingClientRect();
-                            const tabsRect = visibleTabs.getBoundingClientRect();
-                            const rightOverflow = activeRect.right - (tabsRect.right - 12);
-                            const leftOverflow = (tabsRect.left + 12) - activeRect.left;
-
-                            if (rightOverflow > 0) {
-                                visibleTabs.scrollLeft += rightOverflow;
-                            } else if (leftOverflow > 0) {
-                                visibleTabs.scrollLeft -= leftOverflow;
-                            }
-                        });
                     },
                     stepIsComplete(step) {
                         if (step === 'services') {
@@ -492,16 +442,6 @@
                             && String(this.clientEmail || '').trim().length > 0
                             && !this.fullNameStrongOk();
                     },
-                    focusClientNameField() {
-                        const el = document.getElementById('client_name');
-                        if (!el) {
-                            return;
-                        }
-                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        try {
-                            el.focus({ preventScroll: true });
-                        } catch (_) {}
-                    },
                     bookingSubmitIntercept(e) {
                         if (@js((bool) $identifiedClient)) {
                             return;
@@ -510,11 +450,6 @@
                             return;
                         }
                         e.preventDefault();
-                        this.$nextTick(() => {
-                            if (this.blockedByIncompleteFullNameOnly()) {
-                                this.focusClientNameField();
-                            }
-                        });
                     },
                     selectedServices() {
                         return this.catalog.filter((service) => this.selectedServiceIds.includes(String(service.id)));
@@ -845,7 +780,7 @@
                                 </select>
                             </div>
 
-                            <div class="booking-services-list mt-4 space-y-3 pr-1" @wheel.stop @touchmove.stop>
+                            <div class="booking-services-list mt-4 space-y-3 pr-1">
                                 @foreach ($services as $service)
                                     @php
                                         $checked = $selectedServiceIds->contains($service->id);
@@ -902,8 +837,8 @@
 
                             <div class="booking-services-actions">
                                 <div class="min-w-0">
-                                    <p class="truncate text-sm font-semibold text-white" x-text="hasSelectedServices() ? `${selectedServiceIds.length} servico(s) selecionado(s)` : 'Escolha pelo menos um servico'"></p>
-                                    <p class="mt-1 truncate text-xs brand-muted" x-text="hasSelectedServices() ? `${totalDuration()} min - R$ ${formattedTotalPrice()}` : 'O botao libera apos selecionar um servico.'"></p>
+                                    <p class="truncate text-sm font-semibold text-white" x-text="hasSelectedServices() ? `${selectedServiceIds.length} serviço(s) selecionado(s)` : 'Escolha pelo menos um serviço'"></p>
+                                    <p class="mt-1 truncate text-xs brand-muted" x-text="hasSelectedServices() ? `${totalDuration()} min · R$ ${formattedTotalPrice()}` : 'O botão libera após selecionar um serviço.'"></p>
                                 </div>
                                 <button
                                     type="button"
@@ -947,7 +882,7 @@
                                             data-professional-name="{{ $user->name }}"
                                             class="peer sr-only"
                                             :checked="selectedProfessionalId === '{{ $user->id }}'"
-                                            @change="preserveScroll(() => selectProfessional('{{ $user->id }}'))"
+                                            @change="selectProfessional('{{ $user->id }}')"
                                             @checked($selected)
                                         >
                                         <span class="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-[20px] border p-3 transition" :class="selectedProfessionalId === '{{ $user->id }}' ? 'border-[var(--brand-primary)] bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] ring-2 ring-[color-mix(in_srgb,var(--brand-primary)_35%,transparent)]' : 'border-[color:color-mix(in_srgb,white_10%,transparent)] bg-[var(--brand-surface)] hover:border-[color-mix(in_srgb,var(--brand-primary)_35%,transparent)]'">
@@ -1084,7 +1019,7 @@
                                     @endphp
                                     <button
                                         type="button"
-                                        @click="preserveScroll(() => selectDate('{{ $quickDate['value'] }}'))"
+                                        @click="selectDate('{{ $quickDate['value'] }}')"
                                         class="booking-date-tile px-2 py-3 text-center transition"
                                         :class="selectedDate === '{{ $quickDate['value'] }}' ? 'booking-date-tile--on' : 'brand-muted'"
                                     >
@@ -1102,7 +1037,7 @@
                                     min="{{ $today }}"
                                     :value="selectedDate"
                                     class="sf-input mt-2 block w-full"
-                                    @change="preserveScroll(() => selectDate($event.target.value))"
+                                    @change="selectDate($event.target.value)"
                                 >
                             </div>
 
@@ -1193,7 +1128,7 @@
                                                 <button
                                                     type="button"
                                                     class="brand-cta px-4 py-3 text-sm"
-                                            @click="preserveScroll(() => selectedTime = @js($nextAvailableSlot))"
+                                            @click="selectedTime = @js($nextAvailableSlot)"
                                                 >
                                                     Usar este hor&aacute;rio
                                                 </button>
@@ -1224,7 +1159,7 @@
                                                     <button
                                                         type="button"
                                                         class="{{ $slotChipOn ? 'booking-pill-slot booking-pill-slot--on' : 'booking-pill-slot' }} px-3 py-2 text-xs font-semibold text-white transition"
-                                                        @click="preserveScroll(() => selectedTime = @js($slotOption['time']))"
+                                                        @click="selectedTime = @js($slotOption['time'])"
                                                     >
                                                         {{ $slotOption['time'] }}
                                                     </button>
@@ -1263,7 +1198,7 @@
                                         <button
                                             type="button"
                                             class="brand-cta px-4 py-3 text-sm"
-                                            @click="preserveScroll(() => selectedTime = nextAvailableSlot())"
+                                            @click="selectedTime = nextAvailableSlot()"
                                         >
                                             Usar este hor&aacute;rio
                                         </button>
@@ -1284,7 +1219,7 @@
                                                     type="button"
                                                     class="booking-pill-slot px-3 py-2 text-xs font-semibold text-white transition"
                                                     :class="{ 'booking-pill-slot--on': selectedTime === slot.time }"
-                                                    @click="preserveScroll(() => selectedTime = slot.time)"
+                                                    @click="selectedTime = slot.time"
                                                 >
                                                     <span x-text="slot.time"></span>
                                                     <template x-if="slot.public_label">
@@ -1636,7 +1571,7 @@
                             class="brand-cta shrink-0 px-4 py-3 text-sm"
                             x-show="currentStep === 'confirm'"
                             x-cloak
-                            @click="document.getElementById('booking-confirm-submit')?.scrollIntoView({ behavior: 'smooth', block: 'center' })"
+                            @click="document.getElementById('booking-confirm-submit')?.click()"
                         >
                             Confirmar
                         </button>
@@ -1645,54 +1580,5 @@
             </div>
         </main>
 
-        <script>
-            (function () {
-                var raw = sessionStorage.getItem('publicBookingScrollY');
-                if (raw === null) {
-                    return;
-                }
-                sessionStorage.removeItem('publicBookingScrollY');
-                var y = parseInt(raw, 10);
-                if (Number.isNaN(y)) {
-                    return;
-                }
-                window.addEventListener(
-                    'load',
-                    function () {
-                        requestAnimationFrame(function () {
-                            window.scrollTo(0, y);
-                        });
-                    },
-                    { once: true }
-                );
-            })();
-        </script>
-
-        @if ($errors->any())
-            @php
-                $scrollToId = match (true) {
-                    $errors->has('client_name') => 'client_name',
-                    $errors->has('client_phone') => 'client_phone',
-                    $errors->has('client_email') => 'client_email',
-                    $errors->has('time') => 'booking-time',
-                    $errors->has('date') => 'public-date',
-                    default => null,
-                };
-            @endphp
-            @if ($scrollToId)
-                <script>
-                    document.addEventListener('DOMContentLoaded', function () {
-                        var el = document.getElementById(@json($scrollToId));
-                        if (! el) {
-                            return;
-                        }
-                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        try {
-                            el.focus({ preventScroll: true });
-                        } catch (e) {}
-                    });
-                </script>
-            @endif
-        @endif
     </body>
 </html>

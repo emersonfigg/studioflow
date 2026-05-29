@@ -2134,9 +2134,9 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
 
 .public-booking-v3 .booking-app-main-card > section,
 .public-booking-v3 form.space-y-5 > section {
-    max-height: min(58vh, 34rem);
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    max-height: none;
+    overflow: visible;
+    overscroll-behavior: auto;
 }
 
 .public-booking-v3 .booking-app-main-card > section.booking-services-panel,
@@ -2144,19 +2144,6 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     max-height: none !important;
     overflow: visible !important;
     overscroll-behavior: auto !important;
-}
-
-.public-booking-v3 .booking-services-list {
-    max-height: min(46vh, 520px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-}
-
-@media (max-width: 640px) {
-    .public-booking-v3 .booking-services-list {
-        max-height: min(52vh, 32rem);
-    }
 }
 
 .public-booking-v3 .booking-app-main-card > .booking-assistant-home {
@@ -3719,11 +3706,11 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     display: flex !important;
     width: 100%;
     max-width: 100%;
-    height: min(26rem, calc(100dvh - 22rem));
-    max-height: min(26rem, calc(100dvh - 22rem));
+    height: auto;
+    max-height: none;
     min-height: 0;
     flex-direction: column;
-    overflow: hidden !important;
+    overflow: visible !important;
     overflow-anchor: none;
 }
 
@@ -3738,7 +3725,7 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
 .public-booking-v3 .booking-services-list {
     flex: 1 1 auto;
     min-height: 0;
-    max-height: 26.875rem;
+    max-height: min(26rem, 52vh);
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
@@ -3756,7 +3743,7 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin: auto -1rem -1rem;
+    margin: 1rem -1rem -1rem;
     border-top: 1px solid var(--booking-border);
     background:
         linear-gradient(180deg, color-mix(in srgb, var(--booking-panel-bg, var(--booking-card)) 78%, transparent), var(--booking-panel-bg, var(--booking-card)) 38%),
@@ -3777,12 +3764,12 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
 
 @media (max-width: 640px) {
     .public-booking-v3 .booking-services-panel {
-        height: min(38rem, calc(100dvh - 3rem));
-        max-height: calc(100dvh - 3rem);
+        height: auto;
+        max-height: none;
     }
 
     .public-booking-v3 .booking-services-list {
-        max-height: max(14rem, calc(100dvh - 20rem));
+        max-height: max(14rem, calc(100dvh - 23rem));
     }
 
     .public-booking-v3 .booking-services-actions {
