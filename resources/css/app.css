@@ -918,6 +918,7 @@
  * Escopo: body.public-booking-page e preview em /company (.company-preview-landing).
  * ------------------------------------------------------------------------- */
 body.public-booking-page {
+    overflow-anchor: none;
     --brand-primary-soft: color-mix(in srgb, var(--brand-primary) 18%, transparent);
     --brand-primary-hover: var(--btn-primary-hover);
     --brand-primary-border: color-mix(in srgb, var(--brand-primary) 20%, transparent);
@@ -1256,7 +1257,7 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     min-height: 20rem;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     border: 0;
     border-radius: 0 0 2rem 2rem;
     background:
@@ -2001,12 +2002,16 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
 
 .public-booking-v3 .public-booking-app {
     display: flex;
+    min-height: 0 !important;
     align-items: flex-start;
     justify-content: center;
+    padding-top: 0;
 }
 
 .public-booking-v3 .public-booking-shell {
     width: min(100%, 520px);
+    margin-inline: auto;
+    padding-top: 0;
     padding-bottom: 6.5rem;
 }
 
@@ -2016,7 +2021,7 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
 }
 
 .public-booking-v3 .booking-app-main-card {
-    min-height: 28rem;
+    min-height: 0;
     margin-top: -4.25rem;
 }
 
@@ -2141,9 +2146,8 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
 
 .public-booking-v3 .booking-app-main-card > section.booking-services-panel,
 .public-booking-v3 form.space-y-5 > section.booking-services-panel {
-    max-height: none !important;
-    overflow: visible !important;
-    overscroll-behavior: auto !important;
+    overflow: hidden !important;
+    overscroll-behavior: contain !important;
 }
 
 .public-booking-v3 .booking-app-main-card > .booking-assistant-home {
@@ -2179,7 +2183,7 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     }
 
     .public-booking-v3 .booking-app-main-card {
-        min-height: 30rem;
+        min-height: 0;
         margin-inline: 0.75rem;
     }
 
@@ -3701,23 +3705,25 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     border-radius: 20px 20px 22px 22px !important;
 }
 
-/* Public booking: keep the services step stable while selecting many items. */
+/* Public booking: services step with fixed card height — only the list scrolls. */
 .public-booking-v3 .booking-services-panel {
     display: flex !important;
     width: 100%;
     max-width: 100%;
-    height: auto;
-    max-height: none;
-    min-height: 0;
-    flex-direction: column;
-    overflow: visible !important;
+    height: clamp(22rem, calc(100svh - 13.5rem), 36rem) !important;
+    max-height: clamp(22rem, calc(100svh - 13.5rem), 36rem) !important;
+    min-height: clamp(22rem, calc(100svh - 13.5rem), 36rem) !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
     overflow-anchor: none;
 }
 
 .public-booking-v3 .booking-services-head,
 .public-booking-v3 .booking-services-filters,
 .public-booking-v3 .booking-services-actions,
-.public-booking-v3 .booking-services-panel > .text-sm {
+.public-booking-v3 .booking-services-panel > .text-sm,
+.public-booking-v3 .booking-services-panel .mt-3,
+.public-booking-v3 .booking-services-panel .mt-2 {
     flex: 0 0 auto;
     overflow-anchor: none;
 }
@@ -3725,11 +3731,10 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
 .public-booking-v3 .booking-services-list {
     flex: 1 1 auto;
     min-height: 0;
-    max-height: min(26rem, 52vh);
+    max-height: none;
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
-    overscroll-behavior-y: contain;
     touch-action: pan-y;
     padding-bottom: 0.25rem;
     scrollbar-gutter: stable;
@@ -3740,16 +3745,30 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
 .public-booking-v3 .booking-services-actions {
     display: flex;
     flex: 0 0 auto;
+    min-height: 5.25rem;
+    max-height: 5.25rem;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin: 1rem -1rem -1rem;
+    margin: 0.75rem -1rem -1rem;
     border-top: 1px solid var(--booking-border);
     background:
         linear-gradient(180deg, color-mix(in srgb, var(--booking-panel-bg, var(--booking-card)) 78%, transparent), var(--booking-panel-bg, var(--booking-card)) 38%),
         var(--booking-panel-bg, var(--booking-card));
-    padding: 0.85rem 1rem 1rem;
+    padding: 0.75rem 1rem;
+    overflow: hidden;
     overflow-anchor: none;
+}
+
+.public-booking-v3 .booking-services-actions > .min-w-0 {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.public-booking-v3 .booking-services-actions p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 @media (min-width: 640px) {
@@ -3764,20 +3783,28 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
 
 @media (max-width: 640px) {
     .public-booking-v3 .booking-services-panel {
-        height: auto;
-        max-height: none;
-    }
-
-    .public-booking-v3 .booking-services-list {
-        max-height: max(14rem, calc(100dvh - 23rem));
+        height: clamp(20rem, calc(100svh - 12rem), 34rem) !important;
+        max-height: clamp(20rem, calc(100svh - 12rem), 34rem) !important;
+        min-height: clamp(20rem, calc(100svh - 12rem), 34rem) !important;
     }
 
     .public-booking-v3 .booking-services-actions {
-        align-items: stretch;
-        flex-direction: column;
+        min-height: 6.5rem;
+        max-height: 6.5rem;
+        align-items: center;
+        flex-direction: row;
     }
 
     .public-booking-v3 .booking-services-actions .brand-cta {
-        width: 100%;
+        width: auto;
+        flex-shrink: 0;
+    }
+}
+
+@media (min-width: 1366px) and (max-height: 800px) {
+    .public-booking-v3 .booking-services-panel {
+        height: clamp(18rem, calc(100svh - 11rem), 30rem) !important;
+        max-height: clamp(18rem, calc(100svh - 11rem), 30rem) !important;
+        min-height: clamp(18rem, calc(100svh - 11rem), 30rem) !important;
     }
 }

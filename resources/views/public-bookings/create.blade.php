@@ -234,7 +234,7 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="public-booking-page public-booking-v3 min-h-screen font-sans text-white antialiased" style="{{ $bookingThemeStyle }}">
-        <main class="public-booking-app mx-auto min-h-screen w-full max-w-full overflow-x-hidden px-0 pb-28 lg:pb-10" style="{{ $bookingThemeStyle }}">
+        <main class="public-booking-app mx-auto w-full max-w-full overflow-x-hidden px-0 pb-28 lg:pb-10" style="{{ $bookingThemeStyle }}">
             <div
                 x-data="{
                     selectedServiceIds: @js($selectedServiceIdStrings),
@@ -268,14 +268,31 @@
                         this.slotsLoaded = false;
                         this.slotsError = null;
                     },
-                    selectService(serviceId) {
+                    selectService(serviceId, event = null) {
+                        if (event) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }
+
+                        const scrollY = window.scrollY;
+                        const scrollX = window.scrollX;
                         const normalized = String(serviceId);
+
                         if (this.selectedServiceIds.includes(normalized)) {
                             this.selectedServiceIds = this.selectedServiceIds.filter((id) => id !== normalized);
                         } else {
                             this.selectedServiceIds.push(normalized);
                         }
+
                         this.markSlotsDirty();
+
+                        if (event?.target instanceof HTMLElement) {
+                            event.target.blur();
+                        }
+
+                        requestAnimationFrame(() => {
+                            window.scrollTo({ top: scrollY, left: scrollX, behavior: 'instant' });
+                        });
                     },
                     selectProfessional(userId) {
                         this.selectedProfessionalId = String(userId);
@@ -795,7 +812,8 @@
                                             value="{{ $service->id }}"
                                             class="peer sr-only"
                                             :checked="selectedServiceIds.includes('{{ $service->id }}')"
-                                            @change="selectService('{{ $service->id }}')"
+                                            tabindex="-1"
+                                            @click.prevent="selectService('{{ $service->id }}', $event)"
                                             @checked($checked)
                                         >
                                         <span class="booking-service-selectable flex w-full items-center gap-3 rounded-[20px] p-3 transition" :class="{ 'booking-service--selected': selectedServiceIds.includes('{{ $service->id }}') }">

@@ -1976,6 +1976,21 @@ class PublicBookingTest extends TestCase
         $this->assertNull($appointment->confirmed_at);
     }
 
+    public function test_public_booking_services_step_uses_stable_scroll_layout(): void
+    {
+        $company = Company::factory()->create();
+        Service::factory()->for($company)->count(3)->create(['active' => true]);
+        User::factory()->for($company)->create();
+
+        $this->get(route('public-bookings.create', $company, false))
+            ->assertOk()
+            ->assertSee('booking-services-panel', false)
+            ->assertSee('booking-services-list', false)
+            ->assertSee('booking-services-actions', false)
+            ->assertSee('selectService(', false)
+            ->assertSee('window.scrollTo({ top: scrollY', false);
+    }
+
     private function bookingUrl(Company $company, array $query = []): string
     {
         $baseUrl = route('public-bookings.create', $company, false);
