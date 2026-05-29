@@ -1988,8 +1988,7 @@ class PublicBookingTest extends TestCase
             ->assertSee('booking-services-list', false)
             ->assertSee('booking-services-actions', false)
             ->assertSee('toggleService(', false)
-            ->assertSee('window.scrollTo(0, scrollY', false)
-            ->assertSee("console.log('scroll before'", false);
+            ->assertSee('window.scrollTo(0, scrollY', false);
     }
 
     private function bookingUrl(Company $company, array $query = []): string

@@ -276,8 +276,13 @@
 
                         const scrollY = window.scrollY;
                         const activeElement = document.activeElement;
+                        const html = document.documentElement;
+                        const body = document.body;
+                        const previousHtmlOverflow = html.style.overflow;
+                        const previousBodyOverflow = body.style.overflow;
 
-                        console.log('scroll before', scrollY);
+                        html.style.overflow = 'hidden';
+                        body.style.overflow = 'hidden';
 
                         const normalized = String(serviceId);
 
@@ -290,9 +295,7 @@
                         this.markSlotsDirty();
 
                         const restoreScroll = () => {
-                            if (window.scrollY !== scrollY) {
-                                window.scrollTo(0, scrollY);
-                            }
+                            window.scrollTo(0, scrollY);
                         };
 
                         this.$nextTick(() => {
@@ -300,7 +303,8 @@
                                 restoreScroll();
                                 requestAnimationFrame(() => {
                                     restoreScroll();
-                                    console.log('scroll after', window.scrollY);
+                                    html.style.overflow = previousHtmlOverflow;
+                                    body.style.overflow = previousBodyOverflow;
                                     if (activeElement && typeof activeElement.blur === 'function') {
                                         activeElement.blur();
                                     }
@@ -683,7 +687,7 @@
                         </div>
                     </header>
 
-                    <form id="booking-filters" x-ref="bookingFilters" class="booking-wizard booking-app-main-card mx-3 -mt-8 w-auto max-w-full space-y-5 p-4 sm:mx-5 sm:p-5 lg:mx-0 lg:p-6" :class="{ 'booking-wizard--services-active': currentStep === 'services' }" x-show="['professionals', 'services', 'date'].includes(currentStep)" x-cloak @submit.prevent>
+                    <form id="booking-filters" x-ref="bookingFilters" class="booking-wizard booking-app-main-card mx-3 -mt-8 w-auto max-w-full space-y-5 p-4 sm:mx-5 sm:p-5 lg:mx-0 lg:p-6" x-show="['professionals', 'services', 'date'].includes(currentStep)" x-cloak @submit.prevent>
                         @if (false)
                         <section class="booking-assistant-home" x-show="currentStep === 'overview'" x-cloak>
                             <div class="booking-assistant-intro">
@@ -789,7 +793,8 @@
                         </nav>
                         @endif
 
-                        <section class="booking-step sf-card booking-browser-panel booking-services-panel p-4 sm:p-5" x-show="currentStep === 'services'" x-cloak>
+                        <template x-if="currentStep === 'services'">
+                        <section class="booking-step sf-card booking-browser-panel booking-services-panel p-4 sm:p-5">
                             <div class="booking-services-head flex items-start justify-between gap-4">
                                 <div>
                                     <p class="sf-page-eyebrow">1. Serviços</p>
@@ -876,8 +881,10 @@
                                 </button>
                             </div>
                         </section>
+                        </template>
 
-                        <section class="sf-card booking-browser-panel p-4 sm:p-5" x-show="currentStep === 'professionals'" x-cloak>
+                        <template x-if="currentStep === 'professionals'">
+                        <section class="sf-card booking-browser-panel p-4 sm:p-5">
                             <div class="flex items-start gap-3">
                                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] text-sm font-semibold text-[var(--brand-primary)]">2</span>
                                 <div>
@@ -932,6 +939,7 @@
 
                             <x-input-error class="mt-3" :messages="$errors->get('user_id')" />
                         </section>
+                        </template>
 
                         @if (false)
                         <section class="sf-card booking-app-tab-panel p-4 sm:p-5" x-show="false" x-cloak>
@@ -1028,7 +1036,8 @@
                         </section>
                         @endif
 
-                        <section class="sf-card booking-browser-panel p-4 sm:p-5" x-show="currentStep === 'date'" x-cloak :class="!hasSelectedServices() || !selectedProfessionalId ? 'opacity-70' : ''">
+                        <template x-if="currentStep === 'date'">
+                        <section class="sf-card booking-browser-panel p-4 sm:p-5" :class="!hasSelectedServices() || !selectedProfessionalId ? 'opacity-70' : ''">
                             <div class="flex items-start gap-3">
                                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] text-sm font-semibold text-[var(--brand-primary)]">3</span>
                                 <div>
@@ -1068,8 +1077,10 @@
 
                             <x-input-error class="mt-3" :messages="$errors->get('date')" />
                         </section>
+                        </template>
 
-                        <div class="hidden justify-end sm:flex" x-show="['professionals', 'date'].includes(currentStep)" x-cloak>
+                        <template x-if="['professionals', 'date'].includes(currentStep)">
+                        <div class="hidden justify-end sm:flex">
                             <button
                                 type="button"
                                 class="brand-cta min-w-44 px-5 py-3 text-sm"
@@ -1080,6 +1091,7 @@
                                 <span x-text="continueLabel()">Continuar</span>
                             </button>
                         </div>
+                        </template>
                     </form>
 
                     <form method="POST" action="{{ route('public-bookings.store', $company) }}" class="booking-app-main-card mx-3 -mt-8 w-auto max-w-full space-y-5 p-4 sm:mx-5 sm:p-5 lg:mx-0 lg:p-6" x-show="['time', 'data', 'confirm'].includes(currentStep)" x-cloak @submit="bookingSubmitIntercept($event)">
