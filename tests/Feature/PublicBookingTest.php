@@ -1987,7 +1987,7 @@ class PublicBookingTest extends TestCase
             ->assertSee('booking-services-panel', false)
             ->assertSee('booking-services-list', false)
             ->assertSee('booking-services-actions', false)
-            ->assertSee('selectService(', false)
+            ->assertSee('toggleService(', false)
             ->assertSee('window.scrollTo({ top: scrollY', false);
     }
 

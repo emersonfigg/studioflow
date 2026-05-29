@@ -2146,8 +2146,7 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
 
 .public-booking-v3 .booking-app-main-card > section.booking-services-panel,
 .public-booking-v3 form.space-y-5 > section.booking-services-panel {
-    overflow: hidden !important;
-    overscroll-behavior: contain !important;
+    overflow: visible;
 }
 
 .public-booking-v3 .booking-app-main-card > .booking-assistant-home {
@@ -3705,33 +3704,27 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     border-radius: 20px 20px 22px 22px !important;
 }
 
-/* Public booking: services step with fixed card height — only the list scrolls. */
-.public-booking-v3 .booking-services-panel {
-    display: flex !important;
-    width: 100%;
-    max-width: 100%;
-    height: clamp(22rem, calc(100svh - 13.5rem), 36rem) !important;
-    max-height: clamp(22rem, calc(100svh - 13.5rem), 36rem) !important;
-    min-height: clamp(22rem, calc(100svh - 13.5rem), 36rem) !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
+/* Public booking: services step — card grows naturally; only the list scrolls. */
+.public-booking-page,
+.public-booking-v3 .public-booking-shell,
+.public-booking-v3 .booking-wizard,
+.public-booking-v3 .booking-step,
+.public-booking-v3 .booking-services-list {
     overflow-anchor: none;
 }
 
-.public-booking-v3 .booking-services-head,
-.public-booking-v3 .booking-services-filters,
-.public-booking-v3 .booking-services-actions,
-.public-booking-v3 .booking-services-panel > .text-sm,
-.public-booking-v3 .booking-services-panel .mt-3,
-.public-booking-v3 .booking-services-panel .mt-2 {
-    flex: 0 0 auto;
-    overflow-anchor: none;
+.public-booking-v3 .booking-services-panel {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
 }
 
 .public-booking-v3 .booking-services-list {
-    flex: 1 1 auto;
-    min-height: 0;
-    max-height: none;
+    max-height: 360px;
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
@@ -3739,30 +3732,20 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     padding-bottom: 0.25rem;
     scrollbar-gutter: stable;
     -webkit-overflow-scrolling: touch;
-    overflow-anchor: none;
 }
 
 .public-booking-v3 .booking-services-actions {
     display: flex;
-    flex: 0 0 auto;
-    min-height: 5.25rem;
-    max-height: 5.25rem;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin: 0.75rem -1rem -1rem;
+    margin-top: 1rem;
     border-top: 1px solid var(--booking-border);
-    background:
-        linear-gradient(180deg, color-mix(in srgb, var(--booking-panel-bg, var(--booking-card)) 78%, transparent), var(--booking-panel-bg, var(--booking-card)) 38%),
-        var(--booking-panel-bg, var(--booking-card));
-    padding: 0.75rem 1rem;
-    overflow: hidden;
-    overflow-anchor: none;
+    padding-top: 0.85rem;
 }
 
 .public-booking-v3 .booking-services-actions > .min-w-0 {
     min-width: 0;
-    overflow: hidden;
 }
 
 .public-booking-v3 .booking-services-actions p {
@@ -3771,40 +3754,8 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     white-space: nowrap;
 }
 
-@media (min-width: 640px) {
-    .public-booking-v3 .booking-services-actions {
-        margin-right: -1.25rem;
-        margin-bottom: -1.25rem;
-        margin-left: -1.25rem;
-        padding-right: 1.25rem;
-        padding-left: 1.25rem;
-    }
-}
-
-@media (max-width: 640px) {
-    .public-booking-v3 .booking-services-panel {
-        height: clamp(20rem, calc(100svh - 12rem), 34rem) !important;
-        max-height: clamp(20rem, calc(100svh - 12rem), 34rem) !important;
-        min-height: clamp(20rem, calc(100svh - 12rem), 34rem) !important;
-    }
-
-    .public-booking-v3 .booking-services-actions {
-        min-height: 6.5rem;
-        max-height: 6.5rem;
-        align-items: center;
-        flex-direction: row;
-    }
-
-    .public-booking-v3 .booking-services-actions .brand-cta {
-        width: auto;
-        flex-shrink: 0;
-    }
-}
-
 @media (min-width: 1366px) and (max-height: 800px) {
-    .public-booking-v3 .booking-services-panel {
-        height: clamp(18rem, calc(100svh - 11rem), 30rem) !important;
-        max-height: clamp(18rem, calc(100svh - 11rem), 30rem) !important;
-        min-height: clamp(18rem, calc(100svh - 11rem), 30rem) !important;
+    .public-booking-v3 .booking-services-list {
+        max-height: 300px;
     }
 }

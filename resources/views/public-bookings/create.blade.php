@@ -268,7 +268,7 @@
                         this.slotsLoaded = false;
                         this.slotsError = null;
                     },
-                    selectService(serviceId, event = null) {
+                    toggleService(serviceId, event = null) {
                         if (event) {
                             event.preventDefault();
                             event.stopPropagation();
@@ -669,7 +669,7 @@
                         </div>
                     </header>
 
-                    <form id="booking-filters" x-ref="bookingFilters" class="booking-app-main-card mx-3 -mt-8 w-auto max-w-full space-y-5 p-4 sm:mx-5 sm:p-5 lg:mx-0 lg:p-6" x-show="['professionals', 'services', 'date'].includes(currentStep)" x-cloak @submit.prevent>
+                    <form id="booking-filters" x-ref="bookingFilters" class="booking-wizard booking-app-main-card mx-3 -mt-8 w-auto max-w-full space-y-5 p-4 sm:mx-5 sm:p-5 lg:mx-0 lg:p-6" x-show="['professionals', 'services', 'date'].includes(currentStep)" x-cloak @submit.prevent>
                         @if (false)
                         <section class="booking-assistant-home" x-show="currentStep === 'overview'" x-cloak>
                             <div class="booking-assistant-intro">
@@ -775,7 +775,7 @@
                         </nav>
                         @endif
 
-                        <section class="sf-card booking-browser-panel booking-services-panel p-4 sm:p-5" x-show="currentStep === 'services'" x-cloak>
+                        <section class="booking-step sf-card booking-browser-panel booking-services-panel p-4 sm:p-5" x-show="currentStep === 'services'" x-cloak>
                             <div class="booking-services-head flex items-start justify-between gap-4">
                                 <div>
                                     <p class="sf-page-eyebrow">1. Serviços</p>
@@ -813,7 +813,7 @@
                                             class="peer sr-only"
                                             :checked="selectedServiceIds.includes('{{ $service->id }}')"
                                             tabindex="-1"
-                                            @click.prevent="selectService('{{ $service->id }}', $event)"
+                                            @click.prevent="toggleService('{{ $service->id }}', $event)"
                                             @checked($checked)
                                         >
                                         <span class="booking-service-selectable flex w-full items-center gap-3 rounded-[20px] p-3 transition" :class="{ 'booking-service--selected': selectedServiceIds.includes('{{ $service->id }}') }">
