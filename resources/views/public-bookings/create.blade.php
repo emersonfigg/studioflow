@@ -275,7 +275,10 @@
                         }
 
                         const scrollY = window.scrollY;
-                        const scrollX = window.scrollX;
+                        const activeElement = document.activeElement;
+
+                        console.log('scroll before', scrollY);
+
                         const normalized = String(serviceId);
 
                         if (this.selectedServiceIds.includes(normalized)) {
@@ -286,12 +289,23 @@
 
                         this.markSlotsDirty();
 
-                        if (event?.target instanceof HTMLElement) {
-                            event.target.blur();
-                        }
+                        const restoreScroll = () => {
+                            if (window.scrollY !== scrollY) {
+                                window.scrollTo(0, scrollY);
+                            }
+                        };
 
-                        requestAnimationFrame(() => {
-                            window.scrollTo({ top: scrollY, left: scrollX, behavior: 'instant' });
+                        this.$nextTick(() => {
+                            requestAnimationFrame(() => {
+                                restoreScroll();
+                                requestAnimationFrame(() => {
+                                    restoreScroll();
+                                    console.log('scroll after', window.scrollY);
+                                    if (activeElement && typeof activeElement.blur === 'function') {
+                                        activeElement.blur();
+                                    }
+                                });
+                            });
                         });
                     },
                     selectProfessional(userId) {
@@ -669,7 +683,7 @@
                         </div>
                     </header>
 
-                    <form id="booking-filters" x-ref="bookingFilters" class="booking-wizard booking-app-main-card mx-3 -mt-8 w-auto max-w-full space-y-5 p-4 sm:mx-5 sm:p-5 lg:mx-0 lg:p-6" x-show="['professionals', 'services', 'date'].includes(currentStep)" x-cloak @submit.prevent>
+                    <form id="booking-filters" x-ref="bookingFilters" class="booking-wizard booking-app-main-card mx-3 -mt-8 w-auto max-w-full space-y-5 p-4 sm:mx-5 sm:p-5 lg:mx-0 lg:p-6" :class="{ 'booking-wizard--services-active': currentStep === 'services' }" x-show="['professionals', 'services', 'date'].includes(currentStep)" x-cloak @submit.prevent>
                         @if (false)
                         <section class="booking-assistant-home" x-show="currentStep === 'overview'" x-cloak>
                             <div class="booking-assistant-intro">
@@ -802,20 +816,13 @@
                                     @php
                                         $checked = $selectedServiceIds->contains($service->id);
                                     @endphp
-                                    <label
-                                        class="block cursor-pointer"
+                                    <button
+                                        type="button"
+                                        class="block w-full cursor-pointer text-left"
                                         x-show="filteredServices().some((item) => Number(item.id) === {{ $service->id }})"
                                         x-cloak
+                                        @click.prevent.stop="toggleService('{{ $service->id }}', $event)"
                                     >
-                                        <input
-                                            type="checkbox"
-                                            value="{{ $service->id }}"
-                                            class="peer sr-only"
-                                            :checked="selectedServiceIds.includes('{{ $service->id }}')"
-                                            tabindex="-1"
-                                            @click.prevent="toggleService('{{ $service->id }}', $event)"
-                                            @checked($checked)
-                                        >
                                         <span class="booking-service-selectable flex w-full items-center gap-3 rounded-[20px] p-3 transition" :class="{ 'booking-service--selected': selectedServiceIds.includes('{{ $service->id }}') }">
                                             <span class="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[var(--brand-surface)]">
                                                 @if ($service->image_url)
@@ -842,7 +849,7 @@
                                                 {{ $checked ? 'Remover' : 'Selecionar' }}
                                             </span>
                                         </span>
-                                    </label>
+                                    </button>
                                 @endforeach
 
                                 <div x-show="filteredServices().length === 0" x-cloak class="rounded-2xl border border-dashed border-[color:color-mix(in_srgb,var(--brand-primary)_22%,transparent)] bg-[var(--brand-surface)] px-4 py-6 text-center text-sm brand-muted">

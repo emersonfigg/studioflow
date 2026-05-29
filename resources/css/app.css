@@ -3704,12 +3704,16 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     border-radius: 20px 20px 22px 22px !important;
 }
 
-/* Public booking: services step — card grows naturally; only the list scrolls. */
+/* Public booking: anti scroll-jump on services step */
 .public-booking-page,
-.public-booking-v3 .public-booking-shell,
-.public-booking-v3 .booking-wizard,
-.public-booking-v3 .booking-step,
-.public-booking-v3 .booking-services-list {
+.public-booking-shell,
+.booking-wizard,
+.booking-step,
+.booking-services-list {
+    overflow-anchor: none;
+}
+
+html:has(body.public-booking-page) {
     overflow-anchor: none;
 }
 
@@ -3721,6 +3725,12 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     max-height: none;
     min-height: 0;
     overflow: visible;
+}
+
+.public-booking-v3 .booking-services-list,
+.public-booking-v3 .booking-services-list * {
+    scroll-margin: 0;
+    scroll-padding: 0;
 }
 
 .public-booking-v3 .booking-services-list {
@@ -3754,8 +3764,44 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     white-space: nowrap;
 }
 
+/* Etapa serviços ativa: alturas fixas para evitar layout shift / scroll anchoring */
+.public-booking-v3 .booking-wizard--services-active {
+    contain: layout style;
+}
+
+.public-booking-v3 .booking-wizard--services-active .booking-services-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+}
+
+.public-booking-v3 .booking-wizard--services-active .booking-services-head,
+.public-booking-v3 .booking-wizard--services-active .booking-services-filters,
+.public-booking-v3 .booking-wizard--services-active .booking-services-panel > .mt-3,
+.public-booking-v3 .booking-wizard--services-active .booking-services-panel > .mt-2 {
+    flex: 0 0 auto;
+}
+
+.public-booking-v3 .booking-wizard--services-active .booking-services-list {
+    flex: 0 0 360px;
+    height: 360px;
+    min-height: 360px;
+    max-height: 360px;
+}
+
+.public-booking-v3 .booking-wizard--services-active .booking-services-actions {
+    flex: 0 0 auto;
+    min-height: 4.75rem;
+    max-height: 4.75rem;
+    margin-top: 1rem;
+}
+
 @media (min-width: 1366px) and (max-height: 800px) {
-    .public-booking-v3 .booking-services-list {
+    .public-booking-v3 .booking-services-list,
+    .public-booking-v3 .booking-wizard--services-active .booking-services-list {
+        flex-basis: 300px;
+        height: 300px;
+        min-height: 300px;
         max-height: 300px;
     }
 }
