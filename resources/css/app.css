@@ -3719,28 +3719,20 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     display: flex !important;
     width: 100%;
     max-width: 100%;
-    height: min(38.75rem, calc(100dvh - 6rem));
-    max-height: min(38.75rem, calc(100dvh - 6rem));
+    height: min(26rem, calc(100dvh - 22rem));
+    max-height: min(26rem, calc(100dvh - 22rem));
     min-height: 0;
     flex-direction: column;
     overflow: hidden !important;
+    overflow-anchor: none;
 }
 
 .public-booking-v3 .booking-services-head,
-.public-booking-v3 .booking-services-selected-summary,
 .public-booking-v3 .booking-services-filters,
 .public-booking-v3 .booking-services-actions,
 .public-booking-v3 .booking-services-panel > .text-sm {
     flex: 0 0 auto;
-}
-
-.public-booking-v3 .booking-services-selected-summary {
-    max-width: 100%;
-    overflow: hidden;
-    border: 1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent);
-    border-radius: 1rem;
-    background: color-mix(in srgb, var(--brand-primary) 10%, transparent);
-    padding: 0.75rem;
+    overflow-anchor: none;
 }
 
 .public-booking-v3 .booking-services-list {
@@ -3750,9 +3742,12 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
+    overscroll-behavior-y: contain;
+    touch-action: pan-y;
     padding-bottom: 0.25rem;
     scrollbar-gutter: stable;
     -webkit-overflow-scrolling: touch;
+    overflow-anchor: none;
 }
 
 .public-booking-v3 .booking-services-actions {
@@ -3767,6 +3762,7 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
         linear-gradient(180deg, color-mix(in srgb, var(--booking-panel-bg, var(--booking-card)) 78%, transparent), var(--booking-panel-bg, var(--booking-card)) 38%),
         var(--booking-panel-bg, var(--booking-card));
     padding: 0.85rem 1rem 1rem;
+    overflow-anchor: none;
 }
 
 @media (min-width: 640px) {
@@ -3781,12 +3777,12 @@ html[data-theme='light'] .public-booking-page .booking-date-tile--on {
 
 @media (max-width: 640px) {
     .public-booking-v3 .booking-services-panel {
-        height: min(42rem, calc(100dvh - 2rem));
-        max-height: calc(100dvh - 2rem);
+        height: min(38rem, calc(100dvh - 3rem));
+        max-height: calc(100dvh - 3rem);
     }
 
     .public-booking-v3 .booking-services-list {
-        max-height: max(15rem, calc(100dvh - 22.5rem));
+        max-height: max(14rem, calc(100dvh - 20rem));
     }
 
     .public-booking-v3 .booking-services-actions {

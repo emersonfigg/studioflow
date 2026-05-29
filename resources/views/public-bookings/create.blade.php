@@ -234,7 +234,7 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="public-booking-page public-booking-v3 min-h-screen font-sans text-white antialiased" style="{{ $bookingThemeStyle }}">
-        <main class="public-booking-app mx-auto min-h-screen w-full max-w-full overflow-hidden px-0 pb-28 lg:pb-10" style="{{ $bookingThemeStyle }}">
+        <main class="public-booking-app mx-auto min-h-screen w-full max-w-full overflow-x-hidden px-0 pb-28 lg:pb-10" style="{{ $bookingThemeStyle }}">
             <div
                 x-data="{
                     selectedServiceIds: @js($selectedServiceIdStrings),
@@ -833,11 +833,6 @@
                                 <span class="hidden rounded-full bg-[color-mix(in_srgb,var(--brand-primary)_14%,var(--brand-surface))] px-3 py-1 text-xs font-semibold brand-muted sm:inline-flex" x-text="`${selectedServiceIds.length} selecionado(s)`"></span>
                             </div>
 
-                            <div x-show="hasSelectedServices()" class="booking-services-selected-summary mt-4" aria-live="polite">
-                                <p class="truncate text-sm font-semibold text-white" x-text="`${selectedServiceIds.length} servico(s) selecionado(s) - ${totalDuration()} min - R$ ${formattedTotalPrice()}`"></p>
-                                <p class="mt-1 truncate text-xs brand-muted" x-text="selectedServices().map((service) => service.name).join(', ')"></p>
-                            </div>
-
                             <div class="booking-services-filters mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
                                 <div>
                                     <label for="service-search" class="sr-only">Buscar serviço</label>
@@ -850,7 +845,7 @@
                                 </select>
                             </div>
 
-                            <div class="booking-services-list mt-4 space-y-3 pr-1">
+                            <div class="booking-services-list mt-4 space-y-3 pr-1" @wheel.stop @touchmove.stop>
                                 @foreach ($services as $service)
                                     @php
                                         $checked = $selectedServiceIds->contains($service->id);
