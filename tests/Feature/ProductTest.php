@@ -78,6 +78,11 @@ class ProductTest extends TestCase
             ->assertDontSee('Outro Produto');
 
         $this->actingAs($admin)
+            ->get(route('products.create', absolute: false))
+            ->assertOk()
+            ->assertSee('Novo produto');
+
+        $this->actingAs($admin)
             ->post(route('products.store', absolute: false), [
                 'name' => 'Shampoo Completo',
                 'sku' => 'SHP-100',

@@ -138,9 +138,13 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
     Route::get('products/sales', [ProductSaleController::class, 'index'])->name('product-sales.index');
     Route::get('products/sales/create', [ProductSaleController::class, 'create'])->name('product-sales.create');
     Route::post('products/sales', [ProductSaleController::class, 'store'])->name('product-sales.store');
-    Route::get('products/{product}', [ProductController::class, 'show'])->name('products.show');
-    Route::patch('products/{product}/stock', [ProductController::class, 'adjustStock'])->name('products.stock-adjust');
     Route::resource('products', ProductController::class)->except(['show']);
+    Route::patch('products/{product}/stock', [ProductController::class, 'adjustStock'])
+        ->whereNumber('product')
+        ->name('products.stock-adjust');
+    Route::get('products/{product}', [ProductController::class, 'show'])
+        ->whereNumber('product')
+        ->name('products.show');
     Route::get('reviews', [AppointmentReviewController::class, 'index'])->name('reviews.index');
     Route::patch('membership-plans/{membership_plan}/toggle-active', [MembershipPlanController::class, 'toggleActive'])
         ->name('membership-plans.toggle-active');
