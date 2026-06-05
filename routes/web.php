@@ -9,6 +9,7 @@ use App\Http\Controllers\CompanyPaymentIntegrationController;
 use App\Http\Controllers\CompanyPaymentWebhookController;
 use App\Http\Controllers\CustomerMembershipController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DailyDashboardController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\MembershipPlanController;
@@ -75,6 +76,7 @@ Route::get('/dashboard', DashboardController::class)
     ->name('dashboard');
 
 Route::middleware(['auth', 'support_mode', 'active_company'])->group(function () {
+    Route::get('daily-dashboard', DailyDashboardController::class)->name('daily-dashboard.index');
     Route::get('appointments/client-history/{client}', [AppointmentController::class, 'clientHistory'])
         ->name('appointments.client-history');
     Route::get('appointments/smart-slots', [AppointmentController::class, 'smartSlots'])

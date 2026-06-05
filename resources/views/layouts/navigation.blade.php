@@ -94,6 +94,9 @@
                 <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                     Painel
                 </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('daily-dashboard.index')" :active="request()->routeIs('daily-dashboard.*')">
+                    Central do Dia
+                </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('pdv.index')" :active="request()->routeIs('pdv.*')">
                     PDV
                 </x-responsive-nav-link>
