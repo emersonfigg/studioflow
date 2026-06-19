@@ -321,26 +321,13 @@ class ProductSaleService
                 $this->serviceOrderService->addProduct($order, $product, (int) $item['quantity'], $seller);
             }
 
-            if ($order->items()->count() === 0 && ! empty($data['membership_items'])) {
-                $membershipTotal = $this->registerMembershipItems($actor, $data, $soldAt);
-                $order->update([
-                    'status' => ServiceOrder::STATUS_PAID,
-                    'closed_at' => $soldAt,
-                    'subtotal_products' => 0,
-                    'subtotal_services' => 0,
-                    'discount' => 0,
-                    'total' => $membershipTotal,
-                ]);
-                $order->client?->update(['last_visit_at' => $soldAt]);
-
-                return $order->fresh(['client', 'professional', 'items.service', 'items.product']);
-            }
+            $membershipTotal = $this->registerMembershipItems($actor, $order, $data, $soldAt);
 
             $order = $order->fresh(['items.service', 'items.product']);
             $order = $this->serviceOrderService->recalculate($order);
 
             $discount = round(max(0, (float) ($data['discount'] ?? 0)), 2);
-            $maxDiscount = round((float) $order->subtotal_services + (float) $order->subtotal_products, 2);
+            $maxDiscount = round((float) $order->subtotal_services + (float) $order->subtotal_products + $membershipTotal, 2);
 
             if ($discount > $maxDiscount) {
                 throw ValidationException::withMessages([
@@ -353,13 +340,6 @@ class ProductSaleService
 
             $this->serviceOrderService->close($order, $actor, $data['payment_method'], $data['notes'] ?? null, $soldAt);
 
-            $membershipTotal = $this->registerMembershipItems($actor, $data, $soldAt);
-            if ($membershipTotal > 0) {
-                $order->update([
-                    'total' => round((float) $order->total + $membershipTotal, 2),
-                ]);
-            }
-
             return $order->fresh(['client', 'professional', 'items.service', 'items.product']);
         });
     }
@@ -367,7 +347,7 @@ class ProductSaleService
     /**
      * @param  array<string, mixed>  $data
      */
-    private function registerMembershipItems(User $actor, array $data, CarbonImmutable $soldAt): float
+    private function registerMembershipItems(User $actor, ServiceOrder $order, array $data, CarbonImmutable $soldAt): float
     {
         $rows = collect($data['membership_items'] ?? [])
             ->filter(fn (array $row): bool => ! empty($row['membership_plan_id']))
@@ -401,7 +381,8 @@ class ProductSaleService
             /** @var MembershipPlan $plan */
             $plan = $plans->get((int) $row['membership_plan_id']);
             $startsAt = $soldAt->toDateString();
-            $endsAt = $soldAt->addDays(max(0, $plan->resolvedCycleDays() - 1))->toDateString();
+            $endsAtDate = $soldAt->addDays(max(0, $plan->resolvedCycleDays() - 1));
+            $endsAt = $endsAtDate->toDateString();
 
             $membership = CustomerMembership::query()->create([
                 'company_id' => $companyId,
@@ -419,6 +400,8 @@ class ProductSaleService
 
             $amount = round((float) $plan->price, 2);
             $total += $amount;
+
+            $this->serviceOrderService->addMembership($order, $plan, $soldAt, $endsAtDate);
 
             if ($amount > 0) {
                 $this->cashRegisterService->recordMovement(

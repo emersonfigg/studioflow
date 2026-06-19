@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Appointment;
+use App\Models\MembershipPlan;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductSale;
@@ -134,6 +135,30 @@ class ServiceOrderService
             'quantity' => $quantity,
             'unit_price' => $product->price,
             'total_price' => round((float) $product->price * $quantity, 2),
+        ]);
+
+        return $this->recalculate($order);
+    }
+
+    public function addMembership(ServiceOrder $order, MembershipPlan $plan, CarbonInterface $startsAt, CarbonInterface $endsAt): ServiceOrder
+    {
+        $this->ensureOpen($order);
+        abort_unless($plan->company_id === $order->company_id, 404);
+
+        $description = sprintf(
+            'Assinatura - %s (%s) | Vigencia: %s a %s',
+            $plan->name,
+            $plan->billing_cycle_label,
+            $startsAt->format('d/m/Y'),
+            $endsAt->format('d/m/Y')
+        );
+
+        $order->items()->create([
+            'type' => ServiceOrderItem::TYPE_MEMBERSHIP,
+            'description' => $description,
+            'quantity' => 1,
+            'unit_price' => round((float) $plan->price, 2),
+            'total_price' => round((float) $plan->price, 2),
         ]);
 
         return $this->recalculate($order);
@@ -347,6 +372,7 @@ class ServiceOrderService
 
             $lockedOrder->update([
                 'status' => ServiceOrder::STATUS_PAID,
+                'payment_method' => $paymentMethod,
                 'closed_at' => $closedAt,
             ]);
 
@@ -410,12 +436,13 @@ class ServiceOrderService
         $items = $order->items()->get();
         $subtotalServices = round((float) $items->where('type', ServiceOrderItem::TYPE_SERVICE)->sum('total_price'), 2);
         $subtotalProducts = round((float) $items->where('type', ServiceOrderItem::TYPE_PRODUCT)->sum('total_price'), 2);
+        $subtotalMemberships = round((float) $items->where('type', ServiceOrderItem::TYPE_MEMBERSHIP)->sum('total_price'), 2);
         $discount = round((float) $order->discount, 2);
 
         $order->update([
             'subtotal_services' => $subtotalServices,
             'subtotal_products' => $subtotalProducts,
-            'total' => max(0, round($subtotalServices + $subtotalProducts - $discount, 2)),
+            'total' => max(0, round($subtotalServices + $subtotalProducts + $subtotalMemberships - $discount, 2)),
         ]);
 
         return $order->fresh(['items.service', 'items.product', 'items.professional', 'client', 'professional', 'appointment']);

@@ -301,7 +301,7 @@ class PdvController extends Controller
 
         $newMethod = $request->validated('payment_method');
         $reason = trim((string) $request->validated('reason'));
-        $oldMethod = (string) ($payment?->payment_method ?? $productSale?->payment_method ?? '');
+        $oldMethod = (string) ($serviceOrder->payment_method ?? $payment?->payment_method ?? $productSale?->payment_method ?? '');
 
         if ($oldMethod === '') {
             return back()->withErrors([
@@ -339,6 +339,10 @@ class PdvController extends Controller
                         'updated_at' => now(),
                     ]);
             }
+
+            $serviceOrder->update([
+                'payment_method' => $newMethod,
+            ]);
 
             if ($productSale) {
                 $productSale->update([

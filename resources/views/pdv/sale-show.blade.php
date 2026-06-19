@@ -31,7 +31,7 @@
             </article>
             <article class="rounded-2xl border border-white/10 bg-[var(--input-bg)] p-4">
                 <p class="text-xs uppercase tracking-[0.16em] sf-text-muted">Pagamento atual</p>
-                @php($method = $order->payment?->payment_method ?? $order->productSale?->payment_method)
+                @php($method = $order->payment_method ?? $order->payment?->payment_method ?? $order->productSale?->payment_method)
                 <p class="mt-1 text-lg font-semibold text-[var(--text-main)]">{{ $method ? \App\Models\Payment::labelForPaymentMethod($method) : '-' }}</p>
             </article>
             <article class="rounded-2xl border border-white/10 bg-[var(--input-bg)] p-4">
@@ -49,7 +49,12 @@
                             <p class="font-semibold text-[var(--text-main)]">{{ $item->description }}</p>
                             <p class="brand-text">R$ {{ number_format((float) $item->total_price, 2, ',', '.') }}</p>
                         </div>
-                        <p class="mt-1 text-xs sf-text-muted">{{ $item->type === 'service' ? 'Serviço' : 'Produto' }} · Qtd {{ $item->quantity }} · Unit R$ {{ number_format((float) $item->unit_price, 2, ',', '.') }}</p>
+                        @php($itemTypeLabel = match ($item->type) {
+                            \App\Models\ServiceOrderItem::TYPE_SERVICE => 'Servico',
+                            \App\Models\ServiceOrderItem::TYPE_MEMBERSHIP => 'Assinatura',
+                            default => 'Produto',
+                        })
+                        <p class="mt-1 text-xs sf-text-muted">{{ $itemTypeLabel }} · Qtd {{ $item->quantity }} · Unit R$ {{ number_format((float) $item->unit_price, 2, ',', '.') }}</p>
                     </div>
                 @endforeach
             </div>
@@ -82,4 +87,3 @@
         @endif
     </div>
 @endsection
-

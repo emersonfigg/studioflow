@@ -1,7 +1,7 @@
 @php
     /** @var \App\Models\ServiceOrder $order */
     $company = $order->company;
-    $paymentMethod = $order->payment?->payment_method ?? $order->productSale?->payment_method;
+    $paymentMethod = $order->payment_method ?? $order->payment?->payment_method ?? $order->productSale?->payment_method;
     $paymentLabel = $paymentMethod
         ? \App\Models\Payment::labelForPaymentMethod((string) $paymentMethod)
         : 'Nao informado';
@@ -26,6 +26,9 @@
     $receiptNumber = str_pad((string) $order->id, 6, '0', STR_PAD_LEFT);
     $paymentStatus = $order->status === \App\Models\ServiceOrder::STATUS_PAID ? 'Pago' : null;
     $hasDiscount = (float) $order->discount > 0;
+    $membershipSubtotal = $order->items
+        ->where('type', \App\Models\ServiceOrderItem::TYPE_MEMBERSHIP)
+        ->sum(fn ($item) => (float) $item->total_price);
 
     $addressIsUrl = $companyAddress && filter_var($companyAddress, FILTER_VALIDATE_URL);
     $addressUrl = $addressIsUrl
@@ -1508,6 +1511,12 @@
                         <span>Subtotal produtos</span>
                         <span>R$ {{ number_format((float) $order->subtotal_products, 2, ',', '.') }}</span>
                     </div>
+                    @if ($membershipSubtotal > 0)
+                        <div class="receipt-total-row">
+                            <span>Subtotal assinaturas</span>
+                            <span>R$ {{ number_format((float) $membershipSubtotal, 2, ',', '.') }}</span>
+                        </div>
+                    @endif
                     @if ($hasDiscount)
                         <div class="receipt-total-row">
                             <span>Desconto</span>

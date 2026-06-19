@@ -6,11 +6,14 @@ use App\Models\Appointment;
 use App\Models\CashMovement;
 use App\Models\Client;
 use App\Models\Company;
+use App\Models\CustomerMembership;
+use App\Models\MembershipPlan;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductSale;
 use App\Models\Service;
 use App\Models\ServiceOrder;
+use App\Models\ServiceOrderItem;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -111,6 +114,58 @@ class PdvSaleTest extends TestCase
         $payload = session('pdv_sale_result');
         $this->assertTrue($payload['appointment_completed']);
         $this->assertSame($appointment->id, $payload['appointment_id']);
+    }
+
+    public function test_pdv_membership_sale_records_receipt_item_and_payment_method(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+        $client = Client::factory()->for($company)->create(['active' => true]);
+        $plan = MembershipPlan::query()->create([
+            'company_id' => $company->id,
+            'name' => 'Plano Barba',
+            'price' => 69.90,
+            'billing_cycle' => MembershipPlan::BILLING_MONTHLY,
+            'active' => true,
+            'auto_renew' => false,
+        ]);
+
+        $this->actingAs($admin)->post(route('pdv.store', absolute: false), [
+            'client_id' => $client->id,
+            'user_id' => $admin->id,
+            'payment_method' => 'cash',
+            'membership_items' => [
+                ['membership_plan_id' => $plan->id],
+            ],
+        ])->assertRedirect(route('pdv.index', absolute: false));
+
+        $order = ServiceOrder::query()->with('items')->firstOrFail();
+        $this->assertSame(ServiceOrder::STATUS_PAID, $order->status);
+        $this->assertSame('cash', $order->payment_method);
+        $this->assertSame('69.90', (string) $order->total);
+        $this->assertSame(1, $order->items()->where('type', ServiceOrderItem::TYPE_MEMBERSHIP)->count());
+
+        $membershipItem = $order->items->firstWhere('type', ServiceOrderItem::TYPE_MEMBERSHIP);
+        $this->assertNotNull($membershipItem);
+        $this->assertStringContainsString('Assinatura - Plano Barba (Mensal)', $membershipItem->description);
+        $this->assertStringContainsString('Vigencia: 15/04/2026 a 14/05/2026', $membershipItem->description);
+
+        $membership = CustomerMembership::query()->firstOrFail();
+        $this->assertSame(CustomerMembership::STATUS_ACTIVE, $membership->status);
+
+        $this->actingAs($admin)
+            ->get(route('pdv.receipt', $order, absolute: false))
+            ->assertOk()
+            ->assertSee('Plano Barba')
+            ->assertSee('Subtotal assinaturas')
+            ->assertSee('Dinheiro');
+
+        $this->actingAs($admin)
+            ->get(route('pdv.sales.show', $order, absolute: false))
+            ->assertOk()
+            ->assertSee('Plano Barba')
+            ->assertSee('Assinatura')
+            ->assertSee('Dinheiro');
     }
 
     public function test_pdv_applies_fixed_discount_in_total(): void

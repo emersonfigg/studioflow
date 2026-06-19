@@ -14,6 +14,8 @@ class ServiceOrderItem extends Model
 
     public const TYPE_PRODUCT = 'product';
 
+    public const TYPE_MEMBERSHIP = 'membership';
+
     protected $fillable = [
         'service_order_id',
         'type',

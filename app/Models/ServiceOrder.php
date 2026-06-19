@@ -28,6 +28,7 @@ class ServiceOrder extends Model
         'subtotal_products',
         'discount',
         'total',
+        'payment_method',
         'opened_at',
         'closed_at',
     ];
