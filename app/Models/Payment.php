@@ -22,6 +22,10 @@ class Payment extends Model
         'card_credit',
     ];
 
+    public const STATUS_COMPLETED = 'completed';
+
+    public const STATUS_CANCELLED = 'cancelled';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -31,6 +35,7 @@ class Payment extends Model
         'company_id',
         'appointment_id',
         'service_order_id',
+        'status',
         'user_id',
         'client_id',
         'service_id',
@@ -42,6 +47,9 @@ class Payment extends Model
         'net_amount',
         'paid_at',
         'notes',
+        'cancelled_at',
+        'cancelled_by',
+        'cancel_reason',
     ];
 
     /**
@@ -57,6 +65,7 @@ class Payment extends Model
             'commission_amount' => 'decimal:2',
             'net_amount' => 'decimal:2',
             'paid_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 

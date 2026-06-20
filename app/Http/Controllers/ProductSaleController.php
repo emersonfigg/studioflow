@@ -35,6 +35,7 @@ class ProductSaleController extends Controller
             'legacySales' => ProductSale::query()
                 ->with(['client', 'user', 'items.product'])
                 ->where('company_id', $request->user()->company_id)
+                ->where('status', ProductSale::STATUS_COMPLETED)
                 ->whereNull('service_order_id')
                 ->latest('sold_at')
                 ->limit(12)

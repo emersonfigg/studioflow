@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Company;
 use App\Models\CustomerMembership;
 use App\Models\MembershipPlan;
+use App\Models\MembershipUsage;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductSale;
@@ -15,6 +16,7 @@ use App\Models\Service;
 use App\Models\ServiceOrder;
 use App\Models\ServiceOrderItem;
 use App\Models\User;
+use App\Services\DailyDashboardService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -707,5 +709,208 @@ class PdvSaleTest extends TestCase
                 'reason' => 'Teste',
             ])
             ->assertForbidden();
+    }
+
+    public function test_admin_can_cancel_common_pdv_sale_and_remove_it_from_daily_revenue(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+        $client = Client::factory()->for($company)->create(['active' => true]);
+        $service = Service::factory()->for($company)->create(['price' => 100, 'active' => true]);
+
+        $this->actingAs($admin)->post(route('pdv.store', absolute: false), [
+            'client_id' => $client->id,
+            'user_id' => $admin->id,
+            'payment_method' => 'pix',
+            'service_items' => [['service_id' => $service->id]],
+        ])->assertRedirect(route('pdv.index', absolute: false));
+
+        $order = ServiceOrder::query()->with('payment')->firstOrFail();
+        $this->assertSame(100.0, app(DailyDashboardService::class)->build($company->id, [
+            'date' => CarbonImmutable::parse('2026-04-15'),
+            'user_id' => null,
+            'status' => null,
+            'payment_method' => null,
+        ])['kpis']['gross_revenue']);
+
+        $this->actingAs($admin)
+            ->patch(route('pdv.sales.cancel', $order, false), [
+                'cancel_reason' => 'Venda teste lancada por engano.',
+            ])
+            ->assertRedirect(route('pdv.sales.show', $order, false));
+
+        $order->refresh();
+        $this->assertSame(ServiceOrder::STATUS_CANCELLED, $order->status);
+        $this->assertSame($admin->id, $order->cancelled_by);
+        $this->assertNotNull($order->cancelled_at);
+        $this->assertDatabaseHas('payments', [
+            'id' => $order->payment->id,
+            'status' => Payment::STATUS_CANCELLED,
+            'cancelled_by' => $admin->id,
+        ]);
+        $this->assertDatabaseHas('cash_movements', [
+            'type' => CashMovement::TYPE_OUTFLOW,
+            'source_type' => Payment::class,
+            'source_id' => $order->payment->id,
+            'amount' => 100,
+        ]);
+
+        $this->assertSame(0.0, app(DailyDashboardService::class)->build($company->id, [
+            'date' => CarbonImmutable::parse('2026-04-15'),
+            'user_id' => null,
+            'status' => null,
+            'payment_method' => null,
+        ])['kpis']['gross_revenue']);
+    }
+
+    public function test_cancel_membership_sale_without_usage_cancels_generated_membership(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+        $client = Client::factory()->for($company)->create(['active' => true]);
+        $plan = MembershipPlan::query()->create([
+            'company_id' => $company->id,
+            'name' => 'Plano Teste',
+            'price' => 70,
+            'billing_cycle' => MembershipPlan::BILLING_MONTHLY,
+            'active' => true,
+            'auto_renew' => false,
+        ]);
+
+        $this->actingAs($admin)->post(route('pdv.store', absolute: false), [
+            'client_id' => $client->id,
+            'user_id' => $admin->id,
+            'payment_method' => 'cash',
+            'membership_items' => [['membership_plan_id' => $plan->id]],
+        ])->assertRedirect(route('pdv.index', absolute: false));
+
+        $order = ServiceOrder::query()->firstOrFail();
+        $membership = CustomerMembership::query()->firstOrFail();
+        $this->assertSame($order->id, $membership->service_order_id);
+
+        $this->actingAs($admin)
+            ->patch(route('pdv.sales.cancel', $order, false), [
+                'cancel_reason' => 'Plano vendido para teste.',
+            ])
+            ->assertRedirect(route('pdv.sales.show', $order, false));
+
+        $this->assertSame(CustomerMembership::STATUS_CANCELED, $membership->fresh()->status);
+        $this->assertDatabaseHas('cash_movements', [
+            'type' => CashMovement::TYPE_OUTFLOW,
+            'source_type' => CustomerMembership::class,
+            'source_id' => $membership->id,
+            'amount' => 70,
+        ]);
+    }
+
+    public function test_cancel_membership_sale_with_usage_is_blocked(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+        $client = Client::factory()->for($company)->create(['active' => true]);
+        $service = Service::factory()->for($company)->create(['active' => true]);
+        $plan = MembershipPlan::query()->create([
+            'company_id' => $company->id,
+            'name' => 'Plano com Uso',
+            'price' => 90,
+            'billing_cycle' => MembershipPlan::BILLING_MONTHLY,
+            'active' => true,
+            'auto_renew' => false,
+        ]);
+
+        $this->actingAs($admin)->post(route('pdv.store', absolute: false), [
+            'client_id' => $client->id,
+            'user_id' => $admin->id,
+            'payment_method' => 'pix',
+            'membership_items' => [['membership_plan_id' => $plan->id]],
+        ])->assertRedirect(route('pdv.index', absolute: false));
+
+        $order = ServiceOrder::query()->firstOrFail();
+        $membership = CustomerMembership::query()->firstOrFail();
+        MembershipUsage::query()->create([
+            'company_id' => $company->id,
+            'customer_membership_id' => $membership->id,
+            'client_id' => $client->id,
+            'service_order_id' => $order->id,
+            'service_id' => $service->id,
+            'used_at' => now(),
+            'quantity' => 1,
+            'reference_type' => MembershipUsage::REF_SERVICE_ORDER,
+            'reference_id' => $order->id,
+            'description' => 'Uso parcial',
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('pdv.sales.cancel', $order, false), [
+                'cancel_reason' => 'Teste com uso parcial.',
+            ])
+            ->assertSessionHasErrors('cancel_reason');
+
+        $this->assertSame(ServiceOrder::STATUS_PAID, $order->fresh()->status);
+        $this->assertSame(CustomerMembership::STATUS_ACTIVE, $membership->fresh()->status);
+    }
+
+    public function test_user_without_permission_cannot_cancel_pdv_sale(): void
+    {
+        $company = Company::factory()->create();
+        $staff = User::factory()->for($company)->create(['active' => true, 'role' => 'staff']);
+        $client = Client::factory()->for($company)->create();
+
+        $order = ServiceOrder::query()->create([
+            'company_id' => $company->id,
+            'client_id' => $client->id,
+            'professional_id' => $staff->id,
+            'status' => ServiceOrder::STATUS_PAID,
+            'subtotal_services' => 25,
+            'subtotal_products' => 0,
+            'discount' => 0,
+            'total' => 25,
+            'opened_at' => now()->subHour(),
+            'closed_at' => now()->subMinutes(10),
+        ]);
+
+        $this->actingAs($staff)
+            ->patch(route('pdv.sales.cancel', $order, false), [
+                'cancel_reason' => 'Tentativa sem permissao.',
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_force_delete_is_soft_delete_and_super_admin_only(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+        $superAdmin = User::factory()->for($company)->create([
+            'active' => true,
+            'role' => 'admin',
+            'global_role' => 'super_admin',
+        ]);
+        $client = Client::factory()->for($company)->create();
+
+        $order = ServiceOrder::query()->create([
+            'company_id' => $company->id,
+            'client_id' => $client->id,
+            'professional_id' => $admin->id,
+            'status' => ServiceOrder::STATUS_CANCELLED,
+            'subtotal_services' => 30,
+            'subtotal_products' => 0,
+            'discount' => 0,
+            'total' => 30,
+            'opened_at' => now()->subHour(),
+            'closed_at' => now()->subMinutes(10),
+            'cancelled_at' => now(),
+            'cancelled_by' => $admin->id,
+            'cancel_reason' => 'Teste',
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('pdv.sales.force-delete', $order, false), ['confirmation' => 'EXCLUIR'])
+            ->assertForbidden();
+
+        $this->actingAs($superAdmin)
+            ->delete(route('pdv.sales.force-delete', $order, false), ['confirmation' => 'EXCLUIR'])
+            ->assertRedirect(route('pdv.sales', [], false));
+
+        $this->assertSoftDeleted('service_orders', ['id' => $order->id]);
     }
 }

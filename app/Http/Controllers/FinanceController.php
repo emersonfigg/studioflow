@@ -307,6 +307,7 @@ class FinanceController extends Controller
         $payments = Payment::query()
             ->with(['client', 'user', 'service'])
             ->where('company_id', $companyId)
+            ->where('status', Payment::STATUS_COMPLETED)
             ->whereBetween('paid_at', [$from, $to])
             ->when($selectedUserId !== null, fn ($query) => $query->where('user_id', $selectedUserId))
             ->get();
@@ -314,6 +315,7 @@ class FinanceController extends Controller
         $productSales = ProductSale::query()
             ->with(['client', 'user', 'items.product'])
             ->where('company_id', $companyId)
+            ->where('status', ProductSale::STATUS_COMPLETED)
             ->whereBetween('sold_at', [$from, $to])
             ->when($selectedUserId !== null, fn ($query) => $query->where('user_id', $selectedUserId))
             ->get();
@@ -420,6 +422,7 @@ class FinanceController extends Controller
             ->select('product_sale_items.*')
             ->join('product_sales', 'product_sales.id', '=', 'product_sale_items.product_sale_id')
             ->where('product_sales.company_id', $companyId)
+            ->where('product_sales.status', ProductSale::STATUS_COMPLETED)
             ->whereBetween('product_sales.sold_at', [$from, $to])
             ->when($selectedUserId !== null, fn ($query) => $query->where('product_sale_items.seller_id', $selectedUserId))
             ->when($selectedProductId !== null, fn ($query) => $query->where('product_sale_items.product_id', $selectedProductId))
@@ -503,6 +506,7 @@ class FinanceController extends Controller
             ->join('product_sales', 'product_sales.id', '=', 'product_sale_items.product_sale_id')
             ->leftJoin('service_orders', 'service_orders.id', '=', 'product_sales.service_order_id')
             ->where('product_sales.company_id', $companyId)
+            ->where('product_sales.status', ProductSale::STATUS_COMPLETED)
             ->whereBetween('product_sales.sold_at', [$from, $to])
             ->where(function ($query): void {
                 $query->whereNull('product_sales.service_order_id')
@@ -626,6 +630,7 @@ class FinanceController extends Controller
         $paymentsQuery = Payment::query()
             ->with(['user', 'client', 'service', 'appointment'])
             ->where('company_id', $request->user()->company_id)
+            ->where('status', Payment::STATUS_COMPLETED)
             ->whereBetween('paid_at', [$from, $to]);
 
         if ($selectedUserId !== null) {

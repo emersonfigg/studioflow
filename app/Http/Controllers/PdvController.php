@@ -17,6 +17,7 @@ use App\Models\ServiceOrderItem;
 use App\Models\User;
 use App\Services\CashRegisterService;
 use App\Services\MembershipService;
+use App\Services\PdvSaleCancellationService;
 use App\Services\ProductSaleService;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -183,7 +184,7 @@ class PdvController extends Controller
     public function receipt(Request $request, ServiceOrder $serviceOrder): View
     {
         abort_unless($serviceOrder->company_id === $request->user()->company_id, 403);
-        abort_unless($serviceOrder->status === ServiceOrder::STATUS_PAID, 404);
+        abort_unless(in_array($serviceOrder->status, [ServiceOrder::STATUS_PAID, ServiceOrder::STATUS_CANCELLED], true), 404);
 
         $order = $serviceOrder->loadMissing([
             'company',
@@ -194,6 +195,7 @@ class PdvController extends Controller
             'items.product',
             'payment',
             'productSale',
+            'cancelledBy',
         ]);
 
         return view('pdv.receipt', ['order' => $order]);
@@ -219,7 +221,7 @@ class PdvController extends Controller
         $orders = ServiceOrder::query()
             ->with(['client', 'professional', 'payment', 'productSale', 'appointment'])
             ->where('company_id', $companyId)
-            ->where('status', ServiceOrder::STATUS_PAID)
+            ->whereIn('status', [ServiceOrder::STATUS_PAID, ServiceOrder::STATUS_CANCELLED])
             ->whereBetween('closed_at', [$from, $to])
             ->when($selectedClientId !== null, fn ($query) => $query->where('client_id', $selectedClientId))
             ->when($selectedProfessionalId !== null, fn ($query) => $query->where('professional_id', $selectedProfessionalId))
@@ -253,6 +255,8 @@ class PdvController extends Controller
             'selectedProfessionalId' => $selectedProfessionalId,
             'selectedPaymentMethod' => $selectedPaymentMethod,
             'paymentMethods' => $paymentMethods,
+            'canCancelSales' => $request->user()->canCancelPdvSales(),
+            'canForceDeleteSales' => $request->user()->canForceDeletePdvSales(),
         ]);
     }
 
@@ -262,7 +266,7 @@ class PdvController extends Controller
     public function showSale(Request $request, ServiceOrder $serviceOrder): View
     {
         abort_unless($serviceOrder->company_id === $request->user()->company_id, 404);
-        abort_unless($serviceOrder->status === ServiceOrder::STATUS_PAID, 404);
+        abort_unless(in_array($serviceOrder->status, [ServiceOrder::STATUS_PAID, ServiceOrder::STATUS_CANCELLED], true), 404);
 
         $order = $serviceOrder->loadMissing([
             'client',
@@ -272,13 +276,48 @@ class PdvController extends Controller
             'items.product',
             'payment',
             'productSale',
+            'cancelledBy',
         ]);
 
         return view('pdv.sale-show', [
             'order' => $order,
             'canCorrectPaymentMethod' => $request->user()->hasFinancialPrivileges(),
+            'canCancelSales' => $request->user()->canCancelPdvSales(),
+            'canForceDeleteSales' => $request->user()->canForceDeletePdvSales(),
             'paymentMethods' => Payment::paymentMethodOptions(),
         ]);
+    }
+
+    public function cancelSale(Request $request, ServiceOrder $serviceOrder, PdvSaleCancellationService $cancellationService): RedirectResponse
+    {
+        abort_unless($serviceOrder->company_id === $request->user()->company_id, 404);
+        abort_unless($request->user()->canCancelPdvSales(), 403);
+
+        $data = $request->validate([
+            'cancel_reason' => ['required', 'string', 'min:5', 'max:1000'],
+        ]);
+
+        $cancellationService->cancel($serviceOrder, $request->user(), $data['cancel_reason']);
+
+        return redirect()
+            ->route('pdv.sales.show', $serviceOrder)
+            ->with('status', 'sale-cancelled');
+    }
+
+    public function forceDeleteSale(Request $request, ServiceOrder $serviceOrder, PdvSaleCancellationService $cancellationService): RedirectResponse
+    {
+        abort_unless($serviceOrder->company_id === $request->user()->company_id, 404);
+        abort_unless($request->user()->canForceDeletePdvSales(), 403);
+
+        $data = $request->validate([
+            'confirmation' => ['required', 'string'],
+        ]);
+
+        $cancellationService->forceDelete($serviceOrder, $request->user(), $data['confirmation']);
+
+        return redirect()
+            ->route('pdv.sales')
+            ->with('status', 'sale-force-deleted');
     }
 
     /**

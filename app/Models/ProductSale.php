@@ -4,14 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProductSale extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     public const PAYMENT_METHODS = Payment::PAYMENT_METHODS;
+
+    public const STATUS_COMPLETED = 'completed';
+
+    public const STATUS_CANCELLED = 'cancelled';
 
     /**
      * The attributes that are mass assignable.
@@ -23,11 +29,15 @@ class ProductSale extends Model
         'client_id',
         'appointment_id',
         'service_order_id',
+        'status',
         'user_id',
         'gross_amount',
         'payment_method',
         'sold_at',
         'notes',
+        'cancelled_at',
+        'cancelled_by',
+        'cancel_reason',
     ];
 
     /**
@@ -40,7 +50,13 @@ class ProductSale extends Model
         return [
             'gross_amount' => 'decimal:2',
             'sold_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
+    }
+
+    public function scopeCompleted(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_COMPLETED);
     }
 
     /**
@@ -78,6 +94,11 @@ class ProductSale extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 
     /**

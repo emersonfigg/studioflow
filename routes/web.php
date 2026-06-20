@@ -156,6 +156,10 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
     Route::post('pdv', [PdvController::class, 'store'])->name('pdv.store');
     Route::get('pdv/sales', [PdvController::class, 'sales'])->name('pdv.sales');
     Route::get('pdv/sales/{serviceOrder}', [PdvController::class, 'showSale'])->name('pdv.sales.show');
+    Route::patch('pdv/sales/{serviceOrder}/cancel', [PdvController::class, 'cancelSale'])
+        ->name('pdv.sales.cancel');
+    Route::delete('pdv/sales/{serviceOrder}', [PdvController::class, 'forceDeleteSale'])
+        ->name('pdv.sales.force-delete');
     Route::patch('pdv/sales/{serviceOrder}/payment-method', [PdvController::class, 'updateSalePaymentMethod'])
         ->name('pdv.sales.payment-method.update');
     Route::get('pdv/receipt/{serviceOrder}', [PdvController::class, 'receipt'])->name('pdv.receipt');

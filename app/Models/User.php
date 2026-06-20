@@ -17,6 +17,10 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    public const PERMISSION_PDV_SALES_CANCEL = 'pdv.sales.cancel';
+
+    public const PERMISSION_PDV_SALES_FORCE_DELETE = 'pdv.sales.force_delete';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -82,6 +86,25 @@ class User extends Authenticatable
     public function hasFinancialPrivileges(): bool
     {
         return $this->isAdmin() || $this->role === 'financial';
+    }
+
+    public function canCancelPdvSales(): bool
+    {
+        return $this->hasStudioflowPermission(self::PERMISSION_PDV_SALES_CANCEL);
+    }
+
+    public function canForceDeletePdvSales(): bool
+    {
+        return $this->hasStudioflowPermission(self::PERMISSION_PDV_SALES_FORCE_DELETE);
+    }
+
+    public function hasStudioflowPermission(string $permission): bool
+    {
+        return match ($permission) {
+            self::PERMISSION_PDV_SALES_CANCEL => $this->isSuperAdmin() || $this->hasFinancialPrivileges(),
+            self::PERMISSION_PDV_SALES_FORCE_DELETE => $this->isSuperAdmin(),
+            default => false,
+        };
     }
 
     /**

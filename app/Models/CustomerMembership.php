@@ -33,6 +33,7 @@ class CustomerMembership extends Model
         'company_id',
         'client_id',
         'membership_plan_id',
+        'service_order_id',
         'status',
         'starts_at',
         'ends_at',
@@ -73,6 +74,11 @@ class CustomerMembership extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(MembershipPlan::class, 'membership_plan_id');
+    }
+
+    public function serviceOrder(): BelongsTo
+    {
+        return $this->belongsTo(ServiceOrder::class);
     }
 
     /**

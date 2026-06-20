@@ -7,6 +7,7 @@ use App\Http\Requests\StoreStockCountRequest;
 use App\Models\DailyStockCheck;
 use App\Models\DailyStockCheckItem;
 use App\Models\Product;
+use App\Models\ProductSale;
 use App\Models\ProductSaleItem;
 use App\Models\StockCount;
 use App\Models\StockMovement;
@@ -523,6 +524,7 @@ class StockController extends Controller
             ->select('product_sale_items.product_id', DB::raw('SUM(product_sale_items.quantity) as sold_quantity'))
             ->join('product_sales', 'product_sales.id', '=', 'product_sale_items.product_sale_id')
             ->where('product_sales.company_id', $companyId)
+            ->where('product_sales.status', ProductSale::STATUS_COMPLETED)
             ->whereDate('product_sales.sold_at', $date)
             ->groupBy('product_sale_items.product_id')
             ->pluck('sold_quantity', 'product_sale_items.product_id');
@@ -576,6 +578,7 @@ class StockController extends Controller
             ->select('product_sale_items.product_id', DB::raw('SUM(product_sale_items.quantity) as quantity'))
             ->join('product_sales', 'product_sales.id', '=', 'product_sale_items.product_sale_id')
             ->where('product_sales.company_id', $companyId)
+            ->where('product_sales.status', ProductSale::STATUS_COMPLETED)
             ->whereDate('product_sales.sold_at', $referenceDate)
             ->groupBy('product_sale_items.product_id')
             ->pluck('quantity', 'product_sale_items.product_id');

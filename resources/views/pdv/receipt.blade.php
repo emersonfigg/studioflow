@@ -24,7 +24,10 @@
     $logoUrl = $company?->logo_url;
     $closedAt = $order->closed_at?->timezone(config('app.timezone'))->format('d/m/Y H:i');
     $receiptNumber = str_pad((string) $order->id, 6, '0', STR_PAD_LEFT);
-    $paymentStatus = $order->status === \App\Models\ServiceOrder::STATUS_PAID ? 'Pago' : null;
+    $isCancelled = $order->status === \App\Models\ServiceOrder::STATUS_CANCELLED;
+    $paymentStatus = $isCancelled
+        ? 'Cancelada'
+        : ($order->status === \App\Models\ServiceOrder::STATUS_PAID ? 'Pago' : null);
     $hasDiscount = (float) $order->discount > 0;
     $membershipSubtotal = $order->items
         ->where('type', \App\Models\ServiceOrderItem::TYPE_MEMBERSHIP)
@@ -77,7 +80,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Recibo - Comanda #{{ $order->id }}</title>
+  <title>{{ $isCancelled ? 'Recibo cancelado' : 'Recibo' }} - Comanda #{{ $order->id }}</title>
     <style>
         :root {
             --receipt-brand: {{ $brandColor }};
@@ -1467,6 +1470,16 @@
 
                 <div class="receipt-sale-watermark" aria-hidden="true">{{ mb_substr($companyName, 0, 1) }}</div>
             </section>
+
+            @if ($isCancelled)
+                <section class="receipt-note" style="margin-top: 16px; border-color: #fecdd3; background: #fff1f2; color: #9f1239;">
+                    <strong>Venda cancelada.</strong>
+                    @if ($order->cancelled_at)
+                        Cancelada em {{ $order->cancelled_at->format('d/m/Y H:i') }}.
+                    @endif
+                    Este recibo deve ser tratado como documento de auditoria, nao como venda ativa.
+                </section>
+            @endif
 
             <table class="receipt-items">
                 <thead>

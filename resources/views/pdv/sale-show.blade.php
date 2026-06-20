@@ -3,6 +3,8 @@
 @section('title', 'Detalhe venda PDV')
 
 @section('content')
+    @php($isCancelled = $order->status === \App\Models\ServiceOrder::STATUS_CANCELLED)
+
     <div class="space-y-4">
         @if (session('status') === 'payment-method-updated')
             <div class="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
@@ -10,16 +12,36 @@
             </div>
         @endif
 
-        <section class="rounded-2xl border border-white/10 bg-[var(--input-bg)] p-4 sm:p-5">
+        @if (session('status') === 'sale-cancelled')
+            <div class="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+                Venda cancelada e estornada com sucesso.
+            </div>
+        @endif
+
+        <section class="rounded-2xl border {{ $isCancelled ? 'border-rose-400/30 bg-rose-950/20' : 'border-white/10 bg-[var(--input-bg)]' }} p-4 sm:p-5">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.16em] brand-text">Comanda #{{ $order->id }}</p>
-                    <h1 class="mt-1 text-xl font-semibold text-[var(--text-main)]">Detalhe da venda finalizada</h1>
-                    <p class="mt-1 text-sm sf-text-muted">{{ $order->client?->name ?? 'Cliente' }} · {{ $order->closed_at?->format('d/m/Y H:i') }}</p>
+                    <div class="mt-1 flex flex-wrap items-center gap-2">
+                        <h1 class="text-xl font-semibold text-[var(--text-main)]">{{ $isCancelled ? 'Detalhe da venda cancelada' : 'Detalhe da venda finalizada' }}</h1>
+                        @if ($isCancelled)
+                            <span class="inline-flex rounded-full border border-rose-300/30 bg-rose-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-rose-100">Cancelada</span>
+                        @endif
+                    </div>
+                    <p class="mt-1 text-sm sf-text-muted">{{ $order->client?->name ?? 'Cliente' }} - {{ $order->closed_at?->format('d/m/Y H:i') }}</p>
+                    @if ($isCancelled)
+                        <p class="mt-2 text-xs text-rose-100">Cancelada por {{ $order->cancelledBy?->name ?? 'usuario' }} em {{ $order->cancelled_at?->format('d/m/Y H:i') }}. Motivo: {{ $order->cancel_reason }}</p>
+                    @endif
                 </div>
-                <div class="flex gap-2">
-                    <a href="{{ route('pdv.sales') }}" class="sf-button-secondary">Voltar histórico</a>
-                    <a href="{{ route('pdv.receipt', $order) }}" target="_blank" rel="noopener noreferrer" class="sf-button-primary">Reimprimir recibo</a>
+                <div class="flex flex-wrap gap-2">
+                    <a href="{{ route('pdv.sales') }}" class="sf-button-secondary">Voltar historico</a>
+                    <a href="{{ route('pdv.receipt', $order) }}" target="_blank" rel="noopener noreferrer" class="sf-button-primary">{{ $isCancelled ? 'Recibo cancelado' : 'Reimprimir recibo' }}</a>
+                    @if (! $isCancelled && $canCancelSales)
+                        <button type="button" class="sf-button-secondary text-rose-100" onclick="document.getElementById('cancel-sale-dialog').showModal()">Cancelar</button>
+                    @endif
+                    @if ($canForceDeleteSales)
+                        <button type="button" class="sf-button-secondary text-rose-100" onclick="document.getElementById('delete-sale-dialog').showModal()">Excluir</button>
+                    @endif
                 </div>
             </div>
         </section>
@@ -54,16 +76,16 @@
                             \App\Models\ServiceOrderItem::TYPE_MEMBERSHIP => 'Assinatura',
                             default => 'Produto',
                         })
-                        <p class="mt-1 text-xs sf-text-muted">{{ $itemTypeLabel }} · Qtd {{ $item->quantity }} · Unit R$ {{ number_format((float) $item->unit_price, 2, ',', '.') }}</p>
+                        <p class="mt-1 text-xs sf-text-muted">{{ $itemTypeLabel }} - Qtd {{ $item->quantity }} - Unit R$ {{ number_format((float) $item->unit_price, 2, ',', '.') }}</p>
                     </div>
                 @endforeach
             </div>
         </section>
 
-        @if ($canCorrectPaymentMethod)
+        @if ($canCorrectPaymentMethod && ! $isCancelled)
             <section class="rounded-2xl border border-white/10 bg-[var(--input-bg)] p-4 sm:p-5">
                 <h2 class="text-sm font-semibold uppercase tracking-[0.16em] brand-text">Corrigir forma de pagamento</h2>
-                <p class="mt-1 text-sm sf-text-muted">Essa ação altera apenas método de pagamento em registros vinculados, sem mudar valores, itens ou comissão.</p>
+                <p class="mt-1 text-sm sf-text-muted">Essa acao altera apenas metodo de pagamento em registros vinculados, sem mudar valores, itens ou comissao.</p>
                 <form method="POST" action="{{ route('pdv.sales.payment-method.update', $order) }}" class="mt-4 space-y-3">
                     @csrf
                     @method('PATCH')
@@ -77,13 +99,57 @@
                         <x-input-error class="mt-1" :messages="$errors->get('payment_method')" />
                     </div>
                     <div>
-                        <label for="reason" class="text-xs font-semibold text-[var(--text-main)]">Motivo da correção</label>
+                        <label for="reason" class="text-xs font-semibold text-[var(--text-main)]">Motivo da correcao</label>
                         <textarea id="reason" name="reason" rows="3" class="sf-input mt-1 block w-full" required>{{ old('reason') }}</textarea>
                         <x-input-error class="mt-1" :messages="$errors->get('reason')" />
                     </div>
-                    <button type="submit" class="sf-button-primary w-full sm:w-auto">Salvar correção</button>
+                    <button type="submit" class="sf-button-primary w-full sm:w-auto">Salvar correcao</button>
                 </form>
             </section>
+        @endif
+
+        @if (! $isCancelled && $canCancelSales)
+            <dialog id="cancel-sale-dialog" class="w-full max-w-lg rounded-2xl border border-white/10 bg-[var(--input-bg)] p-0 text-[var(--text-main)] backdrop:bg-black/70">
+                <form method="POST" action="{{ route('pdv.sales.cancel', $order) }}" class="space-y-4 p-5">
+                    @csrf
+                    @method('PATCH')
+                    <div>
+                        <h2 class="text-lg font-semibold">Cancelar venda</h2>
+                        <p class="mt-1 text-sm sf-text-muted">A venda sera marcada como cancelada, os itens ficam preservados e o valor sera estornado dos totais operacionais.</p>
+                    </div>
+                    <div>
+                        <label for="cancel_reason" class="text-xs font-semibold text-[var(--text-main)]">Motivo obrigatorio</label>
+                        <textarea id="cancel_reason" name="cancel_reason" rows="4" class="sf-input mt-1 block w-full" required minlength="5">{{ old('cancel_reason') }}</textarea>
+                        <x-input-error class="mt-1" :messages="$errors->get('cancel_reason')" />
+                    </div>
+                    <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <button type="button" class="sf-button-secondary" onclick="this.closest('dialog').close()">Voltar</button>
+                        <button type="submit" class="sf-button-primary bg-rose-600 hover:bg-rose-500">Confirmar cancelamento</button>
+                    </div>
+                </form>
+            </dialog>
+        @endif
+
+        @if ($canForceDeleteSales)
+            <dialog id="delete-sale-dialog" class="w-full max-w-lg rounded-2xl border border-white/10 bg-[var(--input-bg)] p-0 text-[var(--text-main)] backdrop:bg-black/70">
+                <form method="POST" action="{{ route('pdv.sales.force-delete', $order) }}" class="space-y-4 p-5">
+                    @csrf
+                    @method('DELETE')
+                    <div>
+                        <h2 class="text-lg font-semibold">Excluir venda</h2>
+                        <p class="mt-1 text-sm sf-text-muted">Acao restrita a Super Admin. Um log sera registrado antes da exclusao.</p>
+                    </div>
+                    <div>
+                        <label for="confirmation" class="text-xs font-semibold text-[var(--text-main)]">Digite EXCLUIR</label>
+                        <input id="confirmation" name="confirmation" class="sf-input mt-1 block w-full" required pattern="EXCLUIR">
+                        <x-input-error class="mt-1" :messages="$errors->get('confirmation')" />
+                    </div>
+                    <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <button type="button" class="sf-button-secondary" onclick="this.closest('dialog').close()">Voltar</button>
+                        <button type="submit" class="sf-button-primary bg-rose-600 hover:bg-rose-500">Excluir</button>
+                    </div>
+                </form>
+            </dialog>
         @endif
     </div>
 @endsection

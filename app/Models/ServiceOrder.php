@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ServiceOrder extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     public const STATUS_OPEN = 'open';
 
@@ -31,6 +32,9 @@ class ServiceOrder extends Model
         'payment_method',
         'opened_at',
         'closed_at',
+        'cancelled_at',
+        'cancelled_by',
+        'cancel_reason',
     ];
 
     protected function casts(): array
@@ -42,6 +46,7 @@ class ServiceOrder extends Model
             'total' => 'decimal:2',
             'opened_at' => 'datetime',
             'closed_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 
@@ -80,8 +85,18 @@ class ServiceOrder extends Model
         return $this->hasOne(ProductSale::class);
     }
 
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
     public function isOpen(): bool
     {
         return $this->status === self::STATUS_OPEN;
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === self::STATUS_CANCELLED;
     }
 }

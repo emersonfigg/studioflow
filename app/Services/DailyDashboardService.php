@@ -91,6 +91,7 @@ class DailyDashboardService
         $standaloneSales = ProductSale::query()
             ->with(['client:id,name', 'user:id,name', 'items.product:id,name,stock_quantity,minimum_stock,cost_price,track_stock,low_stock_alert,unit', 'items.seller:id,name'])
             ->where('company_id', $companyId)
+            ->where('status', ProductSale::STATUS_COMPLETED)
             ->whereNull('service_order_id')
             ->whereBetween('sold_at', [$from, $to])
             ->when($selectedUserId !== null, function ($query) use ($selectedUserId): void {
