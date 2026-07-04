@@ -381,6 +381,13 @@ class PdvSaleTest extends TestCase
             ->assertOk()
             ->assertSee('x-ref="clientSearchInput"', false)
             ->assertDontSee('Outro Cliente');
+
+        $html = $this->actingAs($admin)
+            ->get(route('pdv.index', [], false))
+            ->getContent();
+        $this->assertStringContainsString('placeholder="Balcão ou buscar cliente"', $html);
+        $this->assertStringNotContainsString('value="Balcão ou buscar cliente"', $html);
+        $this->assertStringContainsString("clientSearch: '',", $html);
     }
 
     public function test_pdv_client_search_finds_client_by_partial_phone_ignoring_mask(): void

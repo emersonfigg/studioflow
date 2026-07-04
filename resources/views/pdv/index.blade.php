@@ -119,13 +119,14 @@
                         <input
                             type="text"
                             x-ref="clientSearchInput"
-                            x-model.debounce.250ms="clientSearch"
+                            x-model="clientSearch"
                             x-on:focus="openClientPicker()"
-                            x-on:input="handleClientInput()"
+                            x-on:input="handleClientInput($event)"
+                            x-on:input.debounce.275ms="searchClients(clientSearch)"
                             x-on:keydown.arrow-down.prevent="highlightNextClient()"
                             x-on:keydown.arrow-up.prevent="highlightPrevClient()"
                             x-on:keydown.enter.prevent="selectHighlightedClient()"
-                            x-on:keydown.escape.prevent="closeClientPicker()"
+                            x-on:keydown.escape.prevent="cancelClientPicker()"
                             class="pdv-touch-16 sf-input !border-white/15 !bg-[var(--brand-secondary)] !py-2 !text-base !text-[var(--text-main)] placeholder:sf-text-muted/60 lg:!py-2 lg:!text-sm"
                             placeholder="Balcão ou buscar cliente"
                         >
@@ -625,7 +626,7 @@
                     'name' => $selectedClient->name,
                     'meta' => collect([$selectedClient->client_code, $selectedClient->phone, $selectedClient->cpf ? 'CPF '.$selectedClient->cpf : null])->filter()->implode(' · '),
                 ] : null),
-                clientSearch: @js($selectedClient?->name ?? 'Balcão ou buscar cliente'),
+                clientSearch: @js($selectedClient?->name ?? ''),
                 clientResults: [],
                 clientResultsOpen: false,
                 clientLoading: false,
@@ -656,9 +657,6 @@
                     });
                     this.$watch('search', () => {
                         this.highlightedIndex = 0;
-                    });
-                    this.$watch('clientSearch', (value) => {
-                        this.searchClients(value);
                     });
                 },
                 tickClock() {
@@ -764,11 +762,6 @@
                         return;
                     }
 
-                    if (term === '' || term.toLowerCase() === 'balcao' || term.toLowerCase() === 'balcão' || term.toLowerCase() === 'balcão ou buscar cliente') {
-                        this.selectedClient = null;
-                        this.selectedClientId = '';
-                    }
-
                     if (term.length < 2) {
                         this.clientSearchAbort?.abort();
                         this.clientResults = [];
@@ -813,33 +806,52 @@
                     this.clientResultsOpen = false;
                 },
                 selectWalkInClient() {
+                    this.resetWalkInClient(true);
+                },
+                resetWalkInClient(closeDropdown = false) {
                     this.selectedClient = null;
                     this.selectedClientId = '';
-                    this.clientSearch = 'Balcão ou buscar cliente';
+                    this.clientSearch = '';
                     this.clientResults = [];
-                    this.clientResultsOpen = false;
+                    this.clientLoading = false;
+                    this.clientSearchError = '';
+                    this.highlightedClientIndex = -1;
+                    this.clientSearchAbort?.abort();
+                    if (closeDropdown) {
+                        this.clientResultsOpen = false;
+                    }
                 },
                 openClientPicker() {
-                    const term = String(this.clientSearch || '').trim();
                     this.clientResultsOpen = true;
-                    if (term === 'Balcão ou buscar cliente') {
+                    if (String(this.clientSearch || '').trim() === '') {
                         this.highlightedClientIndex = -1;
-                        this.$nextTick(() => this.$refs.clientSearchInput?.select());
                     }
                 },
                 closeClientPicker() {
                     this.clientResultsOpen = false;
                     this.clientSearchError = '';
                 },
-                handleClientInput() {
-                    if (this.selectedClient && String(this.clientSearch || '') !== String(this.selectedClient.name || '')) {
+                cancelClientPicker() {
+                    if (this.selectedClient) {
+                        this.clientSearch = this.selectedClient.name || '';
+                    } else {
+                        this.resetWalkInClient(true);
+                    }
+
+                    this.clientResultsOpen = false;
+                    this.clientSearchError = '';
+                },
+                handleClientInput(event) {
+                    const value = String(event?.target?.value ?? this.clientSearch ?? '');
+                    this.clientSearch = value;
+
+                    if (this.selectedClient && value !== String(this.selectedClient.name || '')) {
                         this.selectedClient = null;
                         this.selectedClientId = '';
                     }
 
-                    if (String(this.clientSearch || '').trim() === '') {
-                        this.selectWalkInClient();
-                        this.clientResultsOpen = false;
+                    if (value.trim() === '') {
+                        this.resetWalkInClient(false);
                     }
                 },
                 highlightNextClient() {
@@ -999,6 +1011,9 @@
                     if (e.key === 'Escape') {
                         const tag = e.target?.tagName;
                         if (tag === 'TEXTAREA' || tag === 'SELECT') {
+                            return;
+                        }
+                        if (e.target === this.$refs.clientSearchInput) {
                             return;
                         }
                         if (tag === 'INPUT' && e.target?.type === 'number') {
