@@ -120,26 +120,30 @@
                             type="text"
                             x-ref="clientSearchInput"
                             x-model.debounce.250ms="clientSearch"
-                            x-on:focus="clientResultsOpen = true"
+                            x-on:focus="openClientPicker()"
+                            x-on:input="handleClientInput()"
                             x-on:keydown.arrow-down.prevent="highlightNextClient()"
                             x-on:keydown.arrow-up.prevent="highlightPrevClient()"
                             x-on:keydown.enter.prevent="selectHighlightedClient()"
-                            x-on:keydown.escape.prevent="clientResultsOpen = false"
+                            x-on:keydown.escape.prevent="closeClientPicker()"
                             class="pdv-touch-16 sf-input !border-white/15 !bg-[var(--brand-secondary)] !py-2 !text-base !text-[var(--text-main)] placeholder:sf-text-muted/60 lg:!py-2 lg:!text-sm"
                             placeholder="Balcão ou buscar cliente"
                         >
                         <div
-                            x-show="clientResultsOpen && (clientResults.length > 0 || clientSearch.trim().length >= 2 || clientLoading)"
+                            x-show="clientResultsOpen"
                             x-cloak
-                            class="absolute z-[80] mt-1 max-h-64 w-[min(28rem,calc(100vw-2rem))] overflow-y-auto rounded-xl border border-white/15 bg-[var(--brand-accent)] py-1 normal-case tracking-normal shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
-                            x-on:click.outside="clientResultsOpen = false"
+                            class="absolute left-0 right-0 top-full z-[80] mt-1 max-h-[280px] overflow-y-auto rounded-lg border border-white/15 bg-[var(--brand-accent)] py-1 normal-case tracking-normal shadow-[0_12px_28px_rgba(0,0,0,0.28)]"
+                            x-on:click.outside="closeClientPicker()"
                         >
-                            <button type="button" x-on:click="selectWalkInClient()" class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-white/10">
+                            <button type="button" x-on:click="selectWalkInClient()" :class="highlightedClientIndex === -1 ? 'bg-[color-mix(in_srgb,var(--brand-primary)_16%,transparent)]' : 'hover:bg-white/10'" class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm">
                                 <span class="font-semibold text-[var(--text-main)]">Balcão</span>
                                 <span class="text-xs sf-text-muted">sem cliente identificado</span>
                             </button>
                             <template x-if="clientLoading">
-                                <p class="px-3 py-2 text-xs sf-text-muted">Buscando clientes...</p>
+                                <p class="px-3 py-2 text-xs sf-text-muted">Buscando...</p>
+                            </template>
+                            <template x-if="clientSearchError">
+                                <p class="px-3 py-2 text-xs text-rose-200" x-text="clientSearchError"></p>
                             </template>
                             <template x-for="(client, idx) in clientResults" :key="client.id">
                                 <button type="button" x-on:click="selectClient(client)" :class="idx === highlightedClientIndex ? 'bg-[color-mix(in_srgb,var(--brand-primary)_16%,transparent)]' : 'hover:bg-white/10'" class="block w-full px-3 py-2 text-left">
@@ -147,7 +151,7 @@
                                     <span class="mt-0.5 block truncate text-xs sf-text-muted" x-text="client.meta || client.phone || client.cpf || ''"></span>
                                 </button>
                             </template>
-                            <p x-show="!clientLoading && clientSearch.trim().length >= 2 && clientResults.length === 0" class="px-3 py-2 text-xs sf-text-muted">Nenhum cliente encontrado.</p>
+                            <p x-show="!clientLoading && !clientSearchError && clientSearch.trim().length >= 2 && clientResults.length === 0" class="px-3 py-2 text-xs sf-text-muted">Nenhum cliente encontrado</p>
                         </div>
                         <select
                             name="client_id"
@@ -571,7 +575,7 @@
     </div>
 
     <script>
-        function pdvScreen(catalogData, initialCartData) {
+        function pdvScreen(catalogData, initialCartData, clientSearchUrl) {
             const root = catalogData && typeof catalogData === 'object' ? catalogData : {};
             const products = Array.isArray(root.products) ? root.products : [];
             const services = Array.isArray(root.services) ? root.services : [];
@@ -621,10 +625,11 @@
                     'name' => $selectedClient->name,
                     'meta' => collect([$selectedClient->client_code, $selectedClient->phone, $selectedClient->cpf ? 'CPF '.$selectedClient->cpf : null])->filter()->implode(' · '),
                 ] : null),
-                clientSearch: @js($selectedClient?->name ?? 'Balcão'),
+                clientSearch: @js($selectedClient?->name ?? 'Balcão ou buscar cliente'),
                 clientResults: [],
                 clientResultsOpen: false,
                 clientLoading: false,
+                clientSearchError: '',
                 highlightedClientIndex: 0,
                 clientSearchAbort: null,
                 cart: bootCart,
@@ -753,16 +758,19 @@
                 searchClients(value) {
                     const term = String(value || '').trim();
                     this.highlightedClientIndex = 0;
+                    this.clientSearchError = '';
 
                     if (this.selectedClient && term === this.selectedClient.name) {
                         return;
                     }
 
-                    if (term.toLowerCase() === 'balcao' || term.toLowerCase() === 'balcão') {
+                    if (term === '' || term.toLowerCase() === 'balcao' || term.toLowerCase() === 'balcão' || term.toLowerCase() === 'balcão ou buscar cliente') {
+                        this.selectedClient = null;
                         this.selectedClientId = '';
                     }
 
                     if (term.length < 2) {
+                        this.clientSearchAbort?.abort();
                         this.clientResults = [];
                         this.clientLoading = false;
                         return;
@@ -777,13 +785,20 @@
                         headers: { 'Accept': 'application/json' },
                         signal: this.clientSearchAbort.signal,
                     })
-                        .then((response) => response.ok ? response.json() : { data: [] })
+                        .then((response) => {
+                            if (!response.ok) {
+                                throw new Error('Não foi possível buscar clientes agora.');
+                            }
+
+                            return response.json();
+                        })
                         .then((payload) => {
                             this.clientResults = Array.isArray(payload.data) ? payload.data : [];
                         })
                         .catch((error) => {
                             if (error.name !== 'AbortError') {
                                 this.clientResults = [];
+                                this.clientSearchError = error.message || 'Não foi possível buscar clientes agora.';
                             }
                         })
                         .finally(() => {
@@ -800,23 +815,58 @@
                 selectWalkInClient() {
                     this.selectedClient = null;
                     this.selectedClientId = '';
-                    this.clientSearch = 'Balcão';
+                    this.clientSearch = 'Balcão ou buscar cliente';
                     this.clientResults = [];
                     this.clientResultsOpen = false;
                 },
+                openClientPicker() {
+                    const term = String(this.clientSearch || '').trim();
+                    this.clientResultsOpen = true;
+                    if (term === 'Balcão ou buscar cliente') {
+                        this.highlightedClientIndex = -1;
+                        this.$nextTick(() => this.$refs.clientSearchInput?.select());
+                    }
+                },
+                closeClientPicker() {
+                    this.clientResultsOpen = false;
+                    this.clientSearchError = '';
+                },
+                handleClientInput() {
+                    if (this.selectedClient && String(this.clientSearch || '') !== String(this.selectedClient.name || '')) {
+                        this.selectedClient = null;
+                        this.selectedClientId = '';
+                    }
+
+                    if (String(this.clientSearch || '').trim() === '') {
+                        this.selectWalkInClient();
+                        this.clientResultsOpen = false;
+                    }
+                },
                 highlightNextClient() {
                     if (!this.clientResults.length) {
+                        this.highlightedClientIndex = -1;
                         return;
                     }
-                    this.highlightedClientIndex = (this.highlightedClientIndex + 1) % this.clientResults.length;
+                    this.highlightedClientIndex = this.highlightedClientIndex >= this.clientResults.length - 1
+                        ? -1
+                        : this.highlightedClientIndex + 1;
                 },
                 highlightPrevClient() {
                     if (!this.clientResults.length) {
+                        this.highlightedClientIndex = -1;
                         return;
                     }
-                    this.highlightedClientIndex = (this.highlightedClientIndex - 1 + this.clientResults.length) % this.clientResults.length;
+                    this.highlightedClientIndex = this.highlightedClientIndex <= -1
+                        ? this.clientResults.length - 1
+                        : this.highlightedClientIndex - 1;
                 },
                 selectHighlightedClient() {
+                    if (this.highlightedClientIndex === -1) {
+                        this.selectWalkInClient();
+
+                        return;
+                    }
+
                     const client = this.clientResults[this.highlightedClientIndex];
                     if (client) {
                         this.selectClient(client);

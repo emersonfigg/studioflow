@@ -358,12 +358,12 @@ class PdvSaleTest extends TestCase
         $response->assertSee('55,50', false);
     }
 
-    public function test_pdv_client_search_finds_clients_by_name_phone_and_cpf_without_loading_all_clients(): void
+    public function test_pdv_client_search_finds_client_by_name_without_loading_all_clients(): void
     {
         $company = Company::factory()->create();
         $admin = User::factory()->admin()->for($company)->create(['active' => true]);
         $target = Client::factory()->for($company)->create([
-            'name' => 'Maria Cliente',
+            'name' => 'Paulo Cliente',
             'phone' => '71999990000',
             'cpf' => '123.456.789-01',
             'active' => true,
@@ -371,16 +371,131 @@ class PdvSaleTest extends TestCase
         Client::factory()->for($company)->create(['name' => 'Outro Cliente', 'active' => true]);
 
         $this->actingAs($admin)
-            ->getJson(route('pdv.clients.search', ['q' => '9999'], false))
+            ->getJson(route('pdv.clients.search', ['q' => 'paul'], false))
             ->assertOk()
             ->assertJsonPath('data.0.id', $target->id)
-            ->assertJsonPath('data.0.name', 'Maria Cliente');
+            ->assertJsonPath('data.0.name', 'Paulo Cliente');
 
         $this->actingAs($admin)
             ->get(route('pdv.index', [], false))
             ->assertOk()
             ->assertSee('x-ref="clientSearchInput"', false)
             ->assertDontSee('Outro Cliente');
+    }
+
+    public function test_pdv_client_search_finds_client_by_partial_phone_ignoring_mask(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+        $target = Client::factory()->for($company)->create([
+            'name' => 'Telefone Cliente',
+            'phone' => '(71) 99999-1234',
+            'active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->getJson(route('pdv.clients.search', ['q' => '999912'], false))
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $target->id);
+    }
+
+    public function test_pdv_client_search_ignores_accents_and_case(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+        $target = Client::factory()->for($company)->create([
+            'name' => 'João Ávila',
+            'active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->getJson(route('pdv.clients.search', ['q' => 'joao av'], false))
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $target->id);
+    }
+
+    public function test_pdv_client_search_finds_client_by_cpf_with_and_without_mask(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+        $target = Client::factory()->for($company)->create([
+            'name' => 'CPF Cliente',
+            'cpf' => '123.456.789-01',
+            'active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->getJson(route('pdv.clients.search', ['q' => '456789'], false))
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $target->id);
+
+        $this->actingAs($admin)
+            ->getJson(route('pdv.clients.search', ['q' => '123.456'], false))
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $target->id);
+    }
+
+    public function test_pdv_client_search_does_not_return_clients_from_another_company(): void
+    {
+        $company = Company::factory()->create();
+        $otherCompany = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+
+        Client::factory()->for($otherCompany)->create([
+            'name' => 'Cliente Outra Empresa',
+            'phone' => '(71) 98888-7777',
+            'cpf' => '987.654.321-00',
+            'active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->getJson(route('pdv.clients.search', ['q' => 'Outra'], false))
+            ->assertOk()
+            ->assertJsonPath('data', []);
+    }
+
+    public function test_pdv_sale_with_walk_in_client_continues_working(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+        $service = Service::factory()->for($company)->create(['price' => 40.00, 'active' => true]);
+
+        $this->actingAs($admin)->post(route('pdv.store', absolute: false), [
+            'client_id' => '',
+            'user_id' => $admin->id,
+            'payment_method' => 'pix',
+            'service_items' => [
+                ['service_id' => $service->id],
+            ],
+        ])->assertRedirect(route('pdv.index', absolute: false));
+
+        $order = ServiceOrder::query()->firstOrFail();
+        $this->assertSame(ServiceOrder::STATUS_PAID, $order->status);
+        $this->assertDatabaseHas('clients', [
+            'company_id' => $company->id,
+            'name' => 'Cliente Balcao',
+            'phone' => '0000000000',
+        ]);
+    }
+
+    public function test_pdv_sale_with_selected_client_continues_working(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+        $client = Client::factory()->for($company)->create(['active' => true]);
+        $service = Service::factory()->for($company)->create(['price' => 40.00, 'active' => true]);
+
+        $this->actingAs($admin)->post(route('pdv.store', absolute: false), [
+            'client_id' => $client->id,
+            'user_id' => $admin->id,
+            'payment_method' => 'pix',
+            'service_items' => [
+                ['service_id' => $service->id],
+            ],
+        ])->assertRedirect(route('pdv.index', absolute: false));
+
+        $order = ServiceOrder::query()->firstOrFail();
+        $this->assertSame($client->id, $order->client_id);
     }
 
     public function test_pdv_only_sells_services_available_for_pos(): void

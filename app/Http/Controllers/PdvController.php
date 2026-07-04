@@ -25,6 +25,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class PdvController extends Controller
 {
@@ -188,6 +189,7 @@ class PdvController extends Controller
         $companyId = (int) $request->user()->company_id;
         $term = trim((string) $request->query('q', ''));
         $digits = preg_replace('/\D+/', '', $term) ?? '';
+        $normalizedTerm = Str::lower(Str::ascii($term));
 
         if (mb_strlen($term) < 2 && mb_strlen($digits) < 2) {
             return response()->json(['data' => []]);
@@ -196,19 +198,20 @@ class PdvController extends Controller
         $clients = Client::query()
             ->where('company_id', $companyId)
             ->active()
-            ->where(function ($query) use ($term, $digits): void {
-                $query->where('name', 'like', "%{$term}%")
-                    ->orWhere('phone', 'like', "%{$term}%")
-                    ->orWhere('cpf', 'like', "%{$term}%");
-
-                if ($digits !== '') {
-                    $query->orWhere('phone', 'like', "%{$digits}%")
-                        ->orWhere('cpf_normalized', 'like', "%{$digits}%");
-                }
-            })
             ->orderBy('name')
-            ->limit(12)
             ->get(['id', 'client_code', 'name', 'phone', 'cpf'])
+            ->filter(function (Client $client) use ($term, $digits, $normalizedTerm): bool {
+                $name = Str::lower(Str::ascii((string) $client->name));
+                $phoneDigits = preg_replace('/\D+/', '', (string) $client->phone) ?? '';
+                $cpfDigits = preg_replace('/\D+/', '', (string) $client->cpf) ?? '';
+
+                return Str::contains($name, $normalizedTerm)
+                    || Str::contains((string) $client->phone, $term)
+                    || Str::contains((string) $client->cpf, $term)
+                    || ($digits !== '' && Str::contains($phoneDigits, $digits))
+                    || ($digits !== '' && Str::contains($cpfDigits, $digits));
+            })
+            ->take(12)
             ->map(fn (Client $client): array => $this->clientSearchPayload($client))
             ->values();
 
