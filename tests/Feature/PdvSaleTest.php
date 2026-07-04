@@ -388,6 +388,9 @@ class PdvSaleTest extends TestCase
         $this->assertStringContainsString('placeholder="Balcão ou buscar cliente"', $html);
         $this->assertStringNotContainsString('value="Balcão ou buscar cliente"', $html);
         $this->assertStringContainsString("clientSearch: '',", $html);
+        $this->assertStringContainsString('name="client_id"', $html);
+        $this->assertStringContainsString('x-model="selectedClientId"', $html);
+        $this->assertStringNotContainsString('x-ref="clientSelect"', $html);
     }
 
     public function test_pdv_client_search_finds_client_by_partial_phone_ignoring_mask(): void
@@ -748,7 +751,211 @@ class PdvSaleTest extends TestCase
             ->get(route('pdv.sales', ['client_id' => $client->id, 'payment_method' => 'pix'], false))
             ->assertOk()
             ->assertSee('Histórico de Vendas')
-            ->assertSee('Cliente PDV');
+            ->assertSee('Cliente PDV')
+            ->assertSee('Editar')
+            ->assertSee(route('pdv.sales.edit', $order, false), false);
+    }
+
+    public function test_admin_can_update_pdv_sale_metadata(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+        $originalClient = Client::factory()->for($company)->create(['active' => true]);
+        $newClient = Client::factory()->for($company)->create(['name' => 'Cliente Corrigido', 'active' => true]);
+        $originalProfessional = User::factory()->for($company)->create(['active' => true]);
+        $newProfessional = User::factory()->for($company)->create([
+            'active' => true,
+            'commission_type' => 'percent',
+            'commission_value' => 10,
+        ]);
+        $service = Service::factory()->for($company)->create(['active' => true, 'price' => 100]);
+
+        $order = ServiceOrder::query()->create([
+            'company_id' => $company->id,
+            'client_id' => $originalClient->id,
+            'professional_id' => $originalProfessional->id,
+            'status' => ServiceOrder::STATUS_PAID,
+            'subtotal_services' => 100,
+            'subtotal_products' => 20,
+            'discount' => 0,
+            'total' => 120,
+            'payment_method' => 'cash',
+            'opened_at' => now()->subHour(),
+            'closed_at' => now()->subMinutes(15),
+        ]);
+
+        $payment = Payment::query()->create([
+            'company_id' => $company->id,
+            'appointment_id' => null,
+            'service_order_id' => $order->id,
+            'user_id' => $originalProfessional->id,
+            'client_id' => $originalClient->id,
+            'service_id' => $service->id,
+            'gross_amount' => 100,
+            'payment_method' => 'cash',
+            'commission_type' => null,
+            'commission_rate' => null,
+            'commission_amount' => 0,
+            'net_amount' => 100,
+            'paid_at' => now()->subMinutes(15),
+            'notes' => 'Observacao antiga',
+        ]);
+        $sale = ProductSale::query()->create([
+            'company_id' => $company->id,
+            'client_id' => $originalClient->id,
+            'service_order_id' => $order->id,
+            'user_id' => $originalProfessional->id,
+            'gross_amount' => 20,
+            'payment_method' => 'cash',
+            'sold_at' => now()->subMinutes(15),
+            'notes' => 'Observacao antiga',
+        ]);
+
+        $register = $company->cashRegisters()->create([
+            'date' => now()->toDateString(),
+            'opening_amount' => 0,
+            'opened_by' => $admin->id,
+            'opened_at' => now(),
+        ]);
+        CashMovement::query()->create([
+            'company_id' => $company->id,
+            'cash_register_id' => $register->id,
+            'type' => 'inflow',
+            'source_type' => Payment::class,
+            'source_id' => $payment->id,
+            'payment_method' => 'cash',
+            'amount' => 100,
+            'occurred_at' => now()->subMinutes(15),
+            'description' => 'Teste',
+        ]);
+        CashMovement::query()->create([
+            'company_id' => $company->id,
+            'cash_register_id' => $register->id,
+            'type' => 'inflow',
+            'source_type' => ProductSale::class,
+            'source_id' => $sale->id,
+            'payment_method' => 'cash',
+            'amount' => 20,
+            'occurred_at' => now()->subMinutes(15),
+            'description' => 'Teste produto',
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('pdv.sales.update', $order, false), [
+                'client_id' => $newClient->id,
+                'professional_id' => $newProfessional->id,
+                'payment_method' => 'pix',
+                'notes' => 'Observacao corrigida',
+                'correction_reason' => 'Cliente e profissional escolhidos incorretamente.',
+            ])
+            ->assertRedirect(route('pdv.sales.show', $order, false));
+
+        $this->assertDatabaseHas('service_orders', [
+            'id' => $order->id,
+            'client_id' => $newClient->id,
+            'professional_id' => $newProfessional->id,
+            'payment_method' => 'pix',
+        ]);
+        $this->assertDatabaseHas('payments', [
+            'id' => $payment->id,
+            'client_id' => $newClient->id,
+            'user_id' => $newProfessional->id,
+            'payment_method' => 'pix',
+            'commission_type' => 'percent',
+            'commission_rate' => 10,
+            'commission_amount' => 10,
+            'net_amount' => 90,
+        ]);
+        $this->assertDatabaseHas('product_sales', [
+            'id' => $sale->id,
+            'client_id' => $newClient->id,
+            'user_id' => $newProfessional->id,
+            'payment_method' => 'pix',
+        ]);
+        $this->assertDatabaseHas('cash_movements', [
+            'source_type' => Payment::class,
+            'source_id' => $payment->id,
+            'payment_method' => 'pix',
+        ]);
+        $this->assertDatabaseHas('cash_movements', [
+            'source_type' => ProductSale::class,
+            'source_id' => $sale->id,
+            'payment_method' => 'pix',
+        ]);
+        $this->assertStringContainsString('[Edicao metadados PDV]', (string) $payment->fresh()->notes);
+
+        $this->actingAs($admin)
+            ->get(route('pdv.sales', [], false))
+            ->assertOk()
+            ->assertSee('Cliente Corrigido');
+    }
+
+    public function test_pdv_sale_edit_blocks_cancelled_sale_and_other_tenant(): void
+    {
+        $company = Company::factory()->create();
+        $otherCompany = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+        $otherAdmin = User::factory()->admin()->for($otherCompany)->create(['active' => true]);
+        $client = Client::factory()->for($company)->create(['active' => true]);
+        $professional = User::factory()->for($company)->create(['active' => true]);
+        $otherClient = Client::factory()->for($otherCompany)->create(['active' => true]);
+
+        $cancelledOrder = ServiceOrder::query()->create([
+            'company_id' => $company->id,
+            'client_id' => $client->id,
+            'professional_id' => $professional->id,
+            'status' => ServiceOrder::STATUS_CANCELLED,
+            'subtotal_services' => 20,
+            'subtotal_products' => 0,
+            'discount' => 0,
+            'total' => 20,
+            'opened_at' => now()->subHour(),
+            'closed_at' => now()->subMinutes(10),
+            'cancelled_at' => now(),
+            'cancelled_by' => $admin->id,
+            'cancel_reason' => 'Teste',
+        ]);
+        $otherOrder = ServiceOrder::query()->create([
+            'company_id' => $otherCompany->id,
+            'client_id' => $otherClient->id,
+            'professional_id' => $otherAdmin->id,
+            'status' => ServiceOrder::STATUS_PAID,
+            'subtotal_services' => 20,
+            'subtotal_products' => 0,
+            'discount' => 0,
+            'total' => 20,
+            'payment_method' => 'cash',
+            'opened_at' => now()->subHour(),
+            'closed_at' => now()->subMinutes(10),
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('pdv.sales.edit', $cancelledOrder, false))
+            ->assertStatus(422);
+
+        $this->actingAs($admin)
+            ->patch(route('pdv.sales.update', $cancelledOrder, false), [
+                'client_id' => $client->id,
+                'professional_id' => $professional->id,
+                'payment_method' => 'pix',
+                'notes' => 'Tentativa',
+                'correction_reason' => 'Teste',
+            ])
+            ->assertStatus(422);
+
+        $this->actingAs($admin)
+            ->get(route('pdv.sales.edit', $otherOrder, false))
+            ->assertNotFound();
+
+        $this->actingAs($admin)
+            ->patch(route('pdv.sales.update', $otherOrder, false), [
+                'client_id' => $client->id,
+                'professional_id' => $professional->id,
+                'payment_method' => 'pix',
+                'notes' => 'Tentativa',
+                'correction_reason' => 'Teste',
+            ])
+            ->assertNotFound();
     }
 
     public function test_admin_can_correct_payment_method_from_pdv_sale_detail(): void

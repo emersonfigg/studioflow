@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePdvSaleRequest;
+use App\Http\Requests\UpdatePdvSaleRequest;
 use App\Http\Requests\UpdatePdvSalePaymentMethodRequest;
 use App\Models\Appointment;
 use App\Models\CashMovement;
 use App\Models\Client;
+use App\Models\CustomerMembership;
 use App\Models\MembershipPlan;
 use App\Models\Payment;
 use App\Models\Product;
@@ -25,6 +27,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class PdvController extends Controller
@@ -295,6 +298,7 @@ class PdvController extends Controller
             'selectedProfessionalId' => $selectedProfessionalId,
             'selectedPaymentMethod' => $selectedPaymentMethod,
             'paymentMethods' => $paymentMethods,
+            'canEditSales' => $request->user()->hasFinancialPrivileges(),
             'canCancelSales' => $request->user()->canCancelPdvSales(),
             'canForceDeleteSales' => $request->user()->canForceDeletePdvSales(),
         ]);
@@ -342,6 +346,184 @@ class PdvController extends Controller
             'canForceDeleteSales' => $request->user()->canForceDeletePdvSales(),
             'paymentMethods' => Payment::paymentMethodOptions(),
         ]);
+    }
+
+    public function editSale(Request $request, ServiceOrder $serviceOrder): View
+    {
+        abort_unless($serviceOrder->company_id === $request->user()->company_id, 404);
+        abort_unless($request->user()->hasFinancialPrivileges(), 403);
+        abort_unless($serviceOrder->status === ServiceOrder::STATUS_PAID, 422);
+
+        $order = $serviceOrder->loadMissing([
+            'client',
+            'professional',
+            'items.service',
+            'items.product',
+            'payment',
+            'productSale',
+        ]);
+
+        $clients = Client::query()
+            ->where('company_id', $request->user()->company_id)
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'name', 'client_code', 'phone', 'cpf']);
+
+        $professionals = User::query()
+            ->where('company_id', $request->user()->company_id)
+            ->where('active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('pdv.sale-edit', [
+            'order' => $order,
+            'clients' => $clients,
+            'professionals' => $professionals,
+            'paymentMethods' => Payment::paymentMethodOptions(),
+            'currentMethod' => $order->payment_method ?? $order->payment?->payment_method ?? $order->productSale?->payment_method,
+            'currentNotes' => $order->productSale?->notes ?? $order->payment?->notes,
+        ]);
+    }
+
+    public function updateSale(UpdatePdvSaleRequest $request, ServiceOrder $serviceOrder): RedirectResponse
+    {
+        abort_unless($serviceOrder->company_id === $request->user()->company_id, 404);
+        abort_unless($serviceOrder->status === ServiceOrder::STATUS_PAID, 422);
+
+        $data = $request->validated();
+
+        DB::transaction(function () use ($request, $serviceOrder, $data): void {
+            /** @var ServiceOrder $order */
+            $order = ServiceOrder::query()
+                ->with(['client', 'professional', 'payment', 'productSale'])
+                ->where('company_id', $request->user()->company_id)
+                ->whereKey($serviceOrder->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($order->status !== ServiceOrder::STATUS_PAID) {
+                abort(422);
+            }
+
+            $payment = $order->payment;
+            $productSale = $order->productSale;
+            $memberships = CustomerMembership::query()
+                ->withCount('usages')
+                ->where('company_id', $order->company_id)
+                ->where('service_order_id', $order->id)
+                ->get();
+            $newPaymentMethod = (string) $data['payment_method'];
+            $oldPaymentMethod = (string) ($order->payment_method ?? $payment?->payment_method ?? $productSale?->payment_method ?? '');
+
+            if ($oldPaymentMethod !== $newPaymentMethod && ! $payment && ! $productSale) {
+                abort(422, 'Nao ha vinculo financeiro seguro para corrigir a forma de pagamento.');
+            }
+
+            $professional = User::query()
+                ->where('company_id', $order->company_id)
+                ->where('active', true)
+                ->findOrFail((int) $data['professional_id']);
+
+            $before = [
+                'client_id' => $order->client_id,
+                'professional_id' => $order->professional_id,
+                'payment_method' => $oldPaymentMethod,
+                'notes' => $productSale?->notes ?? $payment?->notes,
+            ];
+            $after = [
+                'client_id' => (int) $data['client_id'],
+                'professional_id' => $professional->id,
+                'payment_method' => $newPaymentMethod,
+                'notes' => filled($data['notes'] ?? null) ? (string) $data['notes'] : null,
+            ];
+
+            if ((int) $before['client_id'] !== (int) $after['client_id'] && $memberships->contains(fn (CustomerMembership $membership): bool => (int) $membership->usages_count > 0)) {
+                abort(422, 'Nao e possivel trocar o cliente de uma venda de assinatura que ja teve uso.');
+            }
+
+            $auditSuffix = sprintf(
+                "\n[Edicao metadados PDV] %s por %s (id %s). Motivo: %s. Antes: %s. Depois: %s",
+                now()->format('d/m/Y H:i'),
+                $request->user()->name,
+                $request->user()->id,
+                trim((string) $data['correction_reason']),
+                json_encode($before, JSON_UNESCAPED_UNICODE),
+                json_encode($after, JSON_UNESCAPED_UNICODE)
+            );
+
+            $order->update([
+                'client_id' => $after['client_id'],
+                'professional_id' => $after['professional_id'],
+                'payment_method' => $newPaymentMethod,
+            ]);
+
+            if ($payment) {
+                $commissionAmount = $this->calculateProfessionalCommission($professional, (float) $payment->gross_amount);
+
+                $payment->update([
+                    'client_id' => $after['client_id'],
+                    'user_id' => $after['professional_id'],
+                    'payment_method' => $newPaymentMethod,
+                    'commission_type' => $professional->commission_type,
+                    'commission_rate' => $professional->commission_type === 'percent' ? round((float) ($professional->commission_value ?? 0), 2) : null,
+                    'commission_amount' => $commissionAmount,
+                    'net_amount' => round((float) $payment->gross_amount - $commissionAmount, 2),
+                    'notes' => trim((string) ($after['notes'] ?? '').$auditSuffix),
+                ]);
+
+                CashMovement::query()
+                    ->where('company_id', $order->company_id)
+                    ->where('source_type', Payment::class)
+                    ->where('source_id', $payment->id)
+                    ->update([
+                        'payment_method' => $newPaymentMethod,
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            if ($productSale) {
+                $productSale->update([
+                    'client_id' => $after['client_id'],
+                    'user_id' => $after['professional_id'],
+                    'payment_method' => $newPaymentMethod,
+                    'notes' => trim((string) ($after['notes'] ?? '').$auditSuffix),
+                ]);
+
+                CashMovement::query()
+                    ->where('company_id', $order->company_id)
+                    ->where('source_type', ProductSale::class)
+                    ->where('source_id', $productSale->id)
+                    ->update([
+                        'payment_method' => $newPaymentMethod,
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            foreach ($memberships as $membership) {
+                $membership->update(['client_id' => $after['client_id']]);
+
+                CashMovement::query()
+                    ->where('company_id', $order->company_id)
+                    ->where('source_type', CustomerMembership::class)
+                    ->where('source_id', $membership->id)
+                    ->update([
+                        'payment_method' => $newPaymentMethod,
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            Log::info('pdv.sale.metadata_updated', [
+                'service_order_id' => $order->id,
+                'company_id' => $order->company_id,
+                'actor_id' => $request->user()->id,
+                'before' => $before,
+                'after' => $after,
+            ]);
+        });
+
+        return redirect()
+            ->route('pdv.sales.show', $serviceOrder)
+            ->with('status', 'sale-updated');
     }
 
     public function cancelSale(Request $request, ServiceOrder $serviceOrder, PdvSaleCancellationService $cancellationService): RedirectResponse
@@ -621,5 +803,14 @@ class PdvController extends Controller
         }
 
         return $cart;
+    }
+
+    private function calculateProfessionalCommission(User $professional, float $grossAmount): float
+    {
+        return match ($professional->commission_type) {
+            'percent' => round($grossAmount * ((float) ($professional->commission_value ?? 0) / 100), 2),
+            'fixed' => round((float) ($professional->commission_value ?? 0), 2),
+            default => 0.0,
+        };
     }
 }

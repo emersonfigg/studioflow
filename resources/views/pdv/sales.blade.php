@@ -69,6 +69,9 @@
                         <p class="mt-2 text-xs sf-text-muted">Pagamento: {{ $method ? \App\Models\Payment::labelForPaymentMethod($method) : '-' }}</p>
                         <div class="mt-3 grid grid-cols-2 gap-2">
                             <a href="{{ route('pdv.sales.show', $order) }}" class="sf-button-secondary w-full justify-center !py-2">Detalhes</a>
+                            @if (! $isCancelled && $canEditSales)
+                                <a href="{{ route('pdv.sales.edit', $order) }}" class="sf-button-secondary w-full justify-center !py-2">Editar</a>
+                            @endif
                             <a href="{{ route('pdv.receipt', $order) }}" target="_blank" rel="noopener noreferrer" class="sf-button-secondary w-full justify-center !py-2">{{ $isCancelled ? 'Recibo cancelado' : 'Reimprimir' }}</a>
                             @if (! $isCancelled && $canCancelSales)
                                 <button type="button" class="sf-button-secondary w-full justify-center !py-2 text-rose-100" data-cancel-action="{{ route('pdv.sales.cancel', $order) }}">Cancelar</button>
@@ -113,6 +116,9 @@
                                 <td class="px-4 py-3 text-right text-sm font-semibold text-[var(--text-main)]">R$ {{ number_format((float) $order->total, 2, ',', '.') }}</td>
                                 <td class="px-4 py-3 text-right text-xs">
                                     <a href="{{ route('pdv.sales.show', $order) }}" class="sf-button-secondary !px-3 !py-2">Detalhes</a>
+                                    @if (! $isCancelled && $canEditSales)
+                                        <a href="{{ route('pdv.sales.edit', $order) }}" class="sf-button-secondary !px-3 !py-2">Editar</a>
+                                    @endif
                                     <a href="{{ route('pdv.receipt', $order) }}" target="_blank" rel="noopener noreferrer" class="sf-button-secondary !px-3 !py-2">{{ $isCancelled ? 'Recibo cancelado' : 'Recibo' }}</a>
                                     @if (! $isCancelled && $canCancelSales)
                                         <button type="button" class="sf-button-secondary !px-3 !py-2 text-rose-100" data-cancel-action="{{ route('pdv.sales.cancel', $order) }}">Cancelar</button>

@@ -18,6 +18,12 @@
             </div>
         @endif
 
+        @if (session('status') === 'sale-updated')
+            <div class="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+                Venda editada com sucesso.
+            </div>
+        @endif
+
         <section class="rounded-2xl border {{ $isCancelled ? 'border-rose-400/30 bg-rose-950/20' : 'border-white/10 bg-[var(--input-bg)]' }} p-4 sm:p-5">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -35,6 +41,9 @@
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <a href="{{ route('pdv.sales') }}" class="sf-button-secondary">Voltar historico</a>
+                    @if (! $isCancelled && $canCorrectPaymentMethod)
+                        <a href="{{ route('pdv.sales.edit', $order) }}" class="sf-button-secondary">Editar</a>
+                    @endif
                     <a href="{{ route('pdv.receipt', $order) }}" target="_blank" rel="noopener noreferrer" class="sf-button-primary">{{ $isCancelled ? 'Recibo cancelado' : 'Reimprimir recibo' }}</a>
                     @if (! $isCancelled && $canCancelSales)
                         <button type="button" class="sf-button-secondary text-rose-100" onclick="document.getElementById('cancel-sale-dialog').showModal()">Cancelar</button>

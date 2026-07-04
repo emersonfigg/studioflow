@@ -157,6 +157,8 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
     Route::get('pdv/clients/search', [PdvController::class, 'searchClients'])->name('pdv.clients.search');
     Route::post('pdv', [PdvController::class, 'store'])->name('pdv.store');
     Route::get('pdv/sales', [PdvController::class, 'sales'])->name('pdv.sales');
+    Route::get('pdv/sales/{serviceOrder}/edit', [PdvController::class, 'editSale'])->name('pdv.sales.edit');
+    Route::patch('pdv/sales/{serviceOrder}', [PdvController::class, 'updateSale'])->name('pdv.sales.update');
     Route::get('pdv/sales/{serviceOrder}', [PdvController::class, 'showSale'])->name('pdv.sales.show');
     Route::patch('pdv/sales/{serviceOrder}/cancel', [PdvController::class, 'cancelSale'])
         ->name('pdv.sales.cancel');

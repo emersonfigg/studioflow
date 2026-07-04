@@ -154,20 +154,12 @@
                             </template>
                             <p x-show="!clientLoading && !clientSearchError && clientSearch.trim().length >= 2 && clientResults.length === 0" class="px-3 py-2 text-xs sf-text-muted">Nenhum cliente encontrado</p>
                         </div>
-                        <select
+                        <input
+                            type="hidden"
                             name="client_id"
-                            x-ref="clientSelect"
                             x-model="selectedClientId"
-                            class="hidden"
+                            value="{{ old('client_id', $selectedClient?->id ?? '') }}"
                         >
-                            <option value="">— Balcão —</option>
-                            @foreach ($clients as $client)
-                                <option
-                                    value="{{ $client->id }}"
-                                    @selected((string) old('client_id', isset($pdvAppointment) && $pdvAppointment ? $pdvAppointment->client_id : null) === (string) $client->id)
-                                >{{ $client->client_code ?? '-' }} · {{ $client->name }} · {{ $client->phone }}{{ $client->cpf ? ' · CPF '.$client->cpf : '' }}</option>
-                            @endforeach
-                        </select>
                     </label>
                     <label class="grid min-w-[140px] flex-1 gap-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[color-mix(in_srgb,var(--brand-primary)_90%,transparent)] lg:max-w-[200px]">
                         Profissional
