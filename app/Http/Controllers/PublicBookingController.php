@@ -20,6 +20,7 @@ use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection as SupportCollection;
@@ -43,7 +44,7 @@ class PublicBookingController extends Controller
         $reviewService = app(ReviewService::class);
         $services = Service::query()
             ->where('company_id', $company->id)
-            ->where('active', true)
+            ->visibleForPublicBooking()
             ->orderBy('name')
             ->get();
 
@@ -183,7 +184,7 @@ class PublicBookingController extends Controller
     /**
      * Return available public booking slots without refreshing the wizard.
      */
-    public function slots(Request $request, Company $company, AvailabilityService $availabilityService): \Illuminate\Http\JsonResponse
+    public function slots(Request $request, Company $company, AvailabilityService $availabilityService): JsonResponse
     {
         $serviceIds = collect($request->input('service_ids', []))
             ->map(fn (mixed $id): int => (int) $id)
@@ -192,7 +193,7 @@ class PublicBookingController extends Controller
 
         $services = Service::query()
             ->where('company_id', $company->id)
-            ->where('active', true)
+            ->visibleForPublicBooking()
             ->whereIn('id', $serviceIds)
             ->get();
 
@@ -339,7 +340,7 @@ class PublicBookingController extends Controller
         $onlinePaymentConfigured = $bookingPaymentService->onlinePaymentEnabled($company);
         $servicesTotal = (float) Service::query()
             ->where('company_id', $company->id)
-            ->where('active', true)
+            ->visibleForPublicBooking()
             ->whereIn('id', $data['service_ids'])
             ->sum('price');
         $canOfferOnlineBookingPayment = $company->canOfferOnlineBookingPayment($servicesTotal);
@@ -409,7 +410,7 @@ class PublicBookingController extends Controller
 
             $services = Service::query()
                 ->where('company_id', $company->id)
-                ->where('active', true)
+                ->visibleForPublicBooking()
                 ->whereIn('id', $data['service_ids'])
                 ->get();
             $orderedServices = $this->orderedSelectedServices(

@@ -85,4 +85,33 @@ class FinanceReportTest extends TestCase
             ->assertSee('Acertos com profissionais')
             ->assertSee('Pomada Black');
     }
+
+    public function test_report_counts_new_clients_inside_selected_period(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+
+        Client::factory()->for($company)->create([
+            'name' => 'Cliente Abril',
+            'phone' => '71911110000',
+            'cpf' => '111.222.333-44',
+            'created_at' => '2026-04-10 09:00:00',
+        ]);
+        Client::factory()->for($company)->create([
+            'name' => 'Cliente Maio',
+            'created_at' => '2026-05-01 09:00:00',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('finance.report', [
+                'from' => '2026-04-01',
+                'to' => '2026-04-30',
+            ], false))
+            ->assertOk()
+            ->assertSee('Novos clientes')
+            ->assertSee('Cliente Abril')
+            ->assertSee('71911110000')
+            ->assertSee('111.222.333-44')
+            ->assertDontSee('Cliente Maio');
+    }
 }

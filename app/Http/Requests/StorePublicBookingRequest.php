@@ -38,7 +38,8 @@ class StorePublicBookingRequest extends FormRequest
                 'required',
                 Rule::exists('services', 'id')
                     ->where('company_id', $company->id)
-                    ->where('active', true),
+                    ->where('active', true)
+                    ->where('is_publicly_available', true),
             ],
             'user_id' => [
                 'required',
@@ -92,7 +93,7 @@ class StorePublicBookingRequest extends FormRequest
             $company = $this->route('company');
             $services = Service::query()
                 ->where('company_id', $company->id)
-                ->where('active', true)
+                ->visibleForPublicBooking()
                 ->whereIn('id', $this->input('service_ids', []))
                 ->get();
             $user = User::query()

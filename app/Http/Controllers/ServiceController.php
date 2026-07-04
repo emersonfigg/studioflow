@@ -26,15 +26,33 @@ class ServiceController extends Controller
         $baseQuery = Service::query()
             ->where('company_id', $request->user()->company_id);
 
+        $search = trim((string) $request->input('q', ''));
+        $publicStatus = (string) $request->input('public_status', '');
+        $posStatus = (string) $request->input('pos_status', '');
+        $activeStatus = (string) $request->input('active_status', '');
+        $viewMode = $request->input('view') === 'cards' ? 'cards' : 'list';
+
         $services = (clone $baseQuery)
+            ->when($search !== '', fn ($query) => $query->where('name', 'like', "%{$search}%"))
+            ->when(in_array($publicStatus, ['1', '0'], true), fn ($query) => $query->where('is_publicly_available', $publicStatus === '1'))
+            ->when(in_array($posStatus, ['1', '0'], true), fn ($query) => $query->where('available_for_pos', $posStatus === '1'))
+            ->when(in_array($activeStatus, ['1', '0'], true), fn ($query) => $query->where('active', $activeStatus === '1'))
             ->orderBy('name')
-            ->paginate(10);
+            ->paginate(20)
+            ->withQueryString();
 
         return view('services.index', [
             'services' => $services,
             'activeServicesCount' => (clone $baseQuery)->where('active', true)->count(),
+            'publicServicesCount' => (clone $baseQuery)->where('active', true)->where('is_publicly_available', true)->count(),
+            'posServicesCount' => (clone $baseQuery)->where('active', true)->where('available_for_pos', true)->count(),
             'averageTicket' => (float) ((clone $baseQuery)->avg('price') ?? 0),
             'averageDuration' => (float) ((clone $baseQuery)->avg('duration_minutes') ?? 0),
+            'search' => $search,
+            'publicStatus' => $publicStatus,
+            'posStatus' => $posStatus,
+            'activeStatus' => $activeStatus,
+            'viewMode' => $viewMode,
         ]);
     }
 
@@ -65,6 +83,8 @@ class ServiceController extends Controller
         $consumptions = $data['consumptions'] ?? [];
         unset($data['consumptions']);
         $data['active'] = $request->boolean('active');
+        $data['is_publicly_available'] = $request->boolean('is_publicly_available');
+        $data['available_for_pos'] = $request->boolean('available_for_pos');
         $image = $request->file('image') ?? ($data['image'] ?? null);
         $libraryImage = $data['library_image'] ?? null;
         unset($data['image']);
@@ -139,9 +159,12 @@ class ServiceController extends Controller
         $this->ensureServiceBelongsToUserCompany($request, $service);
 
         $data = $request->validated();
+        $shouldSyncConsumptions = array_key_exists('consumptions', $data);
         $consumptions = $data['consumptions'] ?? [];
         unset($data['consumptions']);
         $data['active'] = $request->boolean('active');
+        $data['is_publicly_available'] = $request->boolean('is_publicly_available');
+        $data['available_for_pos'] = $request->boolean('available_for_pos');
         $image = $request->file('image') ?? ($data['image'] ?? null);
         $libraryImage = $data['library_image'] ?? null;
         unset($data['image']);
@@ -163,7 +186,9 @@ class ServiceController extends Controller
 
         $service->update($data);
 
-        $this->syncProductConsumptions($service->fresh(), $consumptions);
+        if ($shouldSyncConsumptions) {
+            $this->syncProductConsumptions($service->fresh(), $consumptions);
+        }
 
         return redirect()->route('services.show', $service)->with('status', 'service-updated');
     }

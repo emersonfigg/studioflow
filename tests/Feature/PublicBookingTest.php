@@ -8,8 +8,8 @@ use App\Models\Appointment;
 use App\Models\BookingPayment;
 use App\Models\Client;
 use App\Models\Company;
-use App\Models\CompanyPublicMedia;
 use App\Models\CompanyPaymentIntegration;
+use App\Models\CompanyPublicMedia;
 use App\Models\ProfessionalDayOverride;
 use App\Models\ProfessionalWorkingHour;
 use App\Models\Service;
@@ -124,6 +124,29 @@ class PublicBookingTest extends TestCase
             ->assertSee('09:00')
             ->assertSee('Confirmar agendamento')
             ->assertDontSee('Servico Externo');
+    }
+
+    public function test_public_booking_hides_services_not_publicly_available(): void
+    {
+        $company = Company::factory()->create();
+        Service::factory()->for($company)->create([
+            'name' => 'Servico Publico',
+            'active' => true,
+            'is_publicly_available' => true,
+            'available_for_pos' => false,
+        ]);
+        Service::factory()->for($company)->create([
+            'name' => 'Servico Interno PDV',
+            'active' => true,
+            'is_publicly_available' => false,
+            'available_for_pos' => true,
+        ]);
+        User::factory()->for($company)->create(['active' => true]);
+
+        $this->get($this->bookingUrl($company))
+            ->assertOk()
+            ->assertSee('Servico Publico')
+            ->assertDontSee('Servico Interno PDV');
     }
 
     public function test_public_booking_without_selected_service_does_not_show_slots(): void

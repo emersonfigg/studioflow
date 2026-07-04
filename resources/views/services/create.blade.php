@@ -30,6 +30,8 @@
             duration: @js((string) old('duration_minutes', '60')),
             price: @js((string) old('price', '0,00')),
             active: @js((bool) old('active', true)),
+            isPubliclyAvailable: @js((bool) old('is_publicly_available', true)),
+            availableForPos: @js((bool) old('available_for_pos', true)),
             imageName: '',
             uploadPreview: '',
             selectedLibraryImage: @js(old('library_image', '')),
@@ -243,6 +245,42 @@
                         </div>
                     </div>
                     <x-input-error class="mt-2" :messages="$errors->get('active')" />
+                    <div class="mt-4 grid gap-4 md:grid-cols-2">
+                        <div class="flex items-start gap-3 rounded-xl border border-white/10 bg-[var(--app-shell-bg)]/50 px-4 py-3">
+                            <input name="is_publicly_available" type="hidden" value="0">
+                            <input
+                                id="is_publicly_available"
+                                name="is_publicly_available"
+                                type="checkbox"
+                                value="1"
+                                x-model="isPubliclyAvailable"
+                                class="mt-1 h-4 w-4 rounded border-white/20 bg-[var(--app-shell-bg)] brand-text focus:ring-[var(--brand-primary)]"
+                                @checked(old('is_publicly_available', true))
+                            >
+                            <div>
+                                <label for="is_publicly_available" class="text-sm font-medium text-[var(--text-main)]">Agendamento publico</label>
+                                <p class="mt-1 text-sm sf-text-muted">Aparece no link publico de agendamento.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-3 rounded-xl border border-white/10 bg-[var(--app-shell-bg)]/50 px-4 py-3">
+                            <input name="available_for_pos" type="hidden" value="0">
+                            <input
+                                id="available_for_pos"
+                                name="available_for_pos"
+                                type="checkbox"
+                                value="1"
+                                x-model="availableForPos"
+                                class="mt-1 h-4 w-4 rounded border-white/20 bg-[var(--app-shell-bg)] brand-text focus:ring-[var(--brand-primary)]"
+                                @checked(old('available_for_pos', true))
+                            >
+                            <div>
+                                <label for="available_for_pos" class="text-sm font-medium text-[var(--text-main)]">Venda no PDV</label>
+                                <p class="mt-1 text-sm sf-text-muted">Disponivel para venda interna no caixa.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <x-input-error class="mt-2" :messages="$errors->get('is_publicly_available')" />
+                    <x-input-error class="mt-2" :messages="$errors->get('available_for_pos')" />
                 </div>
             </form>
         </section>

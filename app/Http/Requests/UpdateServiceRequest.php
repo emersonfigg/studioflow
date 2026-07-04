@@ -3,8 +3,8 @@
 namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\NormalizesBrazilianCurrency;
-use App\Support\ServiceImageLibrary;
 use App\Models\Service;
+use App\Support\ServiceImageLibrary;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -36,6 +36,8 @@ class UpdateServiceRequest extends FormRequest
             'price_mode' => ['nullable', Rule::in(Service::PRICE_MODES)],
             'allow_pdv_price_edit' => ['nullable', 'boolean'],
             'active' => ['nullable', 'boolean'],
+            'is_publicly_available' => ['nullable', 'boolean'],
+            'available_for_pos' => ['nullable', 'boolean'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'library_image' => ['nullable', 'string', Rule::in($this->availableLibraryImages())],
             'recommended_return_days' => ['nullable', 'integer', 'min:1', 'max:730'],
@@ -79,6 +81,8 @@ class UpdateServiceRequest extends FormRequest
         $this->merge([
             'price_mode' => $this->input('price_mode') ?: Service::PRICE_MODE_FIXED,
             'allow_pdv_price_edit' => $this->boolean('allow_pdv_price_edit') || $this->input('price_mode') === Service::PRICE_MODE_FROM,
+            'is_publicly_available' => $this->boolean('is_publicly_available'),
+            'available_for_pos' => $this->boolean('available_for_pos'),
         ]);
 
         $returnDays = $this->input('recommended_return_days');

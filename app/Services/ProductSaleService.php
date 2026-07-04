@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\Appointment;
-use App\Models\Client;
 use App\Models\CashMovement;
+use App\Models\Client;
 use App\Models\CustomerMembership;
 use App\Models\MembershipPlan;
 use App\Models\Product;
@@ -268,7 +268,7 @@ class ProductSaleService
                 /** @var Collection<int, Service> $services */
                 $services = Service::query()
                     ->where('company_id', $companyId)
-                    ->where('active', true)
+                    ->availableForPos()
                     ->whereIn('id', $serviceIds)
                     ->get()
                     ->keyBy('id');

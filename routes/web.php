@@ -8,8 +8,8 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPaymentIntegrationController;
 use App\Http\Controllers\CompanyPaymentWebhookController;
 use App\Http\Controllers\CustomerMembershipController;
-use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DailyDashboardController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\MembershipPlanController;
@@ -32,6 +32,7 @@ use App\Http\Controllers\SuperAdminDashboardController;
 use App\Http\Controllers\SuperAdminUserController;
 use App\Http\Controllers\SupportModeController;
 use App\Http\Controllers\TeamMemberController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -153,6 +154,7 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
     Route::resource('membership-plans', MembershipPlanController::class)->except(['destroy']);
 
     Route::get('pdv', [PdvController::class, 'index'])->name('pdv.index');
+    Route::get('pdv/clients/search', [PdvController::class, 'searchClients'])->name('pdv.clients.search');
     Route::post('pdv', [PdvController::class, 'store'])->name('pdv.store');
     Route::get('pdv/sales', [PdvController::class, 'sales'])->name('pdv.sales');
     Route::get('pdv/sales/{serviceOrder}', [PdvController::class, 'showSale'])->name('pdv.sales.show');
@@ -210,7 +212,7 @@ Route::middleware(['auth', 'support_mode', 'active_company'])->group(function ()
     Route::post('stock/counts/{stockCount}/complete', [StockController::class, 'completeCount'])->name('stock.counts.complete');
     Route::get('stock/audit', [StockController::class, 'audit'])->name('stock.audit');
     Route::get('stock/sales-audit', [StockController::class, 'salesAudit'])->name('stock.sales-audit');
-    Route::get('stock/adjustments', fn (\Illuminate\Http\Request $request) => redirect()->route('stock.adjustments.create', $request->query()))->name('stock.adjustments.index');
+    Route::get('stock/adjustments', fn (Request $request) => redirect()->route('stock.adjustments.create', $request->query()))->name('stock.adjustments.index');
     Route::get('stock/adjustments/create', [StockController::class, 'createAdjustment'])->name('stock.adjustments.create');
     Route::post('stock/adjustments', [StockController::class, 'storeAdjustment'])->name('stock.adjustments.store');
     Route::get('stock/low', [StockController::class, 'lowStock'])->name('stock.low');

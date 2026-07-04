@@ -33,7 +33,17 @@ class ServiceTest extends TestCase
             ->actingAs($admin)
             ->get('/services')
             ->assertOk()
+            ->assertSee('Serviços')
+            ->assertSee('Gerencie serviços vendidos no PDV e exibidos no link de agendamento.')
             ->assertSee('Existing Service')
+            ->assertSee('Lista')
+            ->assertSee('Cards')
+            ->assertSee('Ticket médio')
+            ->assertSee('Tempo médio')
+            ->assertSee('Buscar serviço...')
+            ->assertSee('PDV')
+            ->assertSee('Visualizar')
+            ->assertSee('Desativar')
             ->assertSee('/storage/services/existing-service.jpg')
             ->assertDontSee('Other Company Service');
 
@@ -45,6 +55,8 @@ class ServiceTest extends TestCase
                 'duration_minutes' => 60,
                 'price' => '125.50',
                 'active' => '1',
+                'is_publicly_available' => '1',
+                'available_for_pos' => '0',
                 'image' => UploadedFile::fake()->image('new-service.webp'),
             ]);
 
@@ -53,6 +65,8 @@ class ServiceTest extends TestCase
         $createResponse->assertRedirect(route('services.show', $createdService, absolute: false));
         $this->assertSame($company->id, $createdService->company_id);
         $this->assertTrue($createdService->active);
+        $this->assertTrue($createdService->is_publicly_available);
+        $this->assertFalse($createdService->available_for_pos);
         $this->assertSame('Descricao de teste do servico.', $createdService->description);
         $this->assertNotNull($createdService->image_path);
         Storage::disk('public')->assertExists($createdService->image_path);
@@ -65,6 +79,8 @@ class ServiceTest extends TestCase
                 'description' => 'Descricao atualizada',
                 'duration_minutes' => 90,
                 'price' => '250.00',
+                'is_publicly_available' => '0',
+                'available_for_pos' => '1',
                 'image' => UploadedFile::fake()->image('updated-service.png'),
             ])
             ->assertRedirect(route('services.show', $service, absolute: false));
@@ -79,6 +95,8 @@ class ServiceTest extends TestCase
             'duration_minutes' => 90,
             'price' => '250.00',
             'active' => false,
+            'is_publicly_available' => false,
+            'available_for_pos' => true,
         ]);
         $this->assertNotSame('services/existing-service.jpg', $service->image_path);
         Storage::disk('public')->assertExists($service->image_path);
@@ -384,5 +402,72 @@ class ServiceTest extends TestCase
             'company_id' => $otherCompany->id,
             'name' => 'Private Service',
         ]);
+    }
+
+    public function test_services_index_filters_by_search_public_pos_and_active_status(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        Service::factory()->for($company)->create([
+            'name' => 'Corte Interno',
+            'active' => true,
+            'is_publicly_available' => false,
+            'available_for_pos' => true,
+        ]);
+        Service::factory()->for($company)->create([
+            'name' => 'Barba Publica',
+            'active' => true,
+            'is_publicly_available' => true,
+            'available_for_pos' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('services.index', [
+                'q' => 'Corte',
+                'public_status' => '0',
+                'pos_status' => '1',
+                'active_status' => '1',
+                'view' => 'list',
+            ], false))
+            ->assertOk()
+            ->assertSee('Corte Interno')
+            ->assertDontSee('Barba Publica');
+    }
+
+    public function test_services_index_cards_mode_and_toggle_active_preserves_availability(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create();
+        $service = Service::factory()->for($company)->create([
+            'name' => 'Servico Alternavel',
+            'active' => true,
+            'is_publicly_available' => false,
+            'available_for_pos' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('services.index', ['view' => 'cards'], false))
+            ->assertOk()
+            ->assertSee('Público: Não')
+            ->assertSee('PDV: Sim')
+            ->assertSee('Desativar');
+
+        $this->actingAs($admin)
+            ->patch(route('services.update', $service, false), [
+                'name' => $service->name,
+                'description' => $service->description,
+                'duration_minutes' => $service->duration_minutes,
+                'price' => number_format((float) $service->price, 2, '.', ''),
+                'active' => '0',
+                'is_publicly_available' => '0',
+                'available_for_pos' => '1',
+            ])
+            ->assertRedirect(route('services.show', $service, false));
+
+        $service->refresh();
+
+        $this->assertFalse($service->active);
+        $this->assertFalse($service->is_publicly_available);
+        $this->assertTrue($service->available_for_pos);
     }
 }

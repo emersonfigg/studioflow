@@ -25,6 +25,8 @@ class ServiceFactory extends Factory
             'duration_minutes' => fake()->numberBetween(15, 180),
             'price' => fake()->randomFloat(2, 30, 500),
             'active' => true,
+            'is_publicly_available' => true,
+            'available_for_pos' => true,
             'recommended_return_days' => null,
         ];
     }

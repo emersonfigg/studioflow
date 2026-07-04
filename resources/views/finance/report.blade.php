@@ -25,7 +25,7 @@
 
     @include('finance.partials.nav', ['page' => $page])
 
-    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <article class="sf-card p-5">
             <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Serviços</p>
             <p class="mt-3 text-3xl font-semibold text-[var(--text-main)]">R$ {{ number_format($serviceRevenue, 2, ',', '.') }}</p>
@@ -45,6 +45,10 @@
         <article class="sf-card p-5">
             <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Saldo caixa</p>
             <p class="mt-3 text-3xl font-semibold text-[var(--text-main)]">R$ {{ number_format($cashInflows - $cashOutflows, 2, ',', '.') }}</p>
+        </article>
+        <article class="sf-card p-5">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] brand-text">Novos clientes</p>
+            <p class="mt-3 text-3xl font-semibold text-[var(--text-main)]">{{ number_format($newClientsCount, 0, ',', '.') }}</p>
         </article>
     </section>
 
@@ -143,6 +147,44 @@
                     <div class="text-sm sf-text-muted">Nenhum caixa encontrado no período.</div>
                 @endforelse
             </div>
+        </section>
+
+        <section class="sf-card overflow-hidden xl:col-span-2">
+            <div class="border-b border-white/10 px-6 py-5">
+                <h3 class="text-base font-semibold text-[var(--text-main)]">Novos clientes no mes</h3>
+                <p class="mt-1 text-sm sf-text-muted">Clientes cadastrados dentro do periodo filtrado.</p>
+            </div>
+            @if ($newClients->isEmpty())
+                <div class="px-6 py-10 text-sm sf-text-muted">Nenhum cliente novo no periodo.</div>
+            @else
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-white/10">
+                        <thead class="bg-[var(--input-bg)]">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Cliente</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Telefone</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">CPF</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Cadastro</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted">Primeira compra/agendamento</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/8">
+                            @foreach ($newClients as $client)
+                                @php($firstInteraction = collect([$client->first_purchase_at, $client->first_appointment_at])->filter()->sort()->first())
+                                <tr class="transition hover:bg-white/[0.03]">
+                                    <td class="px-6 py-4 text-sm font-semibold text-[var(--text-main)]">{{ $client->name }}</td>
+                                    <td class="px-6 py-4 text-sm sf-text-muted">{{ $client->phone ?: '—' }}</td>
+                                    <td class="px-6 py-4 text-sm sf-text-muted">{{ $client->cpf ?: '—' }}</td>
+                                    <td class="px-6 py-4 text-sm sf-text-muted">{{ $client->created_at?->format('d/m/Y') }}</td>
+                                    <td class="px-6 py-4 text-sm sf-text-muted">
+                                        {{ $firstInteraction ? \Carbon\CarbonImmutable::parse($firstInteraction)->format('d/m/Y') : '—' }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
         </section>
     </div>
 </x-app-layout>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreCashOutflowRequest;
 use App\Models\CashMovement;
 use App\Models\CashRegister;
+use App\Models\Client;
 use App\Models\CommissionSettlement;
 use App\Models\Payment;
 use App\Models\Product;
@@ -341,6 +342,19 @@ class FinanceController extends Controller
             ->orderByDesc('date')
             ->get();
 
+        $newClientsQuery = Client::query()
+            ->where('company_id', $companyId)
+            ->whereBetween('created_at', [$from, $to]);
+
+        $newClientsCount = (clone $newClientsQuery)->count();
+
+        $newClients = $newClientsQuery
+            ->withMin(['appointments as first_appointment_at' => fn ($query) => $query->where('company_id', $companyId)], 'start_time')
+            ->withMin(['serviceOrders as first_purchase_at' => fn ($query) => $query->where('company_id', $companyId)->where('status', ServiceOrder::STATUS_PAID)], 'closed_at')
+            ->orderBy('created_at')
+            ->limit(50)
+            ->get();
+
         $serviceRevenue = (float) $payments->sum(fn (Payment $payment) => (float) $payment->gross_amount);
         $productRevenue = (float) $productSales->sum(fn (ProductSale $sale) => (float) $sale->gross_amount);
         $settlementsAmount = (float) $settlements->sum(fn (CommissionSettlement $settlement) => (float) $settlement->commission_amount);
@@ -363,6 +377,8 @@ class FinanceController extends Controller
             'productSales' => $productSales,
             'settlements' => $settlements,
             'cashRegisters' => $cashRegisters,
+            'newClients' => $newClients,
+            'newClientsCount' => $newClientsCount,
             'page' => 'report',
         ]);
     }
@@ -438,7 +454,7 @@ class FinanceController extends Controller
 
         $byUserTotals = $commissionItems
             ->groupBy('seller_id')
-            ->map(function (\Illuminate\Support\Collection $group): array {
+            ->map(function (Collection $group): array {
                 $first = $group->first();
 
                 return [
@@ -454,7 +470,7 @@ class FinanceController extends Controller
 
         $byProductTotals = $commissionItems
             ->groupBy('product_id')
-            ->map(function (\Illuminate\Support\Collection $group): array {
+            ->map(function (Collection $group): array {
                 $first = $group->first();
 
                 return [

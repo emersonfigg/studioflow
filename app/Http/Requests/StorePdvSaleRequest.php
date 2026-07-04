@@ -119,7 +119,7 @@ class StorePdvSaleRequest extends FormRequest
             if ($serviceIds->isNotEmpty()) {
                 $servicesForValidation = Service::query()
                     ->where('company_id', $companyId)
-                    ->where('active', true)
+                    ->availableForPos()
                     ->whereIn('id', $serviceIds)
                     ->get()
                     ->keyBy('id');
@@ -372,7 +372,7 @@ class StorePdvSaleRequest extends FormRequest
     {
         $servicePrices = Service::query()
             ->where('company_id', $companyId)
-            ->where('active', true)
+            ->availableForPos()
             ->whereIn('id', $serviceIds->all())
             ->get()
             ->keyBy('id');

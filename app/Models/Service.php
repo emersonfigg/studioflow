@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Support\MediaStorage;
 use Database\Factories\ServiceFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -38,6 +39,8 @@ class Service extends Model
         'price_mode',
         'allow_pdv_price_edit',
         'active',
+        'is_publicly_available',
+        'available_for_pos',
         'image_path',
         'recommended_return_days',
     ];
@@ -53,8 +56,28 @@ class Service extends Model
             'price' => 'decimal:2',
             'allow_pdv_price_edit' => 'boolean',
             'active' => 'boolean',
+            'is_publicly_available' => 'boolean',
+            'available_for_pos' => 'boolean',
             'recommended_return_days' => 'integer',
         ];
+    }
+
+    /**
+     * @param  Builder<Service>  $query
+     * @return Builder<Service>
+     */
+    public function scopeVisibleForPublicBooking(Builder $query): Builder
+    {
+        return $query->where('active', true)->where('is_publicly_available', true);
+    }
+
+    /**
+     * @param  Builder<Service>  $query
+     * @return Builder<Service>
+     */
+    public function scopeAvailableForPos(Builder $query): Builder
+    {
+        return $query->where('active', true)->where('available_for_pos', true);
     }
 
     /**

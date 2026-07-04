@@ -156,6 +156,8 @@
                                 <input type="hidden" name="duration_minutes" value="{{ $service->duration_minutes }}">
                                 <input type="hidden" name="price" value="{{ number_format((float) $service->price, 2, '.', '') }}">
                                 <input type="hidden" name="active" value="{{ $service->active ? '1' : '0' }}">
+                                <input type="hidden" name="is_publicly_available" value="{{ $service->is_publicly_available ? '1' : '0' }}">
+                                <input type="hidden" name="available_for_pos" value="{{ $service->available_for_pos ? '1' : '0' }}">
                                 <button type="submit" class="sf-button-ghost w-full justify-center">
                                     Duplicar
                                 </button>
@@ -168,6 +170,8 @@
                                 <input type="hidden" name="duration_minutes" value="{{ $service->duration_minutes }}">
                                 <input type="hidden" name="price" value="{{ number_format((float) $service->price, 2, '.', '') }}">
                                 <input type="hidden" name="active" value="0">
+                                <input type="hidden" name="is_publicly_available" value="0">
+                                <input type="hidden" name="available_for_pos" value="0">
                                 <button type="submit" class="{{ $service->active ? 'inline-flex w-full items-center justify-center rounded-xl border border-rose-300/20 bg-rose-400/12 px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-rose-50 transition duration-150 hover:bg-rose-400/20 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2 focus:ring-offset-[var(--app-shell-bg)]' : 'inline-flex w-full items-center justify-center rounded-xl border border-white/10 bg-[var(--input-bg)] px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] sf-text-muted opacity-60' }}" @disabled(! $service->active)>
                                     Desativar
                                 </button>

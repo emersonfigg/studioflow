@@ -39,7 +39,7 @@ class ServiceOrderController extends Controller
         return view('service-orders.show', [
             'appointment' => $appointment->load(['client', 'user', 'service', 'services', 'payment']),
             'order' => $order->load(['items.service', 'items.product', 'items.professional', 'items.seller', 'client', 'professional']),
-            'services' => Service::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
+            'services' => Service::query()->where('company_id', $companyId)->availableForPos()->orderBy('name')->get(),
             'products' => Product::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
             'professionals' => User::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
             'paymentMethods' => Payment::paymentMethodOptions(),
@@ -52,11 +52,11 @@ class ServiceOrderController extends Controller
         $this->ensureOrderAccess($request, $order);
 
         $data = $request->validate([
-            'service_id' => ['required', Rule::exists('services', 'id')->where('company_id', $order->company_id)->where('active', true)],
+            'service_id' => ['required', Rule::exists('services', 'id')->where('company_id', $order->company_id)->where('active', true)->where('available_for_pos', true)],
             'professional_id' => ['nullable', Rule::exists('users', 'id')->where('company_id', $order->company_id)->where('active', true)],
         ]);
 
-        $service = Service::query()->where('company_id', $order->company_id)->findOrFail($data['service_id']);
+        $service = Service::query()->where('company_id', $order->company_id)->availableForPos()->findOrFail($data['service_id']);
         $professional = isset($data['professional_id'])
             ? User::query()->where('company_id', $order->company_id)->findOrFail($data['professional_id'])
             : null;

@@ -53,7 +53,7 @@ class ProductSaleController extends Controller
         return view('products.sales.create', [
             'clients' => Client::query()->where('company_id', $companyId)->active()->orderBy('name')->get(),
             'products' => Product::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
-            'services' => Service::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
+            'services' => Service::query()->where('company_id', $companyId)->availableForPos()->orderBy('name')->get(),
             'professionals' => User::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get(),
             'prefilledClientId' => $request->integer('client_id') ?: null,
             'paymentMethods' => Payment::paymentMethodOptions(),

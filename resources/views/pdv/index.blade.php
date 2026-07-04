@@ -59,7 +59,7 @@
             method="POST"
             action="{{ route('pdv.store') }}"
             autocomplete="off"
-            x-data="pdvScreen(@js($catalog), @js($initialCart ?? []))"
+            x-data="pdvScreen(@js($catalog), @js($initialCart ?? []), @js(route('pdv.clients.search')))"
             x-init="init()"
             x-on:keydown.window="handlePdvHotkeys($event)"
             x-on:keydown.slash.prevent="$refs.searchInput.focus()"
@@ -114,12 +114,46 @@
                     <a href="{{ route('pdv.sales') }}" class="ml-auto inline-flex items-center rounded-lg border border-white/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] sf-text-muted hover:bg-white/10 sm:ml-0">Histórico de vendas</a>
                 </div>
                 <div class="flex w-full flex-wrap items-end gap-3 lg:w-auto lg:flex-nowrap">
-                    <label class="grid min-w-[140px] flex-1 gap-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[color-mix(in_srgb,var(--brand-primary)_90%,transparent)] lg:max-w-[200px]">
+                    <label class="relative grid min-w-[220px] flex-1 gap-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[color-mix(in_srgb,var(--brand-primary)_90%,transparent)] lg:max-w-[280px]">
                         Cliente
+                        <input
+                            type="text"
+                            x-ref="clientSearchInput"
+                            x-model.debounce.250ms="clientSearch"
+                            x-on:focus="clientResultsOpen = true"
+                            x-on:keydown.arrow-down.prevent="highlightNextClient()"
+                            x-on:keydown.arrow-up.prevent="highlightPrevClient()"
+                            x-on:keydown.enter.prevent="selectHighlightedClient()"
+                            x-on:keydown.escape.prevent="clientResultsOpen = false"
+                            class="pdv-touch-16 sf-input !border-white/15 !bg-[var(--brand-secondary)] !py-2 !text-base !text-[var(--text-main)] placeholder:sf-text-muted/60 lg:!py-2 lg:!text-sm"
+                            placeholder="Balcão ou buscar cliente"
+                        >
+                        <div
+                            x-show="clientResultsOpen && (clientResults.length > 0 || clientSearch.trim().length >= 2 || clientLoading)"
+                            x-cloak
+                            class="absolute z-[80] mt-1 max-h-64 w-[min(28rem,calc(100vw-2rem))] overflow-y-auto rounded-xl border border-white/15 bg-[var(--brand-accent)] py-1 normal-case tracking-normal shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
+                            x-on:click.outside="clientResultsOpen = false"
+                        >
+                            <button type="button" x-on:click="selectWalkInClient()" class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-white/10">
+                                <span class="font-semibold text-[var(--text-main)]">Balcão</span>
+                                <span class="text-xs sf-text-muted">sem cliente identificado</span>
+                            </button>
+                            <template x-if="clientLoading">
+                                <p class="px-3 py-2 text-xs sf-text-muted">Buscando clientes...</p>
+                            </template>
+                            <template x-for="(client, idx) in clientResults" :key="client.id">
+                                <button type="button" x-on:click="selectClient(client)" :class="idx === highlightedClientIndex ? 'bg-[color-mix(in_srgb,var(--brand-primary)_16%,transparent)]' : 'hover:bg-white/10'" class="block w-full px-3 py-2 text-left">
+                                    <span class="block truncate text-sm font-semibold text-[var(--text-main)]" x-text="client.name"></span>
+                                    <span class="mt-0.5 block truncate text-xs sf-text-muted" x-text="client.meta || client.phone || client.cpf || ''"></span>
+                                </button>
+                            </template>
+                            <p x-show="!clientLoading && clientSearch.trim().length >= 2 && clientResults.length === 0" class="px-3 py-2 text-xs sf-text-muted">Nenhum cliente encontrado.</p>
+                        </div>
                         <select
                             name="client_id"
                             x-ref="clientSelect"
-                            class="pdv-touch-16 sf-select !border-white/15 !bg-[var(--brand-secondary)] !py-2 !text-base !text-[var(--text-main)] lg:!py-2 lg:!text-sm"
+                            x-model="selectedClientId"
+                            class="hidden"
                         >
                             <option value="">— Balcão —</option>
                             @foreach ($clients as $client)
@@ -581,6 +615,18 @@
                 submitting: false,
                 search: '',
                 highlightedIndex: 0,
+                selectedClientId: @js((string) ($selectedClient?->id ?? '')),
+                selectedClient: @js($selectedClient ? [
+                    'id' => $selectedClient->id,
+                    'name' => $selectedClient->name,
+                    'meta' => collect([$selectedClient->client_code, $selectedClient->phone, $selectedClient->cpf ? 'CPF '.$selectedClient->cpf : null])->filter()->implode(' · '),
+                ] : null),
+                clientSearch: @js($selectedClient?->name ?? 'Balcão'),
+                clientResults: [],
+                clientResultsOpen: false,
+                clientLoading: false,
+                highlightedClientIndex: 0,
+                clientSearchAbort: null,
                 cart: bootCart,
                 catalog: [...products, ...services, ...memberships],
                 discountType: @json(old('discount_type', 'fixed')),
@@ -605,6 +651,9 @@
                     });
                     this.$watch('search', () => {
                         this.highlightedIndex = 0;
+                    });
+                    this.$watch('clientSearch', (value) => {
+                        this.searchClients(value);
                     });
                 },
                 tickClock() {
@@ -701,6 +750,80 @@
                         this.addCatalogItem(item);
                     }
                 },
+                searchClients(value) {
+                    const term = String(value || '').trim();
+                    this.highlightedClientIndex = 0;
+
+                    if (this.selectedClient && term === this.selectedClient.name) {
+                        return;
+                    }
+
+                    if (term.toLowerCase() === 'balcao' || term.toLowerCase() === 'balcão') {
+                        this.selectedClientId = '';
+                    }
+
+                    if (term.length < 2) {
+                        this.clientResults = [];
+                        this.clientLoading = false;
+                        return;
+                    }
+
+                    this.clientResultsOpen = true;
+                    this.clientLoading = true;
+                    this.clientSearchAbort?.abort();
+                    this.clientSearchAbort = new AbortController();
+
+                    fetch(`${clientSearchUrl}?q=${encodeURIComponent(term)}`, {
+                        headers: { 'Accept': 'application/json' },
+                        signal: this.clientSearchAbort.signal,
+                    })
+                        .then((response) => response.ok ? response.json() : { data: [] })
+                        .then((payload) => {
+                            this.clientResults = Array.isArray(payload.data) ? payload.data : [];
+                        })
+                        .catch((error) => {
+                            if (error.name !== 'AbortError') {
+                                this.clientResults = [];
+                            }
+                        })
+                        .finally(() => {
+                            this.clientLoading = false;
+                        });
+                },
+                selectClient(client) {
+                    this.selectedClient = client;
+                    this.selectedClientId = String(client.id || '');
+                    this.clientSearch = client.name || '';
+                    this.clientResults = [];
+                    this.clientResultsOpen = false;
+                },
+                selectWalkInClient() {
+                    this.selectedClient = null;
+                    this.selectedClientId = '';
+                    this.clientSearch = 'Balcão';
+                    this.clientResults = [];
+                    this.clientResultsOpen = false;
+                },
+                highlightNextClient() {
+                    if (!this.clientResults.length) {
+                        return;
+                    }
+                    this.highlightedClientIndex = (this.highlightedClientIndex + 1) % this.clientResults.length;
+                },
+                highlightPrevClient() {
+                    if (!this.clientResults.length) {
+                        return;
+                    }
+                    this.highlightedClientIndex = (this.highlightedClientIndex - 1 + this.clientResults.length) % this.clientResults.length;
+                },
+                selectHighlightedClient() {
+                    const client = this.clientResults[this.highlightedClientIndex];
+                    if (client) {
+                        this.selectClient(client);
+                    } else if (String(this.clientSearch || '').trim().length === 0) {
+                        this.selectWalkInClient();
+                    }
+                },
                 addCatalogItem(item) {
                     const isService = item.type === 'service';
                     const isMembership = item.type === 'membership';
@@ -786,7 +909,7 @@
                 handlePdvHotkeys(e) {
                     if (e.key === 'F2') {
                         e.preventDefault();
-                        this.$refs.clientSelect?.focus();
+                        this.$refs.clientSearchInput?.focus();
                     }
                     if (e.key === 'F3') {
                         e.preventDefault();

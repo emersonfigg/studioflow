@@ -358,6 +358,51 @@ class PdvSaleTest extends TestCase
         $response->assertSee('55,50', false);
     }
 
+    public function test_pdv_client_search_finds_clients_by_name_phone_and_cpf_without_loading_all_clients(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+        $target = Client::factory()->for($company)->create([
+            'name' => 'Maria Cliente',
+            'phone' => '71999990000',
+            'cpf' => '123.456.789-01',
+            'active' => true,
+        ]);
+        Client::factory()->for($company)->create(['name' => 'Outro Cliente', 'active' => true]);
+
+        $this->actingAs($admin)
+            ->getJson(route('pdv.clients.search', ['q' => '9999'], false))
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $target->id)
+            ->assertJsonPath('data.0.name', 'Maria Cliente');
+
+        $this->actingAs($admin)
+            ->get(route('pdv.index', [], false))
+            ->assertOk()
+            ->assertSee('x-ref="clientSearchInput"', false)
+            ->assertDontSee('Outro Cliente');
+    }
+
+    public function test_pdv_only_sells_services_available_for_pos(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->admin()->for($company)->create(['active' => true]);
+        $client = Client::factory()->for($company)->create(['active' => true]);
+        $publicOnly = Service::factory()->for($company)->create([
+            'price' => 80,
+            'active' => true,
+            'is_publicly_available' => true,
+            'available_for_pos' => false,
+        ]);
+
+        $this->actingAs($admin)->post(route('pdv.store', absolute: false), [
+            'client_id' => $client->id,
+            'user_id' => $admin->id,
+            'payment_method' => 'pix',
+            'service_items' => [['service_id' => $publicOnly->id]],
+        ])->assertSessionHasErrors('service_items');
+    }
+
     public function test_pdv_index_hydrates_services_when_open_order_has_no_service_lines(): void
     {
         $company = Company::factory()->create();

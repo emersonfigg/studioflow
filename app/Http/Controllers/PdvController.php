@@ -21,6 +21,7 @@ use App\Services\PdvSaleCancellationService;
 use App\Services\ProductSaleService;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -98,15 +99,18 @@ class PdvController extends Controller
         }
 
         $cashRegister = $cashRegisterService->registerForDate($companyId, now());
-        $clients = Client::query()
-            ->where('company_id', $companyId)
-            ->active()
-            ->orderBy('name')
-            ->get(['id', 'client_code', 'name', 'phone', 'cpf']);
+        $selectedClient = null;
+        $selectedClientId = (int) old('client_id', $pdvAppointment?->client_id ?? 0);
+        if ($selectedClientId > 0) {
+            $selectedClient = Client::query()
+                ->where('company_id', $companyId)
+                ->active()
+                ->find($selectedClientId, ['id', 'client_code', 'name', 'phone', 'cpf']);
+        }
         $products = Product::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get([
             'id', 'name', 'sku', 'price', 'stock_quantity', 'image_path', 'commission_type', 'commission_value',
         ]);
-        $services = Service::query()->where('company_id', $companyId)->where('active', true)->orderBy('name')->get([
+        $services = Service::query()->where('company_id', $companyId)->availableForPos()->orderBy('name')->get([
             'id', 'name', 'price', 'price_mode', 'allow_pdv_price_edit', 'duration_minutes', 'image_path',
         ]);
         $membershipPlans = MembershipPlan::query()
@@ -166,7 +170,8 @@ class PdvController extends Controller
 
         return view('pdv.index', [
             'catalog' => $catalog,
-            'clients' => $clients,
+            'selectedClient' => $selectedClient,
+            'clients' => $selectedClient ? collect([$selectedClient]) : collect(),
             'products' => $products,
             'services' => $services,
             'professionals' => $professionals,
@@ -176,6 +181,38 @@ class PdvController extends Controller
             'paymentMethods' => Payment::paymentMethodOptions(),
             'cashRegister' => $cashRegister,
         ]);
+    }
+
+    public function searchClients(Request $request): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+        $term = trim((string) $request->query('q', ''));
+        $digits = preg_replace('/\D+/', '', $term) ?? '';
+
+        if (mb_strlen($term) < 2 && mb_strlen($digits) < 2) {
+            return response()->json(['data' => []]);
+        }
+
+        $clients = Client::query()
+            ->where('company_id', $companyId)
+            ->active()
+            ->where(function ($query) use ($term, $digits): void {
+                $query->where('name', 'like', "%{$term}%")
+                    ->orWhere('phone', 'like', "%{$term}%")
+                    ->orWhere('cpf', 'like', "%{$term}%");
+
+                if ($digits !== '') {
+                    $query->orWhere('phone', 'like', "%{$digits}%")
+                        ->orWhere('cpf_normalized', 'like', "%{$digits}%");
+                }
+            })
+            ->orderBy('name')
+            ->limit(12)
+            ->get(['id', 'client_code', 'name', 'phone', 'cpf'])
+            ->map(fn (Client $client): array => $this->clientSearchPayload($client))
+            ->values();
+
+        return response()->json(['data' => $clients]);
     }
 
     /**
@@ -258,6 +295,22 @@ class PdvController extends Controller
             'canCancelSales' => $request->user()->canCancelPdvSales(),
             'canForceDeleteSales' => $request->user()->canForceDeletePdvSales(),
         ]);
+    }
+
+    private function clientSearchPayload(Client $client): array
+    {
+        $meta = collect([$client->client_code, $client->phone, $client->cpf ? 'CPF '.$client->cpf : null])
+            ->filter()
+            ->implode(' · ');
+
+        return [
+            'id' => $client->id,
+            'name' => $client->name,
+            'phone' => $client->phone,
+            'cpf' => $client->cpf,
+            'client_code' => $client->client_code,
+            'meta' => $meta,
+        ];
     }
 
     /**
