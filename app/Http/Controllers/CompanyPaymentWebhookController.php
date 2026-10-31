@@ -6,9 +6,8 @@ use App\Enums\PaymentProvider;
 use App\Models\BookingPayment;
 use App\Models\CompanyPaymentIntegration;
 use App\Services\BookingPaymentService;
-use App\Services\MembershipBillingService;
-use App\Services\Payments\AsaasWebhookParser;
 use App\Services\Payments\Gateways\MercadoPagoGateway;
+use App\Services\WebhookIngestionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
@@ -16,18 +15,11 @@ use Throwable;
 
 class CompanyPaymentWebhookController extends Controller
 {
-    public function asaas(Request $request, MembershipBillingService $billing): Response
+    public function asaas(Request $request, WebhookIngestionService $ingestion, ?int $integration = null, ?string $environment = null): Response
     {
-        try {
-            $parsed = AsaasWebhookParser::parse($request->all());
-            $billing->handleAsaasWebhook($parsed, $request->header('asaas-access-token'));
+        $ingestion->ingestAsaas($request->all(), $request->header('asaas-access-token'), $integration, $environment);
 
-            return response('OK', 200);
-        } catch (Throwable $e) {
-            Log::error('asaas.webhook.error', ['message' => $e->getMessage(), 'payload' => $request->all()]);
-
-            return response('Bad Request', 400);
-        }
+        return response('OK', 200);
     }
 
     public function galaxyPay(Request $request): Response

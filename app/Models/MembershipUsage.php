@@ -12,6 +12,7 @@ class MembershipUsage extends Model
     public const REF_SERVICE_ORDER = 'service_order';
 
     protected $fillable = [
+        'professional_id', 'service_order_item_id', 'origin', 'usage_status', 'reversed_at', 'reversal_reason',
         'company_id',
         'customer_membership_id',
         'client_id',
@@ -28,6 +29,7 @@ class MembershipUsage extends Model
     protected function casts(): array
     {
         return [
+            'reversed_at' => 'datetime',
             'used_at' => 'datetime',
             'quantity' => 'integer',
         ];

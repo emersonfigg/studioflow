@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\PaymentGatewayNotConfiguredException;
 use App\Models\Client;
+use App\Models\CompanyPaymentIntegration;
 use App\Models\CustomerMembership;
 use App\Models\MembershipPlan;
 use App\Services\MembershipBillingService;
+use App\Services\Payments\FinancialGatewayRegistry;
 use App\Services\Payments\PaymentGatewayManager;
+use App\Services\Payments\V2\FinancialAccountResolver;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -91,6 +94,10 @@ class CustomerMembershipController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
         $this->ensureMembershipCompany($request, $customerMembership);
+        if ($customerMembership->billing_mode === 'recurring_v2' && $customerMembership->origin === 'public_checkout') {
+            return back()->withErrors(['membership' => 'A liberação e a pausa dos benefícios desta contratação ainda não estão disponíveis.']);
+        }
+
         $customerMembership->update(['status' => CustomerMembership::STATUS_PAUSED]);
 
         return back()->with('status', 'membership-paused');
@@ -100,6 +107,9 @@ class CustomerMembershipController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
         $this->ensureMembershipCompany($request, $customerMembership);
+        if ($customerMembership->billing_mode === 'recurring_v2' && $customerMembership->origin === 'public_checkout') {
+            return back()->withErrors(['membership' => 'A liberação e a pausa dos benefícios desta contratação ainda não estão disponíveis.']);
+        }
 
         if ($billing->requiresPaymentProof($customerMembership)
             && ! $billing->hasPaidForCycle($customerMembership, $customerMembership->current_cycle_starts_at)) {
@@ -117,6 +127,26 @@ class CustomerMembershipController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
         $this->ensureMembershipCompany($request, $customerMembership);
+        if ($customerMembership->billing_mode === 'recurring_v2' && $customerMembership->origin === 'public_checkout') {
+            if (! $customerMembership->external_subscription_id) {
+                return back()->withErrors(['membership' => 'A contratação ainda está em conciliação. Confira o checkout no Asaas antes de solicitar outra ação.']);
+            }
+            try {
+                $account = CompanyPaymentIntegration::where('company_id', $customerMembership->company_id)->findOrFail($customerMembership->payment_account_id);
+                $context = app(FinancialAccountResolver::class)->resolve($account->company_id, $account->id, $account->provider, $account->environment);
+                $result = app(FinancialGatewayRegistry::class)->forContext($context)
+                    ->cancelRenewal($context, $customerMembership->external_subscription_id, 'stop_future_preserve_open_invoices');
+                if ($result->status !== 'inactive') {
+                    throw new \DomainException('cancellation_unconfirmed');
+                }
+                $customerMembership->refresh()->update(['auto_renew' => false]);
+
+                return back()->with('status', 'membership-renewal-canceled');
+            } catch (Throwable) {
+                return back()->withErrors(['membership' => 'Não foi possível confirmar o cancelamento da renovação. Confira a situação no Asaas antes de repetir.']);
+            }
+        }
+
         $customerMembership->update([
             'status' => CustomerMembership::STATUS_CANCELED,
             'canceled_at' => now(),

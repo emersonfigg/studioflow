@@ -17,6 +17,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class MembershipPaymentGatewayTest extends TestCase
@@ -162,8 +163,9 @@ class MembershipPaymentGatewayTest extends TestCase
         $this->assertNull($active);
     }
 
-    public function test_webhook_paid_activates_membership_and_is_idempotent(): void
+    public function test_authenticated_webhook_is_persisted_without_activating_legacy_membership(): void
     {
+        Queue::fake();
         $company = Company::factory()->create();
         $client = Client::factory()->for($company)->create();
         $plan = MembershipPlan::query()->create([
@@ -206,11 +208,14 @@ class MembershipPaymentGatewayTest extends TestCase
             'environment' => PaymentIntegrationEnvironment::Sandbox,
             'access_token' => 'tok',
             'webhook_secret' => 'whsec',
+            'external_account_id' => 'account_test',
+            'account_verified_at' => now(),
             'active' => true,
             'default_for_memberships' => true,
         ]);
 
         $payload = [
+            'id' => 'evt_webhook_1',
             'event' => 'PAYMENT_CONFIRMED',
             'payment' => [
                 'id' => 'pay_webhook_1',
@@ -223,16 +228,18 @@ class MembershipPaymentGatewayTest extends TestCase
         ])->assertOk();
 
         $membership->refresh();
-        $this->assertSame(CustomerMembership::STATUS_ACTIVE, $membership->status);
+        $this->assertSame(CustomerMembership::STATUS_PENDING, $membership->status);
 
         $this->postJson(route('webhooks.company-payments.asaas'), $payload, [
             'asaas-access-token' => 'whsec',
         ])->assertOk();
 
         $this->assertDatabaseCount('membership_payments', 1);
+        $this->assertDatabaseCount('payment_webhook_events', 1);
+        $this->assertDatabaseHas('membership_payments', ['provider_payment_id' => 'pay_webhook_1', 'status' => 'pending']);
     }
 
-    public function test_webhook_overdue_marks_membership_overdue(): void
+    public function test_unauthenticated_webhook_cannot_change_legacy_membership(): void
     {
         $company = Company::factory()->create();
         $client = Client::factory()->for($company)->create();
@@ -285,10 +292,10 @@ class MembershipPaymentGatewayTest extends TestCase
                 'id' => 'pay_od_1',
                 'status' => 'OVERDUE',
             ],
-        ])->assertOk();
+        ])->assertForbidden();
 
         $membership->refresh();
-        $this->assertSame(CustomerMembership::STATUS_OVERDUE, $membership->status);
+        $this->assertSame(CustomerMembership::STATUS_ACTIVE, $membership->status);
 
         $this->assertNull(app(MembershipService::class)->getActiveMembershipForClient((int) $company->id, (int) $client->id, now()));
     }

@@ -687,6 +687,8 @@
                         </div>
                     </header>
 
+                    @include('public-memberships.club', ['plans' => $membershipPlans])
+
                     <form id="booking-filters" x-ref="bookingFilters" class="booking-wizard booking-app-main-card mx-3 -mt-8 w-auto max-w-full space-y-5 p-4 sm:mx-5 sm:p-5 lg:mx-0 lg:p-6" x-show="['professionals', 'services', 'date'].includes(currentStep)" x-cloak @submit.prevent>
                         @if (false)
                         <section class="booking-assistant-home" x-show="currentStep === 'overview'" x-cloak>

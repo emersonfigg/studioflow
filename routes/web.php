@@ -60,11 +60,17 @@ Route::get('/agendar/{company}/pagamento/{reference}/falha', [PublicBookingPayme
 Route::get('/empresa/{company}/assinaturas', [PublicMembershipController::class, 'index'])
     ->name('public-memberships.index');
 Route::post('/empresa/{company}/assinaturas', [PublicMembershipController::class, 'store'])
-    ->name('public-memberships.store');
+    ->middleware('throttle:10,1')->name('public-memberships.store');
+Route::post('/empresa/{company}/assinaturas/identificar', [PublicMembershipController::class, 'identify'])->middleware('throttle:5,10')->name('public-memberships.identify');
+Route::post('/empresa/{company}/assinaturas/verificar', [PublicMembershipController::class, 'verify'])->middleware('throttle:10,10')->name('public-memberships.verify');
+Route::get('/empresa/{company}/assinaturas/retorno/{reference}', [PublicMembershipController::class, 'result'])->name('public-memberships.result');
 
 Route::get('/avaliar/{token}', [PublicAppointmentReviewController::class, 'show'])->name('public-reviews.show');
 Route::post('/avaliar/{token}', [PublicAppointmentReviewController::class, 'store'])->name('public-reviews.store');
 
+Route::post('webhooks/company-payments/asaas/{integration}/{environment}', [CompanyPaymentWebhookController::class, 'asaas'])
+    ->whereNumber('integration')->whereIn('environment', ['sandbox', 'production'])
+    ->name('webhooks.company-payments.asaas.account');
 Route::post('webhooks/company-payments/asaas', [CompanyPaymentWebhookController::class, 'asaas'])
     ->name('webhooks.company-payments.asaas');
 Route::post('webhooks/company-payments/galaxy-pay', [CompanyPaymentWebhookController::class, 'galaxyPay'])

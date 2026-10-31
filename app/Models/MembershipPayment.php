@@ -5,12 +5,21 @@ namespace App\Models;
 use App\Enums\MembershipPaymentBillingType;
 use App\Enums\MembershipPaymentStatus;
 use App\Enums\PaymentProvider;
+use App\Models\Concerns\ValidatesFinancialCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MembershipPayment extends Model
 {
+    use ValidatesFinancialCompany;
+
+    protected function financialReferences(): array
+    {
+        return $this->payment_account_id ? ['payment_account_id' => CompanyPaymentIntegration::class, 'customer_membership_id' => CustomerMembership::class, 'client_id' => Client::class, 'membership_invoice_id' => MembershipInvoice::class] : [];
+    }
+
     protected $fillable = [
+        'payment_account_id', 'membership_invoice_id', 'external_transaction_id', 'origin', 'confirmed_at', 'received_at', 'refunded_amount',
         'company_id',
         'customer_membership_id',
         'client_id',
@@ -33,6 +42,7 @@ class MembershipPayment extends Model
     protected function casts(): array
     {
         return [
+            'confirmed_at' => 'datetime', 'received_at' => 'datetime', 'refunded_amount' => 'decimal:2',
             'amount' => 'decimal:2',
             'due_date' => 'date',
             'cycle_starts_at' => 'date',

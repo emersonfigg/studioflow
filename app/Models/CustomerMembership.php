@@ -2,12 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\ValidatesFinancialCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CustomerMembership extends Model
 {
+    use ValidatesFinancialCompany;
+
+    protected function financialReferences(): array
+    {
+        return $this->payment_account_id ? ['payment_account_id' => CompanyPaymentIntegration::class, 'client_id' => Client::class, 'membership_plan_id' => MembershipPlan::class] : [];
+    }
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_ACTIVE = 'active';
@@ -30,6 +38,7 @@ class CustomerMembership extends Model
     ];
 
     protected $fillable = [
+        'suspension_reason', 'gateway_subscription_status', 'payment_account_id', 'external_subscription_id', 'external_checkout_id', 'billing_mode', 'origin', 'legacy_classification', 'legacy_classified_at', 'legacy_evidence', 'commercial_snapshot', 'terms_version', 'financial_status', 'paid_through', 'grace_until', 'suspended_at', 'cancel_requested_at', 'effective_ends_at',
         'company_id',
         'client_id',
         'membership_plan_id',
@@ -50,6 +59,7 @@ class CustomerMembership extends Model
     protected function casts(): array
     {
         return [
+            'legacy_classified_at' => 'datetime', 'legacy_evidence' => 'array', 'commercial_snapshot' => 'array', 'paid_through' => 'datetime', 'grace_until' => 'datetime', 'suspended_at' => 'datetime', 'cancel_requested_at' => 'datetime', 'effective_ends_at' => 'datetime',
             'starts_at' => 'date',
             'ends_at' => 'date',
             'renews_at' => 'date',

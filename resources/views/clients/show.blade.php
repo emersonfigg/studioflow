@@ -32,6 +32,7 @@
                     'client-reactivated' => 'Cliente reativado.',
                     'client-delete-blocked' => 'Exclusão bloqueada: há histórico operacional. Use desativar.',
                     'membership-created' => 'Assinatura criada com sucesso.',
+                    'membership-renewal-canceled' => 'Renovação cancelada no Asaas. Cobranças existentes e cobertura já paga foram preservadas.',
                     'client-unblocked' => 'Cliente desbloqueado.',
                     default => session('status'),
                 } }}
@@ -184,10 +185,23 @@
                             @foreach ($memberships as $m)
                                 <tr>
                                     <td class="px-4 py-3 text-[var(--text-main)]">{{ $m->plan?->name }}</td>
-                                    <td class="px-4 py-3 sf-text-muted">{{ $m->status_label }}</td>
+                                    <td class="px-4 py-3 sf-text-muted">{{ $m->status_label }}
+                                        @if ($m->billing_mode === 'recurring_v2' && $m->origin === 'public_checkout')
+                                            <p class="mt-1 text-xs">{{ $m->financial_status === 'active' ? 'Pagamento confirmado; benefícios aguardando liberação.' : 'Pagamento em conferência financeira.' }}</p>
+                                        @endif
+                                    </td>
                                     <td class="px-4 py-3 sf-text-muted">{{ $m->current_cycle_starts_at?->format('d/m/Y') }} — {{ $m->current_cycle_ends_at?->format('d/m/Y') }}</td>
                                     <td class="px-4 py-3 text-right">
                                         @if (auth()->user()->isAdmin())
+                                            @if ($m->billing_mode === 'recurring_v2' && $m->origin === 'public_checkout')
+                                                @if ($m->external_subscription_id && ! $m->cancel_requested_at)
+                                                    <form method="POST" action="{{ route('customer-memberships.cancel', $m) }}" class="inline" onsubmit="return confirm('Interromper novas renovações no Asaas, preservando cobranças existentes?');">@csrf @method('PATCH')<button type="submit" class="text-xs text-rose-200 hover:underline">Cancelar renovação</button></form>
+                                                @elseif ($m->cancel_requested_at)
+                                                    <span class="text-xs sf-muted">Renovação cancelada</span>
+                                                @else
+                                                    <span class="text-xs sf-muted">Aguardando conciliação</span>
+                                                @endif
+                                            @else
                                             @if ($m->status === 'active')
                                                 <form method="POST" action="{{ route('customer-memberships.pause', $m) }}" class="inline">@csrf @method('PATCH')<button type="submit" class="text-xs text-amber-200 hover:underline">Pausar</button></form>
                                             @elseif ($m->status === 'paused')
@@ -195,6 +209,7 @@
                                             @endif
                                             @if (in_array($m->status, ['active', 'paused'], true))
                                                 <form method="POST" action="{{ route('customer-memberships.cancel', $m) }}" class="inline ms-2" onsubmit="return confirm('Cancelar assinatura?');">@csrf @method('PATCH')<button type="submit" class="text-xs text-rose-200 hover:underline">Cancelar</button></form>
+                                            @endif
                                             @endif
                                         @endif
                                     </td>

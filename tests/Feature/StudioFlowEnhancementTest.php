@@ -9,6 +9,7 @@ use App\Models\CustomerMembership;
 use App\Models\Expense;
 use App\Models\MembershipPlan;
 use App\Models\MembershipUsage;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductSale;
 use App\Models\ProductSaleItem;
@@ -51,28 +52,15 @@ class StudioFlowEnhancementTest extends TestCase
             'terms_text' => 'Termo do plano.',
         ]);
 
-        $this->get('/empresa/studio-flow-prime/assinaturas')
-            ->assertOk()
-            ->assertSee('Clube Corte');
-
+        $this->get('/empresa/studio-flow-prime/assinaturas')->assertOk()->assertSee('Nenhum plano');
         $this->post('/empresa/studio-flow-prime/assinaturas', [
-            'membership_plan_id' => $plan->id,
-            'name' => 'Maria Cliente',
-            'phone' => '(71) 99999-0000',
+            'membership_plan_id' => $plan->id, 'name' => 'Maria Cliente', 'phone' => '(71) 99999-0000',
         ])->assertSessionHasErrors('accepted_terms');
-
-        $this->withHeader('User-Agent', 'Feature Test')
-            ->post('/empresa/studio-flow-prime/assinaturas', [
-                'membership_plan_id' => $plan->id,
-                'name' => 'Maria Cliente',
-                'phone' => '(71) 99999-0000',
-                'accepted_terms' => '1',
-            ])->assertSessionHasNoErrors();
-
-        $membership = CustomerMembership::query()->firstOrFail();
-        $this->assertSame(CustomerMembership::STATUS_PENDING, $membership->status);
-        $this->assertNotNull($membership->accepted_terms_at);
-        $this->assertSame('Feature Test', $membership->accepted_terms_user_agent);
+        $this->post('/empresa/studio-flow-prime/assinaturas', [
+            'membership_plan_id' => $plan->id, 'name' => 'Maria Cliente', 'phone' => '(71) 99999-0000',
+            'accepted_terms' => '1', 'terms_version' => str_repeat('a', 64),
+        ])->assertForbidden();
+        $this->assertDatabaseCount('customer_memberships', 0);
     }
 
     public function test_pdv_sells_membership_and_records_financial_inflow(): void
@@ -147,7 +135,7 @@ class StudioFlowEnhancementTest extends TestCase
             ],
         ])->assertRedirect(route('pdv.index', absolute: false));
 
-        $this->assertSame(0, CashMovement::query()->where('source_type', \App\Models\Payment::class)->count());
+        $this->assertSame(0, CashMovement::query()->where('source_type', Payment::class)->count());
         $this->assertSame(1, MembershipUsage::query()->count());
     }
 

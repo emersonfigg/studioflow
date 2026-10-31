@@ -9,7 +9,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CompanyPaymentIntegration extends Model
 {
+    protected static function booted(): void
+    {
+        static::updating(function (self $integration) {
+            if ($integration->getRawOriginal('account_verified_at') !== null
+                && $integration->isDirty(['company_id', 'provider', 'environment', 'external_account_id', 'account_verified_at'])) {
+                throw new \DomainException('Identidade verificada é imutável; cadastre outra conta financeira.');
+            }
+        });
+    }
+
     protected $fillable = [
+        'external_account_id', 'account_verified_at', 'connection_type', 'account_enablement_status', 'external_webhook_id', 'last_synced_at',
         'company_id',
         'provider',
         'name',
@@ -31,6 +42,7 @@ class CompanyPaymentIntegration extends Model
     protected function casts(): array
     {
         return [
+            'account_verified_at' => 'datetime', 'last_synced_at' => 'datetime',
             'metadata' => 'array',
             'active' => 'boolean',
             'default_for_memberships' => 'boolean',

@@ -6,7 +6,6 @@ use App\Http\Requests\StorePublicBookingRequest;
 use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Company;
-use App\Models\MembershipPlan;
 use App\Models\Service;
 use App\Models\User;
 use App\Services\AvailabilityService;
@@ -14,6 +13,7 @@ use App\Services\BookingPaymentService;
 use App\Services\BrandingService;
 use App\Services\CustomerBlockService;
 use App\Services\MembershipService;
+use App\Services\PublicMembershipCatalog;
 use App\Services\ReviewService;
 use App\Services\ServiceOrderService;
 use Carbon\Carbon;
@@ -54,13 +54,7 @@ class PublicBookingController extends Controller
             ->with('workingHours')
             ->orderBy('name')
             ->get();
-        $membershipPlans = MembershipPlan::query()
-            ->where('company_id', $company->id)
-            ->where('active', true)
-            ->with('services')
-            ->orderBy('price')
-            ->orderBy('name')
-            ->get();
+        $membershipPlans = app(PublicMembershipCatalog::class)->plans($company);
         $reviewSummary = $reviewService->getCompanyReviewSummary((int) $company->id);
 
         $rawSelectedServiceIds = collect($request->old('service_ids', $request->input('service_ids', [])))

@@ -4,8 +4,6 @@ namespace App\Services;
 
 use App\Enums\MembershipPaymentBillingType;
 use App\Enums\MembershipPaymentStatus;
-use App\Enums\PaymentProvider;
-use App\Models\CompanyPaymentIntegration;
 use App\Models\CustomerMembership;
 use App\Models\MembershipPayment;
 use App\Models\MembershipPlan;
@@ -14,8 +12,6 @@ use App\Services\Payments\PaymentGatewayManager;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class MembershipBillingService
 {
@@ -75,6 +71,8 @@ class MembershipBillingService
             ]);
 
             $payment = MembershipPayment::query()->create([
+                'payment_account_id' => $integration->account_verified_at && filled($integration->external_account_id) ? $integration->id : null,
+                'origin' => 'legacy_charge',
                 'company_id' => $membership->company_id,
                 'customer_membership_id' => $membership->id,
                 'client_id' => $membership->client_id,
@@ -99,205 +97,43 @@ class MembershipBillingService
 
     public function handleAsaasWebhook(ParsedGatewayWebhook $parsed, ?string $accessTokenHeader): void
     {
-        $payment = MembershipPayment::query()
-            ->where('provider', PaymentProvider::Asaas)
-            ->where('provider_payment_id', $parsed->providerPaymentId)
-            ->first();
-
-        if (! $payment) {
-            Log::warning('asaas.webhook.unknown_payment', ['id' => $parsed->providerPaymentId, 'event' => $parsed->event]);
-
-            return;
-        }
-
-        $integration = CompanyPaymentIntegration::query()
-            ->where('company_id', $payment->company_id)
-            ->where('provider', PaymentProvider::Asaas)
-            ->where('active', true)
-            ->orderByDesc('default_for_memberships')
-            ->orderByDesc('id')
-            ->first();
-
-        if ($integration && filled($integration->webhook_secret)) {
-            $expected = trim((string) $integration->webhook_secret);
-            $given = trim((string) ($accessTokenHeader ?? ''));
-            if ($expected !== '' && ! hash_equals($expected, $given)) {
-                abort(403, 'Assinatura do webhook inválida.');
-            }
-        }
-
-        Log::info('asaas.webhook.received', [
-            'company_id' => $payment->company_id,
-            'event' => $parsed->event,
-            'payment_id' => $parsed->providerPaymentId,
-            'payload' => $parsed->payload,
-        ]);
-
-        if ($this->shouldMarkPaid($parsed)) {
-            $this->markPaymentPaid($payment, $parsed->payload);
-
-            return;
-        }
-
-        if ($this->shouldMarkOverdue($parsed)) {
-            $this->markPaymentOverdue($payment);
-
-            return;
-        }
-
-        if ($this->shouldMarkCanceled($parsed)) {
-            $this->markPaymentCanceled($payment);
-
-            return;
-        }
-
-        if ($this->shouldMarkRefunded($parsed)) {
-            $this->markPaymentRefunded($payment);
-
-            return;
-        }
+        app(WebhookIngestionService::class)->ingestAsaas($parsed->payload, $accessTokenHeader);
     }
 
     public function markPaymentPaid(MembershipPayment $payment, array $rawPayload = []): void
     {
-        DB::transaction(function () use ($payment, $rawPayload): void {
-            /** @var MembershipPayment|null $locked */
-            $locked = MembershipPayment::query()->whereKey($payment->id)->lockForUpdate()->first();
-            if (! $locked) {
-                return;
-            }
-
-            if ($locked->status === MembershipPaymentStatus::Paid && $locked->paid_at) {
-                return;
-            }
-
-            $locked->status = MembershipPaymentStatus::Paid;
-            $locked->paid_at = now();
-            if ($rawPayload !== []) {
-                $locked->raw_payload = array_merge($locked->raw_payload ?? [], ['webhook' => $rawPayload]);
-            }
-            $locked->save();
-
-            $membership = CustomerMembership::query()->whereKey($locked->customer_membership_id)->lockForUpdate()->first();
-            if (! $membership) {
-                return;
-            }
-
-            if (in_array($membership->status, [
-                CustomerMembership::STATUS_PENDING,
-                CustomerMembership::STATUS_OVERDUE,
-            ], true)) {
-                $membership->status = CustomerMembership::STATUS_ACTIVE;
-                $membership->save();
-            }
-        });
+        $this->recordLegacyPaymentStatus($payment, MembershipPaymentStatus::Paid);
     }
 
     public function markPaymentOverdue(MembershipPayment $payment): void
     {
-        DB::transaction(function () use ($payment): void {
-            $locked = MembershipPayment::query()->whereKey($payment->id)->lockForUpdate()->first();
-            if (! $locked) {
-                return;
-            }
-
-            if ($locked->status === MembershipPaymentStatus::Paid) {
-                return;
-            }
-
-            $locked->status = MembershipPaymentStatus::Overdue;
-            $locked->save();
-
-            $membership = CustomerMembership::query()->whereKey($locked->customer_membership_id)->lockForUpdate()->first();
-            if (! $membership) {
-                return;
-            }
-
-            $membership->status = CustomerMembership::STATUS_OVERDUE;
-            $membership->save();
-        });
+        $this->recordLegacyPaymentStatus($payment, MembershipPaymentStatus::Overdue);
     }
 
     public function markPaymentCanceled(MembershipPayment $payment): void
     {
-        DB::transaction(function () use ($payment): void {
-            $locked = MembershipPayment::query()->whereKey($payment->id)->lockForUpdate()->first();
-            if (! $locked) {
-                return;
-            }
-
-            $locked->status = MembershipPaymentStatus::Canceled;
-            $locked->save();
-
-            $membership = CustomerMembership::query()->whereKey($locked->customer_membership_id)->lockForUpdate()->first();
-            if (! $membership) {
-                return;
-            }
-
-            if ($membership->status === CustomerMembership::STATUS_PENDING) {
-                $membership->status = CustomerMembership::STATUS_CANCELED;
-                $membership->canceled_at = now();
-                $membership->save();
-            } elseif ($membership->status === CustomerMembership::STATUS_ACTIVE) {
-                $membership->status = CustomerMembership::STATUS_OVERDUE;
-                $membership->save();
-            }
-        });
+        $this->recordLegacyPaymentStatus($payment, MembershipPaymentStatus::Canceled);
     }
 
     public function markPaymentRefunded(MembershipPayment $payment): void
     {
-        DB::transaction(function () use ($payment): void {
-            $locked = MembershipPayment::query()->whereKey($payment->id)->lockForUpdate()->first();
-            if (! $locked) {
+        $this->recordLegacyPaymentStatus($payment, MembershipPaymentStatus::Refunded);
+    }
+
+    // Recording money never grants or revokes a legacy contract's benefits.
+    private function recordLegacyPaymentStatus(MembershipPayment $payment, MembershipPaymentStatus $status): void
+    {
+        DB::transaction(function () use ($payment, $status): void {
+            $locked = MembershipPayment::query()->whereKey($payment->id)->lockForUpdate()->firstOrFail();
+            if ($locked->status === MembershipPaymentStatus::Refunded
+                || ($locked->status === MembershipPaymentStatus::Paid && $status !== MembershipPaymentStatus::Refunded)) {
                 return;
             }
-
-            $locked->status = MembershipPaymentStatus::Refunded;
+            $locked->status = $status;
+            if ($status === MembershipPaymentStatus::Paid) {
+                $locked->paid_at ??= now();
+            }
             $locked->save();
-
-            $membership = CustomerMembership::query()->whereKey($locked->customer_membership_id)->lockForUpdate()->first();
-            if (! $membership) {
-                return;
-            }
-
-            $membership->status = CustomerMembership::STATUS_CANCELED;
-            $membership->canceled_at = now();
-            $membership->save();
         });
-    }
-
-    private function shouldMarkPaid(ParsedGatewayWebhook $parsed): bool
-    {
-        $event = Str::upper($parsed->event);
-        $status = Str::upper((string) ($parsed->providerPaymentStatus ?? ''));
-
-        if (in_array($event, ['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED_IN_UNIT'], true)) {
-            return true;
-        }
-
-        return in_array($status, ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH'], true);
-    }
-
-    private function shouldMarkOverdue(ParsedGatewayWebhook $parsed): bool
-    {
-        $event = Str::upper($parsed->event);
-        $status = Str::upper((string) ($parsed->providerPaymentStatus ?? ''));
-
-        return str_contains($event, 'OVERDUE') || $status === 'OVERDUE';
-    }
-
-    private function shouldMarkCanceled(ParsedGatewayWebhook $parsed): bool
-    {
-        $event = Str::upper($parsed->event);
-
-        return str_contains($event, 'DELETED') || str_contains($event, 'CANCELED');
-    }
-
-    private function shouldMarkRefunded(ParsedGatewayWebhook $parsed): bool
-    {
-        $event = Str::upper($parsed->event);
-
-        return str_contains($event, 'REFUNDED');
     }
 }

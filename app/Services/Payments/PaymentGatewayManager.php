@@ -7,13 +7,31 @@ use App\Exceptions\PaymentGatewayNotConfiguredException;
 use App\Models\Company;
 use App\Models\CompanyPaymentIntegration;
 use App\Services\Payments\Contracts\PaymentGatewayInterface;
+use App\Services\Payments\Contracts\V2\RecurringPaymentGatewayInterface;
 use App\Services\Payments\Gateways\AsaasGateway;
 use App\Services\Payments\Gateways\GalaxyPayGateway;
 use App\Services\Payments\Gateways\MercadoPagoGateway;
+use App\Services\Payments\V2\FinancialAccountContext;
+use App\Services\Payments\V2\FinancialAccountResolver;
 use InvalidArgumentException;
 
 class PaymentGatewayManager
 {
+    public function recurringGatewayFor(FinancialAccountContext $context): RecurringPaymentGatewayInterface
+    {
+        app(FinancialAccountResolver::class)->assertCurrent($context);
+        $integration = CompanyPaymentIntegration::query()->findOrFail($context->integrationId);
+        if (! $integration->active) {
+            throw new \DomainException('Conta desconectada não pode iniciar recorrência.');
+        }
+        $gateway = $this->gatewayFor($integration);
+        if (! $gateway instanceof RecurringPaymentGatewayInterface) {
+            throw new \DomainException('Este adapter ainda não implementa recorrência V2.');
+        }
+
+        return $gateway;
+    }
+
     public function resolveActiveIntegrationForMemberships(int $companyId): CompanyPaymentIntegration
     {
         $integration = CompanyPaymentIntegration::query()
